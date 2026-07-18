@@ -1,5 +1,7 @@
 # Eisen — V1 Architecture and Implementation Plan
 
+> **Planning status:** This is an architecture target plus an executable delivery plan. The repository currently contains no application, protocol, service, or test implementation, so implementation starts with the specification and repository bootstrap gates below. Cloud sync and relay remain V1 architecture targets, but relay is deliberately scheduled after the first durable cloud-sync release.
+
 ## 1. Product intent and V1 scope
 
 Eisen is a **local-first native** task application organized as an Eisenhower Matrix (urgent × important). A user's local device remains usable without an account, network connection, or sync service. Windows and Android are V1 targets. macOS is explicitly future scope and must not delay V1.
@@ -8,7 +10,7 @@ V1 offers three data-transport states for a vault:
 
 | State | V1 behavior | Availability trade-off |
 | --- | --- | --- |
-| Local only | Data remains on the device. | No multi-device recovery or sync. |
+| Local only | Data remains on the device unless the user explicitly exports/imports an encrypted recovery package. | No automatic multi-device sync; recovery requires the user-held package and deliberate restore. |
 | Encrypted cloud sync (optional) | Clients exchange encrypted, immutable operations through an opaque delivery store. | Devices may synchronize at different times. |
 | Volatile relay (optional) | Simultaneously connected peers exchange the same encrypted operations through a non-persistent relay. | A peer must be online; missed operations are not retained by the relay. |
 
@@ -85,33 +87,42 @@ The protocol schema, canonical serialization, and test vectors are shared artifa
 ### Device identities and enrollment
 
 - On first use, each device generates separate long-lived signing and encryption key pairs and a stable random `device_id`. Private identity material is held in platform secure storage. Public keys are published in the signed, non-secret membership manifest; the service may also receive the minimum routing copies it needs.
-- A new device is enrolled by an already enrolled device, preferably through an authenticated QR transfer. The QR flow must establish the intended peer/device identity, transfer or derive access to the vault key over an authenticated encrypted channel, and require user confirmation on both devices.
-- A recovery/passphrase flow is an alternative only when the user has deliberately configured one. It unwraps the vault key; it is not a new, server-known encryption key.
+- V1 has a separate owner signing key from device signing keys. The vault-creating device is the initial owner-authorized management device; ordinary enrolled devices cannot publish membership changes. A new device is enrolled by the owner device, preferably through an authenticated QR transfer. Transferring ownership requires an explicit owner-authorized operation and a new owner-key custody record.
+- The QR flow must establish the intended peer/device identity, transfer or derive access to the current epoch key over an authenticated encrypted channel, and require user confirmation plus a matching human-readable confirmation code on both devices. A QR capability is never sufficient by itself to authorize membership.
+- A recovery/passphrase flow is an alternative only when the user has deliberately configured one. It unwraps the encrypted local keyring and current/retained epoch keys; it is not a new, server-known encryption key.
 - Every enrollment has a durable membership mutation and a new signed membership manifest. Every operation envelope is signed by its origin device signing key; a recipient verifies that signature against the manifest version applicable to the envelope's epoch before decrypting or applying it. Transport account/session authentication only authorizes service access; it is not cryptographic authorization to create or apply a vault operation.
 
 ### Cryptographic membership control plane
 
-- A versioned, canonical, non-secret membership manifest contains the `vault_routing_id`, protocol version, membership version, key epoch and revocation/cutover state, enrolled device IDs, their signing and encryption public keys, and device status. It is signed by the V1 vault owner signing key. The owner key and signed genesis manifest are the trust anchor, created with the vault and retained in every recovery package; owner-controlled membership changes are the V1 authorization policy (multi-owner quorum is deferred).
-- An owner-authorized device creates each replacement manifest, increments its membership version, and signs it with the owner key; all clients verify a contiguous chain to genesis, reject forks or unauthorized changes, and retain applicable historical manifests. A device may not self-enroll, revoke, or rotate membership merely because it has a valid service token.
+- A versioned, canonical, non-secret membership manifest contains the `vault_routing_id`, protocol version, membership version, key epoch and revocation/cutover state, enrolled device IDs, their signing and encryption public keys, device status, and the owner-management device ID. It is signed by the separate V1 vault owner signing key. The owner key and signed genesis manifest are the trust anchor, created with the vault and retained in every recovery package; owner-controlled membership changes are the V1 authorization policy (multi-owner quorum is deferred).
+- The owner-management device creates each replacement manifest, increments its membership version, and signs it with the owner key; all clients verify a contiguous chain to genesis, reject forks or unauthorized changes, and retain applicable historical manifests. A device may not self-enroll, revoke, transfer ownership, or rotate membership merely because it has a valid service token.
 - Cloud membership endpoints distribute immutable manifest versions, and peers exchange them during enrollment and relay reconciliation. Recipients fetch missing versions, verify them before use, and validate each envelope against its declared epoch and the corresponding applicable manifest. The service can authenticate uploaders and enforce a presented manifest version, but cannot replace client signature validation.
 
 ### QR, recovery, and revocation boundaries
 
 - QR codes may contain a short-lived enrollment capability, public keys, protocol version, and connection/bootstrap information. They must not contain a raw vault key, a reusable account password, or unbounded sensitive history.
 - Enrollment capabilities are high entropy, single-use where a service participates, expire quickly, and are invalidated after completion/cancellation. Display a human-verifiable confirmation code in addition to QR scanning.
-- V1 recovery is a **user-held encrypted recovery package**, generated client-side and never uploaded as plaintext. It contains a versioned package header, vault routing ID/restore locator, encrypted vault-root and current-epoch material, the genesis trust anchor and required membership manifests, package nonce/ciphertext/tag, and the versioned Argon2id salt and parameters used to derive its passphrase credential. AEAD verification is mandatory before any key or metadata is used. To restore, the user supplies the package and passphrase, the client validates format/KDF limits and AEAD, restores keys and trust state into secure storage, then uses the locator plus separately authenticated account/device enrollment to obtain a compatible snapshot and later operations. The service cannot validate or reset the passphrase. A cloud-hosted encrypted recovery record is explicitly deferred and is not a V1 alternative.
+- V1 recovery is a **user-held encrypted recovery package**, generated client-side and never uploaded as plaintext. It contains a versioned package header, vault routing ID/restore locator, the encrypted owner key, current and retained historical epoch-key material needed to decrypt retained history, the genesis trust anchor and required membership manifests, package nonce/ciphertext/tag, and the versioned Argon2id salt and parameters used to derive its passphrase credential. AEAD verification is mandatory before any key or metadata is used. To restore, the user supplies the package and passphrase, the client validates format/KDF limits and AEAD, restores keys and trust state into secure storage, creates a fresh device/nonce domain, then uses the locator plus separately authenticated account/device enrollment to obtain a compatible snapshot and later operations. The service cannot validate or reset the passphrase. A cloud-hosted encrypted recovery record is explicitly deferred and is not a V1 alternative.
 - Revocation is advisory until rotation: possession of an old signing key cannot prove when an old-epoch envelope was created. The owner publishes the revocation/rotation manifest, encrypts the new root/epoch material separately to each remaining recipient's manifest encryption public key, and establishes a documented cutover after confirmed distribution or a declared deadline. At cutover, clients and services accept only new-epoch envelopes/signatures and reject all old-epoch envelopes, including legitimate previously unseen offline mutations. Such a device must be re-enrolled; its user may manually review and reissue desired changes as new operations. Revocation cannot retract ciphertext already copied by that device, erase plaintext it already read, or guarantee deletion of previously delivered server ciphertext.
 
 ## 5. Key hierarchy and encrypted envelope
 
 ### Key lifecycle
 
-1. Generate a random 256-bit vault root key on the client using a cryptographically secure RNG. Never derive this root directly from a passphrase.
-2. Store the root key (or a device-specific wrapping key for it) in platform secure storage. The local database stores only encrypted records and non-secret operational metadata.
-3. When a user elects a recovery/passphrase option, derive a passphrase wrapping key using **Argon2id** with a unique random salt and versioned, stored parameters selected for the supported devices. Use it only to wrap the random vault key. Parameter values are configuration/version data, not protocol magic constants; benchmark and set them before release.
-4. Derive subkeys from the vault root using HKDF with explicit, versioned context labels. Mutation and snapshot encryption keys are scoped at least by epoch, purpose, and origin device; membership/enrollment material and local database wrapping use separate purposes. Do not reuse an encryption key across unrelated purposes or origin devices.
+1. Generate a random 256-bit epoch-root key for epoch `0` on the client using a cryptographically secure RNG. Never derive this key directly from a passphrase; generate the owner signing key separately.
+2. Store the current epoch key, required historical epoch keys, and owner key (or device-specific wrapping keys for them) in platform secure storage. The local database stores only encrypted records and non-secret operational metadata.
+3. When a user elects a recovery/passphrase option, derive a passphrase wrapping key using **Argon2id** with a unique random salt and versioned, stored parameters selected for the supported devices. Use it only to wrap the encrypted keyring. Parameter values are configuration/version data, not protocol magic constants; benchmark and set them before release.
+4. Derive subkeys from the applicable epoch-root key using HKDF with explicit, versioned context labels. Mutation and snapshot encryption keys are scoped at least by epoch, purpose, and origin device; membership/enrollment material and local database wrapping use separate purposes. Do not reuse an encryption key across unrelated purposes or origin devices.
 5. For each origin-device encryption key, reserve and persist a strictly monotonic nonce counter before encryption; a crash may leave gaps but must never reuse a reservation. The AES-GCM nonce is constructed from the device's protocol-defined nonce domain and that counter, never selected randomly. Phase 0 must freeze the exact byte layout, counter width, encoding, initial value, and maximum-use limit; counters cannot reset or be restored from backup under the same key, and encryption stops for that key on exhaustion until a new authorized key epoch/device key is established.
 6. Zeroize transient secret buffers where platform/runtime facilities make that meaningful, and never log keys, decrypted payloads, passphrases, QR enrollment secrets, or recovery data.
+
+### Key-epoch rules that implementation must preserve
+
+- The initial vault key material is a random epoch-root key for epoch `0`; the owner signing key is a separate root-of-trust key and is never derived from the vault key or a passphrase.
+- A rotation generates a fresh random epoch-root key. A future epoch key is never derivable from a previous epoch key, because a revoked device may still possess every key it previously received. The new epoch-root key is wrapped separately to each remaining device's encryption public key and retained locally only for devices authorized for that epoch.
+- Historical epoch keys remain available to authorized clients while retained mutations and snapshots require them. The recovery package contains the retained key history required by its declared retention boundary, not merely the current key. A package created before a later rotation must be explicitly refreshed if it is intended to restore the later epoch.
+- Each origin-device nonce domain is bound to `(vault, key_epoch, purpose, device_id, key_version)`. Restoring a database backup, cloning an app profile, or losing anti-rollback state must invalidate the old origin key/domain and create a fresh device identity before any new encryption. If the client cannot prove that a counter has not rolled back, it must fail closed for writes and offer recovery or re-enrollment rather than guessing.
+- Owner-key custody, ownership transfer, epoch-key distribution, cutover deadlines, and the retention boundary are protocol records with vectors; they are not implicit UI state.
 
 ### Versioned envelope contract
 
@@ -142,9 +153,31 @@ Each client has one transactional local store containing:
 - per-transport receive cursors/checkpoints and deduplication indexes;
 - membership/revocation state, HLC state, key epoch, and snapshot/compaction metadata.
 
+The local-at-rest contract is explicit: the database, WAL/journal, temporary tables, full-text/search indexes, local snapshots, migration backups, exports while staged, and crash artifacts are either encrypted with a separately scoped local database key or excluded from disk. A platform keystore protects the database/root wrapping material; it does not by itself encrypt arbitrary database pages. Plaintext task data may exist in process memory while the vault is unlocked, but must not be written to logs, analytics, crash reports, clipboard history, notifications, or app-switcher previews where platform controls permit suppression.
+
 A local user action first durably reserves its nonce counter (a separate reservation commit is allowed and gaps are safe), then commits the action transaction: advance/persist HLC, construct and encrypt the immutable mutation, insert it into the log, update the materialized view according to merge rules, and enqueue it in the outbox. UI success is shown after the action transaction, not after network delivery.
 
 The encrypted plaintext of each task mutation carries a stable random task ID, operation ID, originating device ID and sequence, HLC timestamp, mutation kind, and either a complete field update or a clearly versioned patch. For V1, prefer field-level last-writer-wins registers so independent edits (for example title and completion) do not overwrite each other unnecessarily. Every mutable field stores its winning version tuple.
+
+### V1 task schema and merge state machine
+
+The protocol specification must freeze a minimal task schema before either client implements persistence. The working schema is:
+
+| Field | Merge rule | Notes |
+| --- | --- | --- |
+| `task_id` | Immutable identity | Random 128-bit identifier; never derived from title or account. |
+| `title` | Field-level LWW register | Required non-empty value after trimming; length-limited. |
+| `notes` | Field-level LWW register | Optional bounded text; no server-side search. |
+| `quadrant` | Field-level LWW register | Enum of the four urgent/important combinations. |
+| `completed` | Field-level LWW register | Completion is a normal field update, not a local-only flag. |
+| `completed_at` | Coupled with `completed` | Set/cleared by the same logical mutation; display time is not the ordering key. |
+| `created_at` | Immutable first-write metadata | HLC and device ID are retained for audit/display only. |
+| `updated_at` | Derived display metadata | The winning field version is authoritative; wall time is not. |
+| `deleted` | Tombstone register | Only an explicit newer `task.restore` can make a deleted task visible. |
+
+Required mutation kinds are `task.create`, `task.update`, `task.complete`, `task.restore`, `task.delete`, and `task.purge-request` (the final kind is local-only until its retention and transport implications are specified). Every field update includes its value, field name, and version tuple; a client applies a mutation by comparing each tuple independently, then recomputes the materialized view. Applying the same operation twice is a no-op. A task update that targets a tombstoned task remains in the immutable log and may update hidden field registers, but never clears the tombstone. The UI must expose enough history or conflict evidence for users to understand when a concurrent LWW update won.
+
+The merge implementation must be accompanied by a small reference model and a table-driven state-machine suite covering every pair of mutation kinds, same-field ties, stale restores, duplicate operations, and operations arriving after compaction.
 
 ### HLC and ordering
 
@@ -177,6 +210,8 @@ Cloud and relay carry the **same immutable encrypted operation envelopes** and u
 - Cloud cursors are opaque monotonically advancing delivery positions supplied by the cloud store; clients must not infer task order from them. Fetch APIs support bounded pagination, an `after_cursor`, a page limit, and a continuation cursor.
 - A bootstrap obtains a versioned encrypted snapshot plus a watermark/cursor and signed snapshot manifest, verifies and commits them, then downloads operations after that watermark. A snapshot is an optimization, not an authority: it is generated from canonical mutation state and includes compaction frontier information.
 - A snapshot manifest has canonical schema/protocol version, key epoch, membership version, snapshot/envelope digests, per-origin sequence/range coverage, a commitment to full materialized state and tombstone state, source device ID/signature, and retention boundary. Clients accept it only if the source was authorized by the applicable manifest, signature and commitments verify, and its epoch/membership schema is compatible; they then reconcile operations not covered by it. Multiple snapshots may exist.
+- A snapshot is never allowed to erase locally known operations merely because it is newer in server order. Before install, the client verifies that every claimed covered range is represented by the snapshot commitment or remains available for replay, that the snapshot is not older than the local durable checkpoint for any origin, and that its retention boundary is compatible with the device's declared recovery needs. An older valid snapshot may be used as an additional source for missing state, but not as a replacement for newer local state.
+- A signed snapshot authenticates the producing device and its commitments; it does not prove that a malicious authorized device included every operation it should have seen. Clients therefore preserve local operations, require explicit coverage/range evidence, and surface a repair condition when a snapshot omits an operation inside its claimed coverage. Snapshot selection and rollback tests must cover stale snapshots, valid snapshots with incomplete coverage, conflicting manifests, and service replay of an older snapshot.
 - The client periodically publishes/uploads snapshots only through this authenticated snapshot process. No client or service may prune an operation until at least one recoverable, compatible, verified snapshot covers it and the conservative acknowledgement/retention policy permits pruning. Server retention/expiry may force a full resync.
 - If a cursor is expired, state is inconsistent, an envelope is missing, or corruption is detected, preserve the local vault, mark sync as needing repair, and execute full resync: obtain a compatible snapshot, replay available operations, compare/checkpoint state, and surface any unrecoverable discrepancy. Never replace local data silently.
 
@@ -305,7 +340,7 @@ CI must run protocol vectors and merge tests for every client implementation. A 
 
 ### Phase 1 — Local vault, crypto, and merge core
 
-- [ ] Implement encrypted local vault storage, secure key handling, random vault-key generation, the user-held Argon2id/AEAD recovery package, epoch/purpose/origin HKDF subkeys, persisted nonce counters, and signed versioned AES-GCM envelopes.
+- [ ] Implement encrypted local vault storage, secure key handling, random epoch-root-key generation, the user-held Argon2id/AEAD recovery package, epoch/purpose/origin HKDF subkeys, persisted nonce counters, and signed versioned AES-GCM envelopes.
 - [ ] Implement immutable mutation log, HLC persistence, operation-ID/digest dedupe integrity, transactional materialized view, tombstones/restores, manifest/snapshot verification, per-origin range inventory, outbox, snapshots, and full-resync primitives.
 - [ ] Implement protocol/merge/crypto vectors and fault/property tests independently on Windows and Android. Do not begin polished UI or service work until cross-client vectors and convergence tests pass.
 
@@ -349,3 +384,156 @@ CI must run protocol vectors and merge tests for every client implementation. A 
 - [ ] User-held recovery packages validate KDF-version/limits and AEAD before restore, restore trust/key state without server passphrase reset, and clearly identify the required locator and credential.
 - [ ] Lost, replaced, and revoked devices have clear UX; revocation is described as advisory until rotation, cutover rejects previously unseen old-epoch mutations, and per-recipient new-epoch delivery is verified.
 - [ ] Cloud status says only “caught up through last observed cloud cursor” and relay status only “reconciled with currently connected peers,” with withholding/unavailable-peer caveats.
+
+## 16. Delivery strategy and release slices
+
+The architecture supports three transports, but implementing all three before proving the local protocol would create an avoidable failure surface. The following slices are the release order, not a relaxation of the security requirements:
+
+### Slice 0 — Protocol laboratory
+
+No user-facing application is released. Build the canonical schema, reference merge model, crypto/envelope vectors, negative vectors, fault-injection harness, and repository CI. This slice ends only when Windows and Android implementations can independently verify the same vectors.
+
+### Slice 1 — Local-only product
+
+Ship the smallest useful native experience: create/unlock vault, create/edit/complete/restore/delete/move tasks, encrypted local persistence, local export/import, recovery package, repair flow, and honest local-only status. Do not expose “sync-ready” language until recovery and database rollback behavior are tested.
+
+### Slice 2 — Cloud-sync beta
+
+Add account/session boundaries, owner-controlled enrollment, opaque append/read delivery, durable outbox, snapshots, cursor expiry, full resync, quotas, observability, and support runbooks. The beta must prove that the service cannot decrypt task content and that service authentication cannot authorize a forged operation.
+
+### Slice 3 — Cloud-sync release hardening
+
+Run staged rollout, migration/rollback rehearsal, restore and retention exercises, independent crypto/protocol review, load/fuzz testing, and cross-platform lifecycle testing. “Caught up” remains evidence-bound to the last observed cloud cursor; it is never marketed as proof that every device has received the data.
+
+### Slice 4 — Volatile relay
+
+Implement relay only after Slice 2 has stable reconciliation and repair behavior. Relay is opt-in, best effort, and never a prerequisite for local use or durable recovery. Its release gate must include an independent demonstration that no operation payload is persisted by the relay outside bounded active-session memory.
+
+## 17. Decisions that must close before implementation
+
+The following are not “nice to have” choices. Each must have an ADR, a protocol consequence analysis, and executable tests before the relevant phase starts.
+
+| ID | Decision | Working direction | Required evidence |
+| --- | --- | --- | --- |
+| D-001 | Windows and Android stacks | Select one supported native stack per platform, minimum OS versions, lifecycle APIs, and release/signing approach. | Spike builds, secure-storage proof, background/lifecycle test. |
+| D-002 | Canonical serialization | Prefer a deterministic, bounded binary format with duplicate-field rejection; record canonical map ordering and integer/string rules. | Cross-language byte-for-byte vectors and malformed-input tests. |
+| D-003 | Cryptographic suite | Approve AES-GCM, HKDF, Argon2id, digest, signing, and authenticated key-exchange algorithms only through maintained platform-reviewed libraries. | API capability matrix, benchmark, negative vectors, independent review plan. |
+| D-004 | Owner-key custody | Separate owner signing key; one owner-management device in V1; encrypted recovery package is the loss/replacement path. | Enrollment, transfer, loss, restore, and unauthorized-manifest tests. |
+| D-005 | Epoch rotation | Fresh random epoch-root key per rotation; never derive future epochs from revoked-device-held keys; retain historical keys to the declared boundary. | Cutover tests including unseen old-epoch operations and package restore. |
+| D-006 | Task merge contract | Field-level LWW registers with explicit tombstone/restore semantics and a deterministic tuple comparator. | Reference model, permutation/property tests, UX evidence for overwritten edits. |
+| D-007 | Local encryption | Encrypt the database and all disk-backed derivatives with a scoped local key; define WAL, backup, cache, search, and export behavior. | Storage inspection, crash tests, secure-storage loss flow. |
+| D-008 | Counter rollback policy | A restored/cloned profile gets a new device/nonce domain; uncertain counter state fails closed. | Backup rollback, image clone, crash, and secure-storage rollback tests. |
+| D-009 | Snapshot acceptance | Snapshots are signed optimization artifacts with explicit per-origin coverage and monotonic local checkpoint rules, never authoritative replacement state. | Stale, omitted-range, replay, corruption, and repair tests. |
+| D-010 | Cloud consistency | Define append idempotency, digest conflict behavior, cursor ordering/expiry, receipt durability, read-after-write expectations, and retention semantics. | API contract tests plus a fault-injected reference service. |
+| D-011 | Recovery boundary | A package restores local trust/key state without a server passphrase reset; cloud retrieval is optional and separately authenticated. | Offline restore, no-account restore, incompatible-locator, and wrong-passphrase tests. |
+| D-012 | Relay launch bar | Relay is not a durable store, has bounded memory, and uses the same anti-entropy protocol as cloud. | Persistence audit, flood/backpressure tests, reconnect convergence tests. |
+
+## 18. Protocol contract deliverables
+
+Phase 0 is complete only when the following artifacts are committed and reviewed. Prose requirements alone do not satisfy the gate.
+
+1. **Canonical encoding specification:** field types, required/optional fields, ordering, integer widths, Unicode normalization policy, length limits, duplicate-field behavior, version negotiation, and digest input.
+2. **Envelope verification algorithm:** a numbered fail-closed order: size/structure limits, version, canonical re-encoding, routing scope, operation identity, manifest lookup, signature, nonce/key-domain checks, AEAD, plaintext schema, then merge transaction. The algorithm must state which failures are retryable and which quarantine the vault.
+3. **Mutation state machine:** valid transitions for create, update, complete, restore, delete, purge request, membership, revocation, and epoch cutover. Include whether a mutation is safe to retry and whether it is allowed before/after a cutover.
+4. **Enrollment handshake:** owner-device initiation, new-device key generation, QR payload, short-lived capability, authenticated key exchange, confirmation-code comparison, encrypted epoch-key transfer, membership publication, cancellation timeout, and capability invalidation. Define the behavior when either device disappears at every step.
+5. **Recovery-package specification:** outer header, KDF parameters and limits, AEAD associated data, encrypted keyring contents, trust anchors, retention boundary, locator, package versioning, and restore transaction. A wrong passphrase must not reveal whether a locator or account exists.
+6. **Cloud API contract:** authentication versus vault authorization, request/response schemas, bounded batch sizes, idempotency keys, digest-bound receipts, pagination, cursor expiry, snapshot endpoints, error codes, quotas, and retry guidance. Every response must say whether the server durably accepted, temporarily deferred, or rejected an item.
+7. **Relay protocol contract:** handshake authentication, manifest exchange, inventory/range encoding, frame limits, acknowledgement meaning, timeout/backpressure behavior, and reconnect rules. Relay inventory must never be represented as a cloud cursor.
+8. **Error taxonomy:** stable client/service error codes grouped into invalid input, unsupported version, authentication failure, authorization failure, integrity failure, unavailable transport, quota/limit, repair required, and key material unavailable. Errors must not reveal plaintext or secret-bearing diagnostics.
+9. **Compatibility policy:** protocol versions, schema migrations, minimum readable version, deprecation window, key-epoch compatibility, downgrade prevention, and rollback behavior for partially deployed clients.
+
+## 19. Repository bootstrap and engineering layout
+
+Before feature work, create the buildable repository skeleton and make every check runnable locally and in CI. The illustrative layout becomes concrete as follows:
+
+```text
+clients/windows/              native app, UI, lifecycle, local adapters
+clients/android/              native app, UI, lifecycle, local adapters
+core/reference/               reference merge/state model and test oracle
+core/protocol/                generated/manual protocol types and validators
+protocol/spec/                versioned schemas, encoding, crypto, API contracts
+protocol/vectors/             valid, negative, migration, and cross-platform vectors
+server/cloud/                 opaque delivery API, store adapter, migrations
+server/relay/                 bounded volatile relay and protocol adapter
+storage/                      schema definitions, migrations, fault-test fixtures
+tests/property/               permutation, replay, fuzz, and model-based tests
+tests/integration/            cloud, relay, lifecycle, and recovery scenarios
+docs/adr/                     one ADR per decision in Section 17
+docs/runbooks/                incident, restore, retention, key compromise, support
+ops/                           deployment manifests, dashboards, alerts, load tooling
+tools/                         vector runner, schema checker, secret/log scanner
+```
+
+The initial CI pipeline must run formatting, static analysis, dependency/license/SBOM checks, protocol vector verification, reference-model tests, schema compatibility checks, secret scanning, and unit tests. Platform-specific builds may run on platform runners, but a protocol-vector failure blocks every client release. Pin dependencies and record reproducible build inputs before cloud credentials or production infrastructure are introduced.
+
+## 20. Workstreams and dependency graph
+
+| Workstream | Owns | Depends on | Exit artifact |
+| --- | --- | --- | --- |
+| W0 Specification | ADRs, threat model, schema, vectors, error taxonomy | None | Gate 0 evidence bundle. |
+| W1 Core correctness | HLC, merge model, envelope validation, key lifecycle, counters, local transaction rules | W0 | Cross-platform core test report. |
+| W2 Local storage | Encrypted DB, migrations, snapshots, outbox, repair, export/import | W0, W1 | Fault-injection and restore report. |
+| W3 Native clients | Windows/Android unlock, matrix, task flows, lifecycle, status and recovery UX | W1, W2 | Slice 1 release candidate. |
+| W4 Cloud service | Auth, enrollment endpoints, opaque append/read, cursors, snapshots, quotas, operations | W0, W1 | Staging service contract report. |
+| W5 Cloud integration | Client transport adapter, bootstrap, retry, receipts, compaction, repair UX | W2, W4 | Slice 2 beta evidence. |
+| W6 Relay | WSS capability, peer inventory, bounded routing, backpressure, reconnect | W1, W5 | Slice 4 relay evidence. |
+| W7 Assurance/operations | Fuzzing, load, review, observability, deployment, support, disaster recovery | W2, W4, W5 | Public-release evidence bundle. |
+
+The critical path is W0 → W1/W2 → W3 → W4/W5 → W7. W6 is intentionally off the critical path for the first durable sync release. No workstream may introduce a protocol field, key rule, or merge behavior without updating the specification and vectors in W0.
+
+## 21. Phase gates and acceptance evidence
+
+The checkbox phases in Section 14 are implementation groupings. The following gates are release decisions; passing a phase checklist without its gate evidence is insufficient.
+
+### Gate 0 — Protocol and product freeze
+
+**Entry:** repository bootstrap begins. **Exit:** all D-001 through D-011 decisions have approved ADRs; canonical and negative vectors exist; task schema and snapshot rules are frozen; no unresolved critical threat-model finding remains; the first release slice is explicitly local-only followed by cloud sync. Evidence is the signed-off specification bundle and CI output.
+
+### Gate 1 — Durable local vault
+
+**Exit criteria:** offline task operations work on both platforms; forced crashes at each transaction boundary recover without an empty replacement vault; migrations are resumable; encrypted storage inspection finds no prohibited plaintext; export/import and recovery package restore work without network access; uncertain nonce state fails closed. Evidence includes fault-test logs, storage inspection, and recovery walkthroughs.
+
+### Gate 2 — Cross-platform convergence
+
+**Exit criteria:** Windows and Android consume identical vectors; arbitrary valid permutations, duplication, delay, replay, and reordering converge to the same materialized state; HLC rollback/skew, tombstone/restore, epoch, and counter tests pass; merge-history UX is defined. Evidence includes model-based test results and a device-matrix report.
+
+### Gate 3 — Cloud-sync beta
+
+**Exit criteria:** staging verification demonstrates the service cannot decrypt task content; append retries are idempotent; operation-ID/digest conflicts fail closed; acknowledgements occur after local durable commit; cursor expiry, missing operation, snapshot bootstrap, retention, outbox recovery, and full resync are tested; service tokens cannot authorize forged operations. Evidence includes an adversarial staging report and API fault matrix.
+
+### Gate 4 — Relay release
+
+**Exit criteria:** relay persistence is independently tested and absent outside bounded active-session state; capability theft, peer flooding, oversized frames, slow peers, reconnects, and dropped frames are safe; relay status never implies backup; dual transport dedupe converges. Evidence includes a persistence audit and resource-limit test report.
+
+### Gate 5 — Public release
+
+**Exit criteria:** independent crypto/protocol review is closed or has explicitly accepted residual findings; fuzz, load, migration, lifecycle, backup/restore, and disaster-recovery tests pass; signed reproducible builds, rollback procedures, dashboards, alerts, privacy documentation, support guidance, and staged rollout are operational. Evidence is the release-readiness packet approved by engineering, security, privacy, and operations.
+
+## 22. Risk register and mitigations
+
+| Risk | Severity | Mitigation and trigger |
+| --- | --- | --- |
+| Custom protocol or crypto integration defect | Critical | Keep algorithms in reviewed libraries, maintain negative vectors, prohibit ad hoc primitives, and require independent review before sync release. Any unexplained verification discrepancy blocks the release. |
+| Nonce reuse after backup/image rollback | Critical | Bind counters to device/key domains, detect rollback, rotate identity on restore, and fail closed when state is uncertain. Any counter collision is a key-compromise incident. |
+| Owner-key compromise or ambiguous custody | Critical | Separate owner key from device keys, limit V1 ownership to one management device, encrypt it in recovery packages, log membership mutations, and require explicit transfer/recovery UX. |
+| Valid but stale or incomplete snapshot | High | Require signed coverage commitments, monotonic local checkpoints, preserve local history, and enter repair rather than replacing state. |
+| Deterministic LWW hides a user edit | High | Keep immutable history, show conflict/change evidence, provide local undo where safe, and document that convergence is not the same as semantic conflict prevention. |
+| Compaction strands an offline device | High | Conservative retention, verified recoverable snapshots, explicit retention boundary, stale-device bootstrap, and no pruning without coverage evidence. |
+| Android lifecycle/vendor behavior loses progress | Medium | Treat process death and Doze as normal, commit before background work, use supported scheduling, and test the vendor/OS support matrix. |
+| Scope overwhelms the first release | High | Enforce Slice 1 → Slice 2 → Slice 4 ordering; relay and aggressive compaction cannot block the local/cloud release. |
+| Service metadata is overpromised as private | Medium | Product copy, telemetry review, and support docs must state visible metadata and availability limitations in Section 2. |
+
+## 23. Definition of done for implementation work
+
+No protocol or storage task is complete until all applicable items below are true:
+
+- The behavior is specified, versioned, and covered by at least one positive and one negative vector.
+- The reference model and both client implementations agree on canonical bytes and resulting state.
+- Retry, restart, duplicate, reordering, partial-write, and corruption behavior is tested where relevant.
+- Secret-bearing values are absent from logs, telemetry, crash reports, test fixtures, and committed files.
+- Limits are enforced before expensive parsing, allocation, decryption, or database writes.
+- Migrations are resumable and tested from every supported prior schema.
+- User-facing failure states explain what is preserved, what action is available, and what is not guaranteed.
+- Documentation, runbooks, compatibility notes, and release evidence are updated in the same change.
+
+The first implementation backlog should therefore be: repository/CI bootstrap; decision ADRs; canonical schema and vector runner; reference merge model; envelope/key/counter test harness; encrypted local-store spike; Windows/Android secure-storage spikes; local task vertical slice; recovery/export vertical slice; fault-injection harness; cloud API contract and fake service; then cloud integration. Relay work starts only after Gate 3 is passed.

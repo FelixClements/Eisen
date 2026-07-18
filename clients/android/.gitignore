@@ -1,0 +1,42 @@
+# Gradle
+.gradle/
+/build/
+**/build/
+
+# Local configuration
+local.properties
+/local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+
+# Android generated files
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# APKs and bundles
+*.apk
+*.ap_
+*.aab
+
+# Signing files and secrets
+*.jks
+*.keystore
+keystore.properties
+
+# Kotlin/Java build outputs
+*.class
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local deepwork session state
+.slim/deepwork/
