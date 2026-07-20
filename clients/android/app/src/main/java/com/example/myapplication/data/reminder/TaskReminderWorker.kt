@@ -68,6 +68,7 @@ class TaskReminderWorker(
             TaskReminderNotifications.notificationId(taskId),
             Intent(applicationContext, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(EXTRA_TASK_ID, taskId)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
@@ -76,7 +77,7 @@ class TaskReminderWorker(
             TaskReminderNotifications.CHANNEL_ID,
         )
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Task reminder")
+            .setContentTitle("Priority Ledger reminder")
             .setContentText(taskBeforePosting.title)
             .setContentIntent(openAppIntent)
             .setAutoCancel(true)
@@ -91,6 +92,7 @@ class TaskReminderWorker(
     companion object {
         const val KEY_TASK_ID = "taskId"
         const val KEY_EXPECTED_REMINDER_AT = "expectedReminderAt"
+        const val EXTRA_TASK_ID = "com.example.myapplication.EXTRA_TASK_ID"
         private const val NO_TASK_ID = Long.MIN_VALUE
         private const val NO_REMINDER = Long.MIN_VALUE
     }

@@ -23,6 +23,9 @@ class LocalTaskRepository(
     override fun observeArchivedTasks(): Flow<List<Task>> =
         taskDao.observeArchivedTasks().map { entities -> entities.map { it.toDomain() } }
 
+    override fun observeAllTasks(): Flow<List<Task>> =
+        taskDao.observeAllTasks().map { entities -> entities.map { it.toDomain() } }
+
     override fun searchTasks(query: String): Flow<List<Task>> =
         taskDao.searchTasks(query).map { entities -> entities.map { it.toDomain() } }
 
@@ -53,6 +56,10 @@ class LocalTaskRepository(
                 updatedAt = clock(),
             )
         )
+    }
+
+    override suspend fun unarchiveTask(id: Long) {
+        taskDao.unarchiveTask(id, clock())
     }
 
     override suspend fun deleteTask(id: Long) {

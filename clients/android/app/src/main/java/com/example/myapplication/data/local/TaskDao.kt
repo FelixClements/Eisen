@@ -37,6 +37,9 @@ interface TaskDao {
     )
     fun observeArchivedTasks(): Flow<List<TaskEntity>>
 
+    @Query("SELECT * FROM tasks ORDER BY updatedAt DESC")
+    fun observeAllTasks(): Flow<List<TaskEntity>>
+
     @Query(
         """
         SELECT * FROM tasks
@@ -58,6 +61,9 @@ interface TaskDao {
 
     @Update
     suspend fun updateTask(entity: TaskEntity)
+
+    @Query("UPDATE tasks SET isArchived = 0, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun unarchiveTask(id: Long, updatedAt: Long)
 
     @Delete
     suspend fun deleteTask(entity: TaskEntity)

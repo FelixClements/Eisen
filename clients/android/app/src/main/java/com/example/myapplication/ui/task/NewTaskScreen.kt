@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
@@ -39,6 +40,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,20 +49,16 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,10 +93,8 @@ import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.ui.category.presentation
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.ledgerCategoryColors
-import java.text.DateFormat
+import com.example.myapplication.ui.util.DateTimeUtils
 import java.util.Calendar
-import java.util.Date
-import java.util.TimeZone
 import kotlinx.coroutines.launch
 
 private const val TitleFieldTag = "new-task-title"
@@ -112,19 +109,24 @@ private val FormMaxWidth = 720.dp
 @Composable
 fun NewTaskScreen(
     defaultCategory: EisenhowerCategory,
-    onSaveTask: (String, EisenhowerCategory, String?, Long?, Long?) -> Unit,
+    onSaveTask: (String, EisenhowerCategory, String?, Long?, Long?, String?, onDone: (Result<*>) -> Unit) -> Unit,
+    onTaskSaved: () -> Unit = {},
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var title by rememberSaveable { mutableStateOf("") }
     var notes by rememberSaveable { mutableStateOf("") }
+    var taskCategory by rememberSaveable { mutableStateOf("") }
     var dueDate by rememberSaveable { mutableStateOf<Long?>(null) }
     var reminderAt by rememberSaveable { mutableStateOf<Long?>(null) }
     var reminderDate by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedCategory by rememberSaveable { mutableStateOf(defaultCategory) }
     var titleError by rememberSaveable { mutableStateOf<String?>(null) }
+    var saveError by rememberSaveable { mutableStateOf<String?>(null) }
+    var isSaving by rememberSaveable { mutableStateOf(false) }
     var showDiscardConfirmation by rememberSaveable { mutableStateOf(false) }
     var showShortcutHelp by rememberSaveable { mutableStateOf(false) }
+    var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
     var showDueDatePicker by rememberSaveable { mutableStateOf(false) }
     var showReminderDatePicker by rememberSaveable { mutableStateOf(false) }
     var showReminderTimePicker by rememberSaveable { mutableStateOf(false) }
@@ -152,13 +154,15 @@ fun NewTaskScreen(
     }
 
     fun hasDraft(): Boolean =
-        title.isNotBlank() ||
-            notes.isNotEmpty() ||
-            dueDate != null ||
-            reminderAt != null ||
-            selectedCategory != defaultCategory
+        !isSaving &&
+            (title.isNotBlank() ||
+                notes.isNotEmpty() ||
+                dueDate != null ||
+                reminderAt != null ||
+                selectedCategory != defaultCategory)
 
     fun requestCancel() {
+        if (isSaving) return // don't interrupt save
         if (hasDraft()) {
             showDiscardConfirmation = true
         } else {
@@ -167,6 +171,7 @@ fun NewTaskScreen(
     }
 
     fun save() {
+        if (isSaving) return // prevent duplicate taps
         val trimmedTitle = title.trim()
         if (trimmedTitle.isBlank()) {
             titleError = "Task title is required."
@@ -178,8 +183,35 @@ fun NewTaskScreen(
             return
         }
 
+        saveError = null
+        val now = System.currentTimeMillis()
+        if (reminderAt != null && reminderAt!! < now) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar("Reminder is in the past and will not fire.")
+            }
+        }
+
+        isSaving = true
         val trimmedNotes = notes.trim().takeIf { it.isNotBlank() }
-        onSaveTask(trimmedTitle, selectedCategory, trimmedNotes, dueDate, reminderAt)
+        val trimmedCategory = taskCategory.trim().takeIf { it.isNotBlank() }
+        onSaveTask(trimmedTitle, selectedCategory, trimmedNotes, dueDate, reminderAt, trimmedCategory) { result ->
+            isSaving = false
+            if (result.isSuccess) {
+                onTaskSaved()
+            } else {
+                saveError = "Could not save task. Check your connection and try again."
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = "Failed to save task",
+                        actionLabel = "Retry",
+                    ).let { action ->
+                        if (action == SnackbarResult.ActionPerformed) {
+                            save()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun requestNotificationPermissionIfNeeded() {
@@ -236,22 +268,38 @@ fun NewTaskScreen(
             TopAppBar(
                 title = { Text("New Task") },
                 actions = {
-                    TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(
-                            TooltipAnchorPosition.Above,
-                        ),
-                        tooltip = { PlainTooltip { Text("Composer keyboard shortcuts") } },
-                        state = rememberTooltipState(),
-                    ) {
-                        IconButton(onClick = { showShortcutHelp = true }) {
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                contentDescription = "Composer keyboard shortcuts",
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "More actions",
                             )
                         }
-                    }
-                    TextButton(onClick = ::requestCancel) {
-                        Text("Cancel")
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Keyboard shortcuts") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showShortcutHelp = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Cancel") },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    requestCancel()
+                                },
+                            )
+                        }
                     }
                 },
             )
@@ -276,12 +324,13 @@ fun NewTaskScreen(
                     ) {
                         Button(
                             onClick = ::save,
+                            enabled = !isSaving,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp)
                                 .testTag(SaveButtonTag),
                         ) {
-                            Text("Save")
+                            Text(if (isSaving) "Saving…" else "Save")
                         }
                     }
                 }
@@ -348,10 +397,15 @@ fun NewTaskScreen(
 
             DetailsArea(
                 notes = notes,
+                taskCategory = taskCategory,
                 dueDate = dueDate,
                 reminderAt = reminderAt,
                 onNotesChange = { newNotes ->
                     notes = newNotes
+                    showDiscardConfirmation = false
+                },
+                onTaskCategoryChange = { newTaskCategory ->
+                    taskCategory = newTaskCategory
                     showDiscardConfirmation = false
                 },
                 onDueDateClick = { showDueDatePicker = true },
@@ -412,7 +466,7 @@ fun NewTaskScreen(
             onDismiss = { showReminderTimePicker = false },
             onTimeSelected = { hour, minute ->
                 reminderDate?.let { selectedDate ->
-                    reminderAt = selectedDate.atLocalTime(hour, minute)
+                    reminderAt = DateTimeUtils.atLocalTime(selectedDate, hour, minute)
                     showDiscardConfirmation = false
                     requestNotificationPermissionIfNeeded()
                 }
@@ -425,9 +479,11 @@ fun NewTaskScreen(
 @Composable
 private fun DetailsArea(
     notes: String,
+    taskCategory: String,
     dueDate: Long?,
     reminderAt: Long?,
     onNotesChange: (String) -> Unit,
+    onTaskCategoryChange: (String) -> Unit,
     onDueDateClick: () -> Unit,
     onDueDateRemove: () -> Unit,
     onReminderClick: () -> Unit,
@@ -439,6 +495,15 @@ private fun DetailsArea(
             text = "Details",
             modifier = Modifier.semantics { heading() },
             style = MaterialTheme.typography.titleMedium,
+        )
+        OutlinedTextField(
+            value = taskCategory,
+            onValueChange = onTaskCategoryChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Category label (optional)") },
+            supportingText = { Text("e.g. Work, School, Groceries") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         )
         OutlinedTextField(
             value = notes,
@@ -455,7 +520,7 @@ private fun DetailsArea(
         )
         MetadataRow(
             title = "Due date",
-            value = dueDate?.let(::formatDueDate) ?: "Add date",
+            value = dueDate?.let { DateTimeUtils.formatDueDate(it, System.currentTimeMillis()) } ?: "Add date",
             icon = Icons.Filled.Event,
             hasValue = dueDate != null,
             removeContentDescription = "Remove due date",
@@ -464,7 +529,7 @@ private fun DetailsArea(
         )
         MetadataRow(
             title = "Reminder",
-            value = reminderAt?.let(::formatReminderAt) ?: "Add reminder",
+            value = reminderAt?.let { DateTimeUtils.formatReminderAt(it, LocalContext.current) } ?: "Add reminder",
             icon = Icons.Filled.Notifications,
             hasValue = reminderAt != null,
             removeContentDescription = "Remove reminder",
@@ -521,7 +586,7 @@ private fun DueDatePickerDialog(
     onDateSelected: (Long) -> Unit,
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = dueDate?.toDatePickerMillis(),
+        initialSelectedDateMillis = dueDate?.let(DateTimeUtils::toDatePickerMillis),
     )
 
     DatePickerDialog(
@@ -530,7 +595,7 @@ private fun DueDatePickerDialog(
             TextButton(
                 onClick = {
                     datePickerState.selectedDateMillis
-                        ?.let(::datePickerMillisToLocalNoon)
+                        ?.let(DateTimeUtils::datePickerMillisToLocalNoon)
                         ?.let(onDateSelected)
                         ?: onDismiss()
                 },
@@ -554,7 +619,7 @@ private fun ReminderDatePickerDialog(
     onDateSelected: (Long) -> Unit,
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = reminderAt?.toDatePickerMillis(),
+        initialSelectedDateMillis = reminderAt?.let(DateTimeUtils::toDatePickerMillis),
     )
 
     DatePickerDialog(
@@ -563,7 +628,7 @@ private fun ReminderDatePickerDialog(
             TextButton(
                 onClick = {
                     datePickerState.selectedDateMillis
-                        ?.let(::datePickerMillisToLocalNoon)
+                        ?.let(DateTimeUtils::datePickerMillisToLocalNoon)
                         ?.let(onDateSelected)
                         ?: onDismiss()
                 },
@@ -794,59 +859,13 @@ private fun androidx.compose.ui.input.key.KeyEvent.categoryShortcut(): Eisenhowe
     }
 }
 
-private fun datePickerMillisToLocalNoon(datePickerMillis: Long): Long {
-    val utcCalendar = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-        timeInMillis = datePickerMillis
-    }
-    return Calendar.getInstance().apply {
-        clear()
-        set(
-            utcCalendar.get(Calendar.YEAR),
-            utcCalendar.get(Calendar.MONTH),
-            utcCalendar.get(Calendar.DAY_OF_MONTH),
-            12,
-            0,
-            0,
-        )
-    }.timeInMillis
-}
-
-private fun Long.toDatePickerMillis(): Long {
-    val localCalendar = Calendar.getInstance().apply { timeInMillis = this@toDatePickerMillis }
-    return Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-        clear()
-        set(
-            localCalendar.get(Calendar.YEAR),
-            localCalendar.get(Calendar.MONTH),
-            localCalendar.get(Calendar.DAY_OF_MONTH),
-            0,
-            0,
-            0,
-        )
-    }.timeInMillis
-}
-
-private fun formatDueDate(dueDate: Long): String =
-    DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date(dueDate))
-
-private fun Long.atLocalTime(hour: Int, minute: Int): Long = Calendar.getInstance().apply {
-    timeInMillis = this@atLocalTime
-    set(Calendar.HOUR_OF_DAY, hour)
-    set(Calendar.MINUTE, minute)
-    set(Calendar.SECOND, 0)
-    set(Calendar.MILLISECOND, 0)
-}.timeInMillis
-
-private fun formatReminderAt(reminderAt: Long): String =
-    DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(reminderAt))
-
 @Preview(name = "New task (573dp)", widthDp = 573, heightDp = 800)
 @Composable
 private fun NewTask573Preview() {
     MyApplicationTheme(darkTheme = true, dynamicColor = false) {
         NewTaskScreen(
             defaultCategory = EisenhowerCategory.SCHEDULE,
-            onSaveTask = { _, _, _, _, _ -> },
+            onSaveTask = { _, _, _, _, _, _, _ -> },
             onCancel = {},
         )
     }

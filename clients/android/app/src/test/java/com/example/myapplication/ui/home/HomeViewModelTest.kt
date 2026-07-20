@@ -86,11 +86,17 @@ class HomeViewModelTest {
 
     @Test
     fun `completion and archive cancel reminders`() = runTest(mainDispatcherRule.testDispatcher) {
-        val scheduler = RecordingReminderScheduler()
-        val viewModel = HomeViewModel(FakeTaskRepository(), scheduler)
+        val scheduler = RecordingReminderScheduler(initialScheduledTaskIds = setOf(4L, 8L))
+        val repository = FakeTaskRepository(
+            initialTasks = listOf(
+                taskWithReminder(id = 4L, reminderAt = 200L),
+                taskWithReminder(id = 8L, reminderAt = 200L),
+            ),
+        )
+        val viewModel = HomeViewModel(repository, scheduler, clock = { 100L })
 
-        viewModel.completeTask(id = 4L, isCompleted = true)
-        viewModel.archiveTask(id = 8L)
+        viewModel.completeTask(task = repository.task(4L), isCompleted = true)
+        viewModel.archiveTask(task = repository.task(8L))
         advanceUntilIdle()
 
         assertEquals(listOf(4L, 8L), scheduler.cancelledTaskIds)
@@ -104,7 +110,7 @@ class HomeViewModelTest {
         )
         val viewModel = HomeViewModel(repository, scheduler, clock = { 100L })
 
-        viewModel.completeTask(id = 4L, isCompleted = false)
+        viewModel.completeTask(task = repository.task(4L), isCompleted = false)
         advanceUntilIdle()
 
         assertEquals(listOf(4L to 200L), scheduler.scheduledReminders)
@@ -124,6 +130,38 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(9L to 200L), scheduler.scheduledReminders)
+    }
+
+    @Test
+    fun `unarchiving an active task reschedules its future reminder`() = runTest(mainDispatcherRule.testDispatcher) {
+        val scheduler = RecordingReminderScheduler()
+        val repository = FakeTaskRepository(
+            initialTasks = listOf(
+                taskWithReminder(id = 5L, reminderAt = 200L).copy(isArchived = true)
+            ),
+        )
+        val viewModel = HomeViewModel(repository, scheduler, clock = { 100L })
+
+        viewModel.unarchiveTask(id = 5L)
+        advanceUntilIdle()
+
+        assertEquals(listOf(5L to 200L), scheduler.scheduledReminders)
+    }
+
+    @Test
+    fun `unarchiving a completed task does not reschedule reminder`() = runTest(mainDispatcherRule.testDispatcher) {
+        val scheduler = RecordingReminderScheduler()
+        val repository = FakeTaskRepository(
+            initialTasks = listOf(
+                taskWithReminder(id = 6L, reminderAt = 200L).copy(isArchived = true, isCompleted = true)
+            ),
+        )
+        val viewModel = HomeViewModel(repository, scheduler, clock = { 100L })
+
+        viewModel.unarchiveTask(id = 6L)
+        advanceUntilIdle()
+
+        assertTrue(scheduler.scheduledReminders.isEmpty())
     }
 }
 
@@ -145,13 +183,18 @@ private class FakeTaskRepository(
 ) : TaskRepository {
     private val tasksById = initialTasks.associateByTo(mutableMapOf()) { it.id }
     private val activeTasks = MutableStateFlow(initialTasks.filter { !it.isCompleted && !it.isArchived })
+    private val allTasks = MutableStateFlow(initialTasks)
     val addedTasks = mutableListOf<Task>()
+
+    fun task(id: Long): Task = tasksById.getValue(id)
 
     override fun observeActiveTasks(): Flow<List<Task>> = activeTasks
 
     override fun observeCompletedTasks(): Flow<List<Task>> = flowOf(emptyList())
 
     override fun observeArchivedTasks(): Flow<List<Task>> = flowOf(emptyList())
+
+    override fun observeAllTasks(): Flow<List<Task>> = allTasks
 
     override fun searchTasks(query: String): Flow<List<Task>> = flowOf(emptyList())
 
@@ -162,6 +205,7 @@ private class FakeTaskRepository(
         val id = addedTasks.size.toLong()
         tasksById[id] = task.copy(id = id)
         activeTasks.value = tasksById.values.filter { !it.isCompleted && !it.isArchived }
+        allTasks.value = tasksById.values.toList()
         return id
     }
 
@@ -170,6 +214,7 @@ private class FakeTaskRepository(
         tasksById[id]?.let { task ->
             tasksById[id] = task.copy(isCompleted = isCompleted)
             activeTasks.value = tasksById.values.filter { !it.isCompleted && !it.isArchived }
+            allTasks.value = tasksById.values.toList()
         }
     }
 
@@ -177,8 +222,18 @@ private class FakeTaskRepository(
         tasksById[id]?.let { task ->
             tasksById[id] = task.copy(isArchived = true)
             activeTasks.value = tasksById.values.filter { !it.isCompleted && !it.isArchived }
+            allTasks.value = tasksById.values.toList()
         }
     }
+
+    override suspend fun unarchiveTask(id: Long) {
+        tasksById[id]?.let { task ->
+            tasksById[id] = task.copy(isArchived = false)
+            activeTasks.value = tasksById.values.filter { !it.isCompleted && !it.isArchived }
+            allTasks.value = tasksById.values.toList()
+        }
+    }
+
     override suspend fun deleteTask(id: Long) = Unit
     override suspend fun moveTask(id: Long, category: EisenhowerCategory) = Unit
 }
@@ -203,15 +258,24 @@ private fun taskWithReminder(
     updatedAt = 0L,
 )
 
-private class RecordingReminderScheduler : TaskReminderScheduler {
+private class RecordingReminderScheduler(
+    initialScheduledTaskIds: Set<Long> = emptySet(),
+) : TaskReminderScheduler {
     val scheduledReminders = mutableListOf<Pair<Long, Long>>()
     val cancelledTaskIds = mutableListOf<Long>()
+    private val scheduledTaskIds = MutableStateFlow(initialScheduledTaskIds)
 
-    override fun schedule(taskId: Long, reminderAt: Long) {
+    override fun schedule(taskId: Long, reminderAt: Long): Result<Unit> {
         scheduledReminders += taskId to reminderAt
+        scheduledTaskIds.value += taskId
+        return Result.success(Unit)
     }
 
-    override fun cancel(taskId: Long) {
+    override fun cancel(taskId: Long): Result<Unit> {
         cancelledTaskIds += taskId
+        scheduledTaskIds.value -= taskId
+        return Result.success(Unit)
     }
+
+    override fun getScheduledTaskIds(): Flow<Set<Long>> = scheduledTaskIds
 }

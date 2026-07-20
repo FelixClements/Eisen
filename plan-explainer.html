@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="A plain-language explainer of the Eisen V1 architecture and delivery plan." />
+  <title>Eisen V1 — Plan explainer</title>
+  <style>
+    :root {
+      --ink: #10212a;
+      --ink-soft: #42545c;
+      --paper: #f7f3ea;
+      --paper-deep: #ece5d8;
+      --line: #d6ccbb;
+      --night: #102a35;
+      --night-2: #173e4c;
+      --mint: #b7e4ce;
+      --mint-deep: #176b59;
+      --sun: #f4ba4c;
+      --coral: #e7785e;
+      --violet: #6958a6;
+      --white: #fffdf8;
+      --shadow: 0 20px 50px rgba(16, 33, 42, .12);
+      --serif: Iowan Old Style, Palatino Linotype, Book Antiqua, Palatino, Georgia, serif;
+      --sans: Avenir Next, Avenir, Segoe UI, Helvetica Neue, Helvetica, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.58 var(--sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    body::before {
+      position: fixed;
+      z-index: -1;
+      inset: 0;
+      opacity: .26;
+      background-image: radial-gradient(rgba(16, 33, 42, .13) .6px, transparent .7px);
+      background-size: 7px 7px;
+      content: "";
+      pointer-events: none;
+    }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--mint-deep); }
+    :focus-visible { outline: 3px solid var(--sun); outline-offset: 4px; }
+    .skip-link {
+      position: fixed;
+      z-index: 20;
+      top: .75rem;
+      left: .75rem;
+      transform: translateY(-180%);
+      padding: .65rem 1rem;
+      color: var(--ink);
+      background: var(--sun);
+      font-weight: 800;
+      transition: transform .18s ease;
+    }
+    .skip-link:focus { transform: translateY(0); }
+    .shell { width: min(1160px, calc(100% - 2.5rem)); margin: 0 auto; }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: .55rem;
+      margin: 0 0 .8rem;
+      color: inherit;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { width: 1.75rem; height: 2px; background: currentColor; content: ""; }
+    .topbar {
+      position: relative;
+      z-index: 2;
+      border-bottom: 1px solid rgba(255, 253, 248, .15);
+      color: var(--white);
+      background: var(--night);
+    }
+    .topbar .shell { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 4.35rem; }
+    .brand { font: 700 1.5rem/1 var(--serif); letter-spacing: -.035em; text-decoration: none; }
+    .brand-mark { color: var(--mint); }
+    .plan-label { margin: 0; color: #d7e5df; font-size: .78rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(4.8rem, 10vw, 8.5rem) 0 5rem;
+      color: var(--white);
+      background: var(--night);
+    }
+    .hero::after {
+      position: absolute;
+      right: -10rem;
+      bottom: -12rem;
+      width: min(58vw, 650px);
+      aspect-ratio: 1;
+      border: 1px solid rgba(183, 228, 206, .35);
+      border-radius: 50%;
+      box-shadow: 0 0 0 42px rgba(183, 228, 206, .05), 0 0 0 83px rgba(183, 228, 206, .035), 0 0 0 127px rgba(183, 228, 206, .025);
+      content: "";
+    }
+    .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(250px, .6fr); gap: clamp(2rem, 7vw, 7rem); align-items: end; }
+    .hero .eyebrow { color: var(--mint); }
+    h1, h2, h3 { margin-top: 0; color: inherit; }
+    h1 { max-width: 13ch; margin-bottom: 1.1rem; font: 700 clamp(3rem, 7vw, 6.6rem)/.93 var(--serif); letter-spacing: -.065em; }
+    .lede { max-width: 46rem; margin: 0; color: #d9e4e0; font: 400 clamp(1.08rem, 1.7vw, 1.32rem)/1.55 var(--sans); }
+    .hero-note { padding: 1.3rem 1.35rem; border: 1px solid rgba(183, 228, 206, .37); background: rgba(255, 255, 255, .07); backdrop-filter: blur(8px); }
+    .hero-note strong { display: block; margin-bottom: .35rem; color: var(--mint); font: 700 1.15rem var(--serif); }
+    .hero-note p { margin: 0; color: #d9e4e0; font-size: .94rem; }
+    .quick-nav { position: relative; z-index: 3; color: var(--ink); background: var(--mint); }
+    .quick-nav .shell { display: flex; flex-wrap: wrap; gap: 0; }
+    .quick-nav a { padding: .82rem 1rem; font-size: .79rem; font-weight: 800; text-decoration: none; }
+    .quick-nav a:hover { color: var(--white); background: var(--mint-deep); }
+    main { padding-bottom: 5rem; }
+    section { padding: clamp(3.8rem, 8vw, 6.8rem) 0; }
+    section + section { border-top: 1px solid var(--line); }
+    .section-head { display: grid; grid-template-columns: minmax(180px, .38fr) minmax(0, 1fr); gap: 2rem; margin-bottom: 2.5rem; }
+    .section-head .eyebrow { color: var(--mint-deep); }
+    h2 { max-width: 22ch; margin-bottom: 0; font: 700 clamp(2.15rem, 4.1vw, 3.8rem)/1 var(--serif); letter-spacing: -.052em; }
+    .section-intro { max-width: 47rem; margin: .2rem 0 0; color: var(--ink-soft); font-size: 1.08rem; }
+    .section-intro strong { color: var(--ink); }
+    .overview-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 1.3rem; }
+    .statement {
+      min-height: 17rem;
+      padding: clamp(1.5rem, 4vw, 3rem);
+      color: var(--white);
+      background: var(--night-2);
+      box-shadow: var(--shadow);
+    }
+    .statement p { max-width: 27ch; margin: 0; font: 700 clamp(1.65rem, 3vw, 2.65rem)/1.18 var(--serif); letter-spacing: -.035em; }
+    .statement em { color: var(--mint); font-style: normal; }
+    .value-list { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .value-list article { padding: 1.2rem 1.3rem; background: var(--white); }
+    .number { display: inline-grid; width: 1.65rem; height: 1.65rem; margin-bottom: .45rem; place-items: center; border-radius: 50%; color: var(--white); background: var(--violet); font-size: .73rem; font-weight: 800; }
+    .value-list h3 { margin-bottom: .2rem; font: 700 1.15rem/1.15 var(--serif); }
+    .value-list p { margin: 0; color: var(--ink-soft); font-size: .91rem; }
+    .scope-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.3rem; margin-top: 1.3rem; }
+    .scope-card { padding: 1.4rem; border-top: 4px solid var(--mint-deep); background: var(--white); box-shadow: 0 8px 24px rgba(16, 33, 42, .06); }
+    .scope-card.out { border-color: var(--coral); background: #fff8f4; }
+    .scope-card h3 { margin-bottom: .65rem; font: 700 1.35rem var(--serif); }
+    ul.clean { display: grid; gap: .48rem; margin: 0; padding: 0; list-style: none; }
+    ul.clean li { position: relative; padding-left: 1.15rem; }
+    ul.clean li::before { position: absolute; left: 0; color: var(--mint-deep); content: "✓"; font-weight: 900; }
+    .out ul.clean li::before { color: var(--coral); content: "—"; }
+    .transport-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+    .transport { position: relative; min-height: 21rem; padding: 1.45rem; overflow: hidden; border: 1px solid var(--line); background: var(--white); }
+    .transport::after { position: absolute; right: -1.5rem; bottom: -2.7rem; color: rgba(16, 33, 42, .045); font: 700 10rem/1 var(--serif); content: attr(data-mark); }
+    .transport.local { border-top: 5px solid var(--mint-deep); }
+    .transport.cloud { border-top: 5px solid var(--violet); }
+    .transport.relay { border-top: 5px solid var(--sun); }
+    .transport .mode { position: relative; z-index: 1; margin: 0 0 .4rem; color: var(--ink-soft); font-size: .75rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
+    .transport h3 { position: relative; z-index: 1; margin-bottom: .7rem; font: 700 1.65rem/1 var(--serif); letter-spacing: -.035em; }
+    .transport p { position: relative; z-index: 1; margin: 0 0 1rem; color: var(--ink-soft); }
+    .tradeoff { position: relative; z-index: 1; margin: 1rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); font-size: .86rem; }
+    .tradeoff b { color: var(--ink); }
+    .architecture { color: var(--white); background: var(--night); }
+    .architecture .section-head .eyebrow { color: var(--sun); }
+    .architecture .section-intro { color: #cfddd8; }
+    .architecture-board { padding: clamp(1rem, 3vw, 2.2rem); border: 1px solid rgba(255,255,255,.17); background: linear-gradient(135deg, rgba(183,228,206,.11), transparent 55%), rgba(255,255,255,.035); }
+    .diagram-key { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0 0 1.2rem; color: #cfddd8; font-size: .78rem; }
+    .diagram-key span { display: inline-flex; align-items: center; gap: .4rem; }
+    .dot { width: .65rem; height: .65rem; border-radius: 50%; background: var(--mint); }
+    .dot.opaque { background: var(--sun); }
+    .dot.control { background: #b8a9ec; }
+    .architecture-flow { display: grid; grid-template-columns: 1fr auto 1.15fr auto 1fr; gap: .8rem; align-items: stretch; }
+    .node { position: relative; display: flex; flex-direction: column; justify-content: center; min-height: 12rem; padding: 1.25rem; border: 1px solid rgba(255,255,255,.2); background: rgba(7, 22, 29, .46); }
+    .node-label { margin: 0 0 .55rem; color: var(--mint); font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .node h3 { margin-bottom: .45rem; font: 700 1.4rem/1.06 var(--serif); }
+    .node p { margin: 0; color: #cfddd8; font-size: .88rem; }
+    .node.service .node-label { color: var(--sun); }
+    .arrow { display: grid; place-items: center; min-width: 2.2rem; color: var(--sun); font-size: 1.8rem; }
+    .arrow::before { content: "↔"; }
+    .control-rail { display: grid; grid-template-columns: auto 1fr; gap: .8rem; align-items: center; margin-top: 1rem; padding: 1rem 1.1rem; border-left: 3px solid #b8a9ec; color: #e4defb; background: rgba(105, 88, 166, .2); font-size: .91rem; }
+    .control-rail b { color: #c7bcf0; }
+    .privacy-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .promise, .boundary { padding: clamp(1.4rem, 3vw, 2rem); }
+    .promise { color: var(--white); background: var(--mint-deep); }
+    .boundary { border: 1px solid #e2b7a9; background: #fff7f2; }
+    .promise h3, .boundary h3 { margin-bottom: .8rem; font: 700 1.6rem/1 var(--serif); }
+    .promise ul.clean li::before { color: var(--sun); }
+    .boundary ul.clean li::before { color: var(--coral); content: "!"; }
+    .small { margin: 1.25rem 0 0; color: var(--ink-soft); font-size: .87rem; }
+    .device-layout { display: grid; grid-template-columns: .8fr 1.2fr; gap: 2.5rem; align-items: start; }
+    .key-card { padding: 1.6rem; border: 1px solid var(--line); background: var(--white); box-shadow: var(--shadow); }
+    .key-card h3 { margin-bottom: 1.1rem; font: 700 1.6rem/1 var(--serif); }
+    .key-stack { display: grid; gap: .8rem; }
+    .key { padding: .9rem 1rem; border-left: 4px solid var(--violet); background: #f1edf9; }
+    .key:nth-child(2) { border-color: var(--mint-deep); background: #edf8f3; }
+    .key:nth-child(3) { border-color: var(--sun); background: #fff8e9; }
+    .key b { display: block; margin-bottom: .1rem; font-size: .91rem; }
+    .key span { color: var(--ink-soft); font-size: .82rem; }
+    .device-copy > p { margin-top: 0; color: var(--ink-soft); }
+    .steps { counter-reset: flow; display: grid; gap: 0; margin: 1.5rem 0 0; padding: 0; list-style: none; border-left: 1px solid var(--line); }
+    .steps li { position: relative; padding: 0 0 1.5rem 3.4rem; }
+    .steps li:last-child { padding-bottom: 0; }
+    .steps li::before { position: absolute; left: -1.02rem; top: -.1rem; display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: 50%; color: var(--white); background: var(--night); content: counter(flow); counter-increment: flow; font-size: .78rem; font-weight: 800; }
+    .steps b { display: block; margin-bottom: .1rem; font: 700 1.1rem var(--serif); }
+    .steps span { color: var(--ink-soft); font-size: .94rem; }
+    .sync-band { margin-top: 2.7rem; padding: 1.35rem 1.5rem; border: 1px solid #c8dcd4; background: #eaf6f0; }
+    .sync-band b { font-family: var(--serif); font-size: 1.18rem; }
+    .sync-band p { margin: .3rem 0 0; }
+    .merge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .merge-panel { padding: 1.5rem; border: 1px solid var(--line); background: var(--white); }
+    .merge-panel h3 { margin-bottom: .55rem; font: 700 1.55rem/1 var(--serif); }
+    .merge-panel p { margin: 0; color: var(--ink-soft); }
+    .registers { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+    .registers span { padding: .28rem .54rem; border-radius: 99px; color: #493c7a; background: #eeeafa; font-size: .77rem; font-weight: 800; }
+    .callout { margin-top: 1.25rem; padding: 1rem 1.15rem; border-left: 4px solid var(--coral); background: #fff8f4; color: var(--ink-soft); }
+    .callout b { color: var(--ink); }
+    .platform-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.2rem; }
+    .platform { padding: 1.5rem; border: 1px solid var(--line); background: var(--white); }
+    .platform-symbol { display: grid; width: 2.5rem; height: 2.5rem; margin-bottom: 1rem; place-items: center; border-radius: 50%; color: var(--white); background: var(--night); font: 700 1.2rem var(--serif); }
+    .platform h3 { margin-bottom: .5rem; font: 700 1.55rem/1 var(--serif); }
+    .platform p { margin: 0; color: var(--ink-soft); }
+    .platform ul { margin: .9rem 0 0; padding-left: 1.1rem; color: var(--ink-soft); font-size: .9rem; }
+    .roadmap { overflow: hidden; border: 1px solid var(--line); background: var(--white); }
+    .roadmap-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem; color: var(--white); background: var(--night); }
+    .roadmap-head h3 { margin: 0; font: 700 1.55rem var(--serif); }
+    .roadmap-head p { margin: 0; color: #d7e5df; font-size: .85rem; }
+    .release-slices { display: grid; grid-template-columns: repeat(5, 1fr); }
+    .slice { position: relative; min-height: 17.5rem; padding: 1.25rem; border-right: 1px solid var(--line); }
+    .slice:last-child { border-right: 0; }
+    .slice::before { display: block; margin-bottom: 1.1rem; color: var(--mint-deep); content: attr(data-step); font: 700 2.6rem/.75 var(--serif); letter-spacing: -.06em; }
+    .slice:nth-child(2)::before { color: var(--violet); }
+    .slice:nth-child(3)::before { color: var(--violet); }
+    .slice:nth-child(4)::before { color: var(--coral); }
+    .slice:nth-child(5)::before { color: #b17813; }
+    .slice h4 { margin: 0 0 .45rem; font: 700 1.1rem/1.08 var(--serif); }
+    .slice p { margin: 0; color: var(--ink-soft); font-size: .86rem; }
+    .phase-note { margin: 1.2rem 0 0; color: var(--ink-soft); font-size: .92rem; }
+    details { border-bottom: 1px solid var(--line); }
+    details:first-of-type { border-top: 1px solid var(--line); }
+    summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.05rem .1rem; cursor: pointer; font: 700 1.02rem var(--serif); }
+    summary::after { flex: 0 0 auto; color: var(--mint-deep); content: "+"; font: 700 1.5rem/1 var(--sans); }
+    details[open] summary::after { content: "–"; }
+    summary::-webkit-details-marker { display: none; }
+    .detail-body { max-width: 59rem; padding: 0 .1rem 1.15rem; color: var(--ink-soft); }
+    .detail-body p { margin: 0; }
+    .decision-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .decision { padding: 1.15rem; border-top: 3px solid var(--violet); background: var(--white); }
+    .decision:nth-child(3n + 2) { border-color: var(--mint-deep); }
+    .decision:nth-child(3n) { border-color: var(--sun); }
+    .decision b { display: block; margin-bottom: .3rem; font: 700 1.05rem var(--serif); }
+    .decision p { margin: 0; color: var(--ink-soft); font-size: .86rem; }
+    .risk-table { width: 100%; border-collapse: collapse; background: var(--white); }
+    .risk-table th, .risk-table td { padding: .9rem 1rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .risk-table th { color: var(--ink-soft); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+    .risk-table td { font-size: .9rem; }
+    .risk-table tr:last-child td { border-bottom: 0; }
+    .severity { display: inline-block; padding: .18rem .45rem; border-radius: 99px; color: #7a2a1f; background: #fae1da; font-size: .69rem; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; }
+    .severity.high { color: #6a4b06; background: #f9ebc7; }
+    .severity.medium { color: #285b4d; background: #dcefe7; }
+    .done { color: var(--white); background: var(--night-2); }
+    .done .section-head .eyebrow { color: var(--sun); }
+    .done .section-intro { color: #d5e2de; }
+    .done-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 1.4rem; }
+    .done-card { padding: 1.5rem; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
+    .done-card h3 { margin-bottom: .85rem; color: var(--mint); font: 700 1.55rem/1 var(--serif); }
+    .done-card ul.clean li { color: #e0e9e5; }
+    .done-card ul.clean li::before { color: var(--sun); }
+    .gates { display: grid; gap: .7rem; }
+    .gate { padding: .86rem 1rem; border-left: 3px solid var(--sun); color: #dce7e2; background: rgba(255,255,255,.06); font-size: .9rem; }
+    .gate b { display: block; color: var(--white); }
+    .footnote { padding: 2.2rem 0 3.2rem; color: #cbd8d3; background: var(--night); }
+    .footnote .shell { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1.2rem; }
+    .footnote p { max-width: 50rem; margin: 0; font-size: .84rem; }
+    .footnote strong { color: var(--white); }
+    @media (max-width: 850px) {
+      .hero-grid, .section-head, .overview-grid, .device-layout, .done-grid { grid-template-columns: 1fr; }
+      .hero-grid { gap: 2.5rem; }
+      .section-head { gap: .8rem; }
+      .transport-grid { grid-template-columns: 1fr; }
+      .transport { min-height: 0; }
+      .architecture-flow { grid-template-columns: 1fr; }
+      .arrow { min-height: 2rem; transform: rotate(90deg); }
+      .privacy-grid, .merge-grid { grid-template-columns: 1fr; }
+      .release-slices { grid-template-columns: 1fr; }
+      .slice { min-height: 0; padding: 1.2rem 1.35rem 1.2rem 5.2rem; border-right: 0; border-bottom: 1px solid var(--line); }
+      .slice::before { position: absolute; top: 1.42rem; left: 1.35rem; margin: 0; font-size: 2.1rem; }
+      .slice:last-child { border-bottom: 0; }
+      .decision-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 560px) {
+      .shell { width: min(100% - 1.4rem, 1160px); }
+      .topbar .shell { min-height: 3.8rem; }
+      .plan-label { font-size: .66rem; text-align: right; }
+      h1 { font-size: clamp(3rem, 18vw, 4.8rem); }
+      .scope-grid, .platform-grid, .decision-grid { grid-template-columns: 1fr; }
+      .quick-nav a { padding: .68rem .62rem; font-size: .71rem; }
+      .risk-table { display: block; overflow-x: auto; }
+      .risk-table th, .risk-table td { min-width: 9rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to the plan</a>
+
+  <header>
+    <div class="topbar">
+      <div class="shell">
+        <a class="brand" href="#top" aria-label="Eisen V1 plan explainer, top"><span class="brand-mark">E</span>isen</a>
+        <p class="plan-label">V1 architecture &amp; delivery plan</p>
+      </div>
+    </div>
+    <div class="hero" id="top">
+      <div class="shell hero-grid">
+        <div>
+          <p class="eyebrow">A stakeholder guide</p>
+          <h1>Your tasks. Your device. Your control.</h1>
+          <p class="lede">Eisen V1 is a native task app built around the Eisenhower Matrix. It works offline first, keeps task content encrypted, and makes cloud sync a deliberate option—not a condition of using the product.</p>
+        </div>
+        <aside class="hero-note" aria-label="Plan status">
+          <strong>A plan, not a shipped product</strong>
+          <p>The repository starts without an app or sync service. The first work is to freeze, test, and review the safety rules before product polish or cloud delivery begins.</p>
+        </aside>
+      </div>
+    </div>
+    <nav class="quick-nav" aria-label="On this page">
+      <div class="shell">
+        <a href="#promise">The promise</a>
+        <a href="#architecture">How it works</a>
+        <a href="#sync">Sync &amp; devices</a>
+        <a href="#release">Release path</a>
+        <a href="#assurance">Risks &amp; done</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <section id="promise">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">01 / Product promise</p><h2>A useful task app before the internet arrives.</h2></div>
+          <p class="section-intro"><strong>The starting point is a personal, local vault.</strong> A person can create and use it without an account, network connection, or sync provider. Eisen organizes tasks in the four urgent × important quadrants, then adds optional ways to move the same encrypted history between devices.</p>
+        </div>
+        <div class="overview-grid">
+          <article class="statement">
+            <p>“Local-first” means a new task is <em>saved safely on the device first</em>. A poor connection, service outage, or closed laptop does not stop the work.</p>
+          </article>
+          <div class="value-list" aria-label="User value">
+            <article><span class="number">01</span><h3>Stay productive offline</h3><p>Create, edit, complete, restore, delete, and move tasks with no account required.</p></article>
+            <article><span class="number">02</span><h3>Choose the right reach</h3><p>Keep a vault on one device, sync it through encrypted cloud delivery, or use a live peer relay.</p></article>
+            <article><span class="number">03</span><h3>Keep a recoverable record</h3><p>Changes are kept as a durable history, with explicit encrypted export and recovery-package flows.</p></article>
+          </div>
+        </div>
+        <div class="scope-grid">
+          <article class="scope-card">
+            <h3>Included in V1</h3>
+            <ul class="clean">
+              <li>Native Windows and Android apps</li>
+              <li>Four-quadrant task management and completed/deleted views</li>
+              <li>Encrypted local vault, history, and task view</li>
+              <li>Optional enrollment, cloud delivery, and live relay</li>
+              <li>Encrypted backup/export, recovery, and device revocation flows</li>
+            </ul>
+          </article>
+          <article class="scope-card out">
+            <h3>Deliberately not V1</h3>
+            <ul class="clean">
+              <li>macOS, web, shared vaults, and per-task permissions</li>
+              <li>Server-side task search, analytics, conflict decisions, or plaintext notifications</li>
+              <li>Automatic recovery when all user-held secrets are lost</li>
+              <li>A promise that Android background sync works on every device configuration</li>
+              <li>Anonymous networking or hidden service/network metadata</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="transport-title">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">02 / Transport choices</p><h2 id="transport-title">One vault, three delivery states.</h2></div>
+          <p class="section-intro">The cloud and relay are <strong>couriers, not a master copy</strong>. They carry the same encrypted changes. Each device checks them and resolves any overlap locally, so turning a transport on or off never deletes the person’s local work.</p>
+        </div>
+        <div class="transport-grid">
+          <article class="transport local" data-mark="L">
+            <p class="mode">Default</p>
+            <h3>Local only</h3>
+            <p>The vault stays on the device. The person can move it only by deliberately exporting and importing an encrypted recovery package.</p>
+            <p class="tradeoff"><b>Trade-off:</b> no automatic multi-device sync. Recovery depends on the package and its user-held passphrase.</p>
+          </article>
+          <article class="transport cloud" data-mark="C">
+            <p class="mode">Optional</p>
+            <h3>Encrypted cloud sync</h3>
+            <p>Devices upload and download encrypted, immutable changes through an opaque delivery store. Devices can catch up at different times.</p>
+            <p class="tradeoff"><b>Trade-off:</b> the service improves asynchronous delivery but can be unavailable, delay delivery, or retain only according to its stated policy.</p>
+          </article>
+          <article class="transport relay" data-mark="R">
+            <p class="mode">Optional</p>
+            <h3>Volatile relay</h3>
+            <p>Devices that are online together exchange the same encrypted changes through a non-persistent relay.</p>
+            <p class="tradeoff"><b>Trade-off:</b> a peer must be present. Missed changes are not held by the relay, so it is never presented as a backup.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture" id="architecture">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">03 / Local-first architecture</p><h2>Plaintext lives on the device, not in the transport.</h2></div>
+          <p class="section-intro">Each client has an encrypted local store and makes its own decisions. The network sees an opaque, authenticated package of change—not a task title, note, quadrant, or plaintext snapshot.</p>
+        </div>
+        <figure class="architecture-board" aria-labelledby="architecture-caption">
+          <div class="diagram-key" aria-hidden="true">
+            <span><i class="dot"></i> encrypted local vault</span>
+            <span><i class="dot opaque"></i> opaque encrypted envelope</span>
+            <span><i class="dot control"></i> signed membership control</span>
+          </div>
+          <div class="architecture-flow" role="img" aria-label="A device with an encrypted local vault exchanges opaque encrypted envelopes with an opaque cloud delivery store or volatile relay, then another device validates and stores them locally.">
+            <article class="node">
+              <p class="node-label">Windows or Android</p>
+              <h3>Device A</h3>
+              <p>Secure key storage<br />Encrypted database<br />Immutable change log<br />Task view</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node service">
+              <p class="node-label">Transport only</p>
+              <h3>Cloud store<br />or live relay</h3>
+              <p>Routes, persists (cloud only), deduplicates, and paginates encrypted packages. It does not decrypt or merge tasks.</p>
+            </article>
+            <div class="arrow" aria-hidden="true"></div>
+            <article class="node">
+              <p class="node-label">Windows or Android</p>
+              <h3>Device B</h3>
+              <p>Checks signature and membership<br />Decrypts locally<br />Applies deterministic rules<br />Stores safely</p>
+            </article>
+          </div>
+          <figcaption class="control-rail" id="architecture-caption"><b>Separate control plane</b><span>A vault owner signs the membership record that says which devices are allowed. A service login can grant access to the service; it cannot make a forged task change valid.</span></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section aria-labelledby="privacy-title">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">04 / Privacy, honestly stated</p><h2 id="privacy-title">Strong content confidentiality—without overpromising.</h2></div>
+          <p class="section-intro">The plan protects task content against a curious or breached transport and against altered or replayed traffic. It also names the limits clearly: encryption is not anonymity, availability, or protection from a compromised unlocked device.</p>
+        </div>
+        <div class="privacy-grid">
+          <article class="promise">
+            <h3>What the design protects</h3>
+            <ul class="clean">
+              <li>Task content, task data, change contents, and snapshots are encrypted before they leave a device.</li>
+              <li>Every package is authenticated and signed by its source device; changed or unauthorized bytes are rejected.</li>
+              <li>Repeated delivery is safe: the same change applies once, and conflicting bytes under one change ID are treated as an integrity failure.</li>
+              <li>A received change is not acknowledged until it has been saved durably on the receiving device.</li>
+            </ul>
+          </article>
+          <article class="boundary">
+            <h3>What it cannot promise</h3>
+            <ul class="clean">
+              <li>Cloud and relay operators can still see routing IDs, timing, sizes, approximate activity, IP/network data, and connection presence.</li>
+              <li>An outage or malicious service can delay, drop, withhold, or delete deliveries. A relay does not store missed work.</li>
+              <li>Malware, an unlocked session, screenshots, or weak device secure storage can expose what the device can read.</li>
+              <li>If every device and every recovery secret are lost, nobody—including Eisen support—can decrypt the existing vault.</li>
+            </ul>
+          </article>
+        </div>
+        <p class="small">Cryptographic building blocks are to come from maintained, platform-reviewed APIs and libraries. The plan explicitly avoids hand-built cryptographic primitives and requires independent review before public sync release.</p>
+      </div>
+    </section>
+
+    <section id="sync">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">05 / Devices, keys &amp; data flow</p><h2>A device earns trust; an account does not hold the vault.</h2></div>
+          <p class="section-intro">A vault is the encryption and sync boundary. An optional account helps a service manage access and quotas, but <strong>never receives the vault key in plaintext</strong>. Each device has its own identity and must be enrolled by the vault owner.</p>
+        </div>
+        <div class="device-layout">
+          <aside class="key-card">
+            <h3>Three distinct responsibilities</h3>
+            <div class="key-stack">
+              <div class="key"><b>Owner signing key</b><span>The V1 root of trust. It authorizes membership changes, revocation, and ownership transfer.</span></div>
+              <div class="key"><b>Device identity keys</b><span>Each device has separate signing and encryption key pairs in platform secure storage.</span></div>
+              <div class="key"><b>Epoch vault key</b><span>A random key encrypts a period of vault history. A new random key is made when access is rotated.</span></div>
+            </div>
+          </aside>
+          <div class="device-copy">
+            <p><strong>Adding a device is an intentional, human-confirmed action.</strong> The owner device and new device use an authenticated QR-assisted flow, show a matching confirmation code, and exchange the access material over an encrypted channel. A QR code alone is never enough to add a device.</p>
+            <p>A user may also choose a recovery passphrase. It unlocks a client-created, encrypted recovery package; it is not a server-known password and cannot be reset by support.</p>
+            <ol class="steps" aria-label="Change and sync lifecycle">
+              <li><b>Save locally first</b><span>A task action reserves a safe encryption nonce, creates an encrypted immutable change, updates the local task view, and enters the durable outbox in one transaction.</span></li>
+              <li><b>Send an opaque package</b><span>When a transport is enabled, the device authenticates to it and uploads changes. Safe retries use the same operation ID and digest.</span></li>
+              <li><b>Receive in bounded batches</b><span>Another device fetches changes through a cloud cursor or asks a live peer for missing ranges. Those two tracking methods are deliberately separate.</span></li>
+              <li><b>Verify before opening</b><span>The recipient checks structure, version, signed membership, device signature, nonce domain, and encryption authentication before applying anything.</span></li>
+              <li><b>Commit, then acknowledge</b><span>The new change and receive checkpoint are saved together. Only then does the device acknowledge delivery; “acknowledged” means locally committed, not merely shown on screen.</span></li>
+            </ol>
+          </div>
+        </div>
+        <aside class="sync-band"><b>Revocation needs a key rotation to become effective.</b><p>Removing a device is advisory while it still has an old key. The owner distributes a fresh epoch key to remaining devices and sets a cutover. After that point, old-epoch changes—even legitimate offline changes not seen before—are rejected. Revocation cannot erase ciphertext or plaintext a removed device already copied.</p></aside>
+      </div>
+    </section>
+
+    <section aria-labelledby="merge-title">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">06 / Predictable convergence</p><h2 id="merge-title">Offline edits meet with rules, not guesswork.</h2></div>
+          <p class="section-intro">Devices may edit while disconnected and receive changes late, more than once, or out of order. Eisen keeps an immutable log and has every client apply the same deterministic rules, so valid replicas converge on the same task view.</p>
+        </div>
+        <div class="merge-grid">
+          <article class="merge-panel">
+            <h3>Field-level winners</h3>
+            <p>Each mutable task field carries its own version. A change to a title should not unnecessarily replace a completion change made on another device. Versions use a persisted Hybrid Logical Clock plus a stable device-ID tie-breaker—not wall-clock display time.</p>
+            <div class="registers" aria-label="Task fields with individual merge rules"><span>title</span><span>notes</span><span>quadrant</span><span>completed</span><span>completed at</span><span>deleted</span></div>
+          </article>
+          <article class="merge-panel">
+            <h3>Deletes remain visible to the protocol</h3>
+            <p>Delete creates a tombstone rather than quietly erasing history. An older edit cannot bring the task back. Only an explicit newer restore can make it visible again. Conservative retention and signed snapshots help a long-offline device catch up safely.</p>
+            <div class="callout"><b>Important UX implication:</b> deterministic resolution is not the same as preventing every human conflict. The app must show enough history or change evidence to explain when a concurrent last-write-wins edit took precedence.</div>
+          </article>
+        </div>
+        <details>
+          <summary>Why preserve a log instead of just syncing the current task list?</summary>
+          <div class="detail-body"><p>The history makes retries and duplicate delivery safe, supports reconciliation between devices, and gives clients evidence for repair. Snapshots can make bootstrap faster, but are signed optimizations—not an authority allowed to silently replace newer local work.</p></div>
+        </details>
+        <details>
+          <summary>What happens when sync is inconsistent or data is missing?</summary>
+          <div class="detail-body"><p>The client preserves the existing vault, marks sync as needing repair, obtains a compatible encrypted snapshot, replays available later changes, and surfaces any unrecoverable discrepancy. It must never silently overwrite local data with a newer-looking server result.</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section aria-labelledby="platform-title">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">07 / Platform behavior</p><h2 id="platform-title">Native clients that expect interruption.</h2></div>
+          <p class="section-intro">The plan is intentionally Windows and Android first. It treats suspend, restart, loss of network, and mobile process death as ordinary conditions—not exceptional paths that can leave a vault half-saved.</p>
+        </div>
+        <div class="platform-grid">
+          <article class="platform">
+            <span class="platform-symbol" aria-hidden="true">W</span>
+            <h3>Windows</h3>
+            <p>Use a transactional local database and OS-supported secure key protection. Foreground sync is expected; background work uses supported Windows lifecycle mechanisms and resumes safely after suspension or launch.</p>
+            <ul><li>Keep database, journals, snapshots, exports, logs, and crash artifacts inside the user-data protection boundary.</li><li>Persist work before the OS can suspend the app.</li></ul>
+          </article>
+          <article class="platform">
+            <span class="platform-symbol" aria-hidden="true">A</span>
+            <h3>Android</h3>
+            <p>Use a transactional database with Android Keystore-backed protection where available. Scheduled work follows platform constraints; the design never depends on a permanently running socket.</p>
+            <ul><li>Handle Doze, network changes, vendor task killing, and process death by reconnecting and reconciling.</li><li>Respect lock state and offer a recovery path if protected key material becomes unavailable.</li></ul>
+          </article>
+        </div>
+        <aside class="callout"><b>On both platforms:</b> sensitive database files, journals, indexes, staged exports, diagnostics, and backups need explicit protection. Secure storage protects root or wrapping material; it does not automatically encrypt every database page. Plaintext should also stay out of notifications, clipboard history, analytics, crash reports, and app-switcher previews where platform controls permit.</aside>
+      </div>
+    </section>
+
+    <section id="release">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">08 / Release path</p><h2>Prove the core before adding more ways to connect.</h2></div>
+          <p class="section-intro">The delivery order is designed to reduce risk. The first durable cloud release waits for local storage, common protocol behavior, repair, and recovery to be proven. Live relay is deliberately last because it adds another failure surface without improving durable recovery.</p>
+        </div>
+        <div class="roadmap" aria-label="Release slices">
+          <div class="roadmap-head"><h3>Release slices</h3><p>Each slice retains the plan’s security requirements.</p></div>
+          <div class="release-slices">
+            <article class="slice" data-step="0"><h4>Protocol laboratory</h4><p>No public app. Freeze the schema, reference merge model, encryption-package test vectors, fault harness, and CI. Windows and Android must independently verify the same vectors.</p></article>
+            <article class="slice" data-step="1"><h4>Local-only product</h4><p>Ship the smallest useful native task experience: encrypted vault, task actions, export/import, recovery package, repair flow, and honest local-only status.</p></article>
+            <article class="slice" data-step="2"><h4>Cloud-sync beta</h4><p>Add accounts, owner-controlled enrollment, opaque cloud append/read delivery, durable outbox, snapshots, full resync, quotas, and support runbooks.</p></article>
+            <article class="slice" data-step="3"><h4>Cloud hardening</h4><p>Use staged rollout, migration and rollback rehearsals, restore and retention exercises, independent review, fuzz/load testing, and lifecycle testing.</p></article>
+            <article class="slice" data-step="4"><h4>Volatile relay</h4><p>Only after cloud reconciliation is stable. Demonstrate that the relay persists no operation payload outside bounded, active-session memory.</p></article>
+          </div>
+        </div>
+        <p class="phase-note">The implementation phases underneath this release order are: <strong>0</strong> specify; <strong>1</strong> local crypto and merge core; <strong>2</strong> functional native task experience; <strong>3</strong> enrollment and cloud delivery; <strong>4</strong> relay and safe switching; <strong>5</strong> hardening and release. UI polish is intentionally not allowed to outrun protocol correctness.</p>
+        <details>
+          <summary>What has to be specified before feature work starts?</summary>
+          <div class="detail-body"><p>Before building, the team must close key decisions with Architecture Decision Records and executable evidence: native stacks and minimum OS support; canonical byte encoding; reviewed crypto APIs; owner-key custody; key rotation; task merge behavior; local encryption; counter rollback; snapshot acceptance; cloud consistency; recovery boundary; and the relay launch bar. The protocol also needs concrete contracts for envelopes, enrollment, recovery packages, cloud and relay APIs, errors, and compatibility.</p></div>
+        </details>
+      </div>
+    </section>
+
+    <section aria-labelledby="decisions-title">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">09 / Decisions &amp; risks</p><h2 id="decisions-title">The hard choices are explicit.</h2></div>
+          <p class="section-intro">This is not a plan to “figure out security later.” The choices that shape safety must be decided, recorded, tested, and reviewed before the affected work begins.</p>
+        </div>
+        <div class="decision-grid" aria-label="Key decisions before implementation">
+          <article class="decision"><b>Native stack &amp; lifecycle</b><p>Select supported Windows and Android stacks, secure storage, background APIs, and release/signing approach from spike evidence.</p></article>
+          <article class="decision"><b>Canonical bytes</b><p>Choose a deterministic, bounded format with duplicate-field rejection so every client signs and verifies identical data.</p></article>
+          <article class="decision"><b>Reviewed crypto suite</b><p>Approve encryption, key derivation, passphrase protection, digest, signing, and authenticated exchange through maintained libraries.</p></article>
+          <article class="decision"><b>Owner custody &amp; rotation</b><p>Keep a separate owner key, one V1 management device, and fresh random epoch keys that never derive from a revoked key.</p></article>
+          <article class="decision"><b>Merge, storage &amp; rollback</b><p>Freeze field-level merge and tombstone rules; encrypt all disk-backed derivatives; fail closed if a nonce counter may have rolled back.</p></article>
+          <article class="decision"><b>Snapshots, cloud &amp; recovery</b><p>Define signed snapshot coverage, cloud receipt/cursor semantics, and a user-held recovery package with no server passphrase reset.</p></article>
+        </div>
+        <div style="margin-top: 2rem; overflow-x: auto;">
+          <table class="risk-table">
+            <caption style="padding: 0 0 .7rem; text-align: left; font: 700 1.3rem var(--serif);">Risk register — what can go wrong and how the plan responds</caption>
+            <thead><tr><th scope="col">Risk</th><th scope="col">Level</th><th scope="col">Response</th></tr></thead>
+            <tbody>
+              <tr><td>Protocol or crypto integration defect</td><td><span class="severity">Critical</span></td><td>Use reviewed libraries, negative test vectors, and independent review. An unexplained verification mismatch blocks release.</td></tr>
+              <tr><td>Nonce reuse after backup or cloned-profile rollback</td><td><span class="severity">Critical</span></td><td>Bind counters to a device/key domain; make restored or uncertain profiles create a new identity or fail closed.</td></tr>
+              <tr><td>Owner-key compromise or unclear custody</td><td><span class="severity">Critical</span></td><td>Keep the owner key separate, limit V1 ownership, protect it in recovery packages, and make transfer/recovery explicit.</td></tr>
+              <tr><td>Stale or incomplete snapshot replaces good state</td><td><span class="severity high">High</span></td><td>Require signed coverage, keep monotonic local checkpoints and history, and enter repair rather than silently replace data.</td></tr>
+              <tr><td>Deterministic winner hides a meaningful edit</td><td><span class="severity high">High</span></td><td>Preserve immutable history, show change/conflict evidence, and provide local undo where it is safe.</td></tr>
+              <tr><td>Offline device is stranded by compaction</td><td><span class="severity high">High</span></td><td>Use conservative retention, verified recoverable snapshots, and safe bootstrap for stale devices.</td></tr>
+              <tr><td>Mobile lifecycle interrupts work</td><td><span class="severity medium">Medium</span></td><td>Commit before background work, use supported scheduling, and test OS/vendor behavior instead of assuming a persistent connection.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="done" id="assurance">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="eyebrow">10 / Definition of done</p><h2>“Built” means demonstrably safe, recoverable, and explainable.</h2></div>
+          <p class="section-intro">A feature is not complete because a happy-path demo works. The plan requires evidence that the behavior is specified, survives failure, protects secrets, and has a clear user-facing outcome.</p>
+        </div>
+        <div class="done-grid">
+          <article class="done-card">
+            <h3>Every protocol or storage task must show</h3>
+            <ul class="clean">
+              <li>A versioned specification plus at least one valid and one invalid test vector</li>
+              <li>Agreement between the reference model and both client implementations on bytes and resulting state</li>
+              <li>Tests for retries, restart, duplicates, reordering, partial writes, and corruption where relevant</li>
+              <li>No secrets in logs, telemetry, crash reports, fixtures, or committed files</li>
+              <li>Limits checked before costly parsing, allocation, decryption, or database writes</li>
+              <li>Resumable, tested migrations and documentation updated in the same change</li>
+              <li>Failure screens that say what remains safe, what the person can do, and what cannot be guaranteed</li>
+            </ul>
+          </article>
+          <aside class="done-card">
+            <h3>Release gates in plain terms</h3>
+            <div class="gates">
+              <div class="gate"><b>Gate 0 — Freeze the rules</b>Decisions, schemas, vectors, and the local-first release order are approved.</div>
+              <div class="gate"><b>Gate 1–2 — Prove local correctness</b>Both platforms survive failures and converge after offline, delayed, duplicated, or reordered changes.</div>
+              <div class="gate"><b>Gate 3 — Prove cloud beta</b>The service cannot read task content or authorize a forged change; repair and full resync are tested.</div>
+              <div class="gate"><b>Gate 4 — Prove relay boundaries</b>No payload persistence outside active-session memory; resource limits and dual transport are safe.</div>
+              <div class="gate"><b>Gate 5 — Earn public release</b>Independent review, migration/lifecycle/load/fuzz/recovery tests, signed builds, operations, privacy, support, and staged rollout are ready.</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footnote">
+    <div class="shell">
+      <p><strong>Eisen V1 plan explainer.</strong> This page translates the architecture and implementation plan into a stakeholder view. It does not replace the versioned protocol specification, test vectors, decision records, or release evidence the plan requires.</p>
+      <p>Scope: Windows + Android V1 · Local first · Optional encrypted cloud · Optional volatile relay</p>
+    </div>
+  </footer>
+</body>
+</html>

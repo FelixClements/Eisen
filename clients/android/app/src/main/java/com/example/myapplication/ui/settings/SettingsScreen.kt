@@ -35,6 +35,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -46,6 +52,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 @Composable
 fun SettingsScreen(
     onOpenNavigationDrawer: () -> Unit,
+    onOpenKeyboardShortcuts: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -68,7 +75,25 @@ fun SettingsScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    when (event.key) {
+                        Key.M -> {
+                            onOpenNavigationDrawer()
+                            true
+                        }
+                        Key.Slash -> {
+                            if (event.isShiftPressed) {
+                                onOpenKeyboardShortcuts()
+                                true
+                            } else false
+                        }
+                        else -> false
+                    }
+                } else false
+            },
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
@@ -108,8 +133,7 @@ fun SettingsScreen(
                 trailingContent = {
                     IconButton(onClick = { openNotificationSettings(context) }) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            modifier = Modifier.padding(start = 8.dp), // Placeholder for "Open system settings"
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = "Open system notification settings",
                         )
                     }

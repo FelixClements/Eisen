@@ -89,7 +89,8 @@ class NewTaskScreenTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
             .assertIsDisplayed()
 
-        composeRule.onNodeWithContentDescription("Composer keyboard shortcuts").performClick()
+        composeRule.onNodeWithContentDescription("More actions").performClick()
+        composeRule.onNodeWithText("Keyboard shortcuts").performClick()
         composeRule.onNodeWithText("Alt + Q").assertIsDisplayed()
         composeRule.onNodeWithText("Alt + W").assertIsDisplayed()
         composeRule.onNodeWithText("Alt + E").assertIsDisplayed()
@@ -170,6 +171,7 @@ class NewTaskScreenTest {
         setComposer(onCancel = { cancelCount++ })
 
         composeRule.onNodeWithTag("new-task-category-SCHEDULE").performClick()
+        composeRule.onNodeWithContentDescription("More actions").performClick()
         composeRule.onNodeWithText("Cancel").performClick()
 
         composeRule.onNodeWithText("Discard draft?").assertIsDisplayed()
@@ -256,7 +258,10 @@ class NewTaskScreenTest {
     ) {
         NewTaskScreen(
             defaultCategory = EisenhowerCategory.DO_NOW,
-            onSaveTask = { title, _, _, _, _ -> onSave(title) },
+            onSaveTask = { title, _, _, _, _, _, onDone ->
+                onSave(title)
+                onDone(Result.success(0L))
+            },
             onCancel = onCancel,
         )
     }
