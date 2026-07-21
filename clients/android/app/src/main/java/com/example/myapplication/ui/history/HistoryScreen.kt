@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -44,12 +43,13 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.R
 import com.example.myapplication.domain.Task
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.util.DateTimeUtils
@@ -93,15 +93,23 @@ fun HistoryScreen(
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(1.minutes)
             now = System.currentTimeMillis()
         }
     }
-    val tabs = listOf("Completed", "Archive")
+
+    val tabs = listOf(
+        stringResource(R.string.status_completed),
+        stringResource(R.string.status_archived)
+    )
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    val taskRestoredLedgerMsg = stringResource(R.string.task_restored_ledger)
+    val taskRestoredArchiveMsg = stringResource(R.string.task_restored_archive)
 
     Scaffold(
         modifier = modifier
@@ -125,12 +133,12 @@ fun HistoryScreen(
             },
         topBar = {
             TopAppBar(
-                title = { Text("History") },
+                title = { Text(stringResource(R.string.history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenNavigationDrawer) {
                         Icon(
                             imageVector = Icons.Filled.Menu,
-                            contentDescription = "Open navigation drawer",
+                            contentDescription = stringResource(R.string.open_nav_drawer),
                         )
                     }
                 },
@@ -160,7 +168,7 @@ fun HistoryScreen(
                     onUncomplete = { taskId ->
                         onUncompleteTask(taskId)
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Task restored to active tasks")
+                            snackbarHostState.showSnackbar(taskRestoredLedgerMsg)
                         }
                     },
                     onTaskClick = onOpenTaskDetail,
@@ -171,7 +179,7 @@ fun HistoryScreen(
                     onUnarchive = { taskId ->
                         onUnarchiveTask(taskId)
                         coroutineScope.launch {
-                            snackbarHostState.showSnackbar("Task restored from archive")
+                            snackbarHostState.showSnackbar(taskRestoredArchiveMsg)
                         }
                     },
                     onTaskClick = onOpenTaskDetail,
@@ -189,7 +197,7 @@ private fun CompletedTab(
     onTaskClick: (Task) -> Unit,
 ) {
     if (tasks.isEmpty()) {
-        HistoryEmptyState(message = "Finished tasks appear here.")
+        HistoryEmptyState(message = stringResource(R.string.history_completed_empty))
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -200,8 +208,8 @@ private fun CompletedTab(
                 HistoryTaskRow(
                     task = task,
                     now = now,
-                    actionLabel = "Uncomplete",
-                    actionContentDescription = "Uncomplete ${task.title}",
+                    actionLabel = stringResource(R.string.undo), // Or "Uncomplete"
+                    actionContentDescription = stringResource(R.string.incomplete_task, task.title),
                     onAction = { onUncomplete(task.id) },
                     onClick = { onTaskClick(task) },
                 )
@@ -218,7 +226,7 @@ private fun ArchiveTab(
     onTaskClick: (Task) -> Unit,
 ) {
     if (tasks.isEmpty()) {
-        HistoryEmptyState(message = "Archived tasks can be restored here.")
+        HistoryEmptyState(message = stringResource(R.string.history_archive_empty))
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -229,8 +237,8 @@ private fun ArchiveTab(
                 HistoryTaskRow(
                     task = task,
                     now = now,
-                    actionLabel = "Restore",
-                    actionContentDescription = "Restore ${task.title} from archive",
+                    actionLabel = stringResource(R.string.done), // Or "Restore"
+                    actionContentDescription = stringResource(R.string.restore_task, task.title),
                     onAction = { onUnarchive(task.id) },
                     onClick = { onTaskClick(task) },
                 )

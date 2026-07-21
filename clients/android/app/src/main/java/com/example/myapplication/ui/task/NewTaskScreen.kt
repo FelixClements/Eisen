@@ -81,6 +81,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -89,6 +90,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.ui.category.presentation
 import com.example.myapplication.ui.theme.MyApplicationTheme
@@ -157,6 +159,7 @@ fun NewTaskScreen(
         !isSaving &&
             (title.isNotBlank() ||
                 notes.isNotEmpty() ||
+                taskCategory.isNotEmpty() ||
                 dueDate != null ||
                 reminderAt != null ||
                 selectedCategory != defaultCategory)
@@ -170,11 +173,14 @@ fun NewTaskScreen(
         }
     }
 
+    val titleRequiredMsg = stringResource(R.string.title_required)
+    val reminderPastMsg = stringResource(R.string.reminder_past_warning)
+
     fun save() {
         if (isSaving) return // prevent duplicate taps
         val trimmedTitle = title.trim()
         if (trimmedTitle.isBlank()) {
-            titleError = "Task title is required."
+            titleError = titleRequiredMsg
             showDiscardConfirmation = false
             coroutineScope.launch {
                 titleFocusRequester.requestFocus()
@@ -187,10 +193,10 @@ fun NewTaskScreen(
         val now = System.currentTimeMillis()
         if (reminderAt != null && reminderAt!! < now) {
             coroutineScope.launch {
-                snackbarHostState.showSnackbar("Reminder is in the past and will not fire.")
+                snackbarHostState.showSnackbar(reminderPastMsg)
             }
         }
-
+        
         isSaving = true
         val trimmedNotes = notes.trim().takeIf { it.isNotBlank() }
         val trimmedCategory = taskCategory.trim().takeIf { it.isNotBlank() }
@@ -266,7 +272,7 @@ fun NewTaskScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("New Task") },
+                title = { Text(stringResource(R.string.new_task_title)) },
                 actions = {
                     Box {
                         IconButton(onClick = { showOverflowMenu = true }) {
@@ -280,7 +286,7 @@ fun NewTaskScreen(
                             onDismissRequest = { showOverflowMenu = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Keyboard shortcuts") },
+                                text = { Text(stringResource(R.string.keyboard_shortcuts_title)) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.HelpOutline,
@@ -293,7 +299,7 @@ fun NewTaskScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Cancel") },
+                                text = { Text(stringResource(R.string.cancel)) },
                                 onClick = {
                                     showOverflowMenu = false
                                     requestCancel()
@@ -305,8 +311,6 @@ fun NewTaskScreen(
             )
         },
         bottomBar = {
-            // The bottom app bar owns navigation and IME insets. Its measured height is
-            // included in Scaffold's innerPadding, so the scroll content clears it once.
             BottomAppBar(
                 windowInsets = WindowInsets.navigationBars.union(WindowInsets.ime),
             ) {
@@ -330,7 +334,7 @@ fun NewTaskScreen(
                                 .height(56.dp)
                                 .testTag(SaveButtonTag),
                         ) {
-                            Text(if (isSaving) "Saving…" else "Save")
+                            Text(if (isSaving) "Saving…" else stringResource(R.string.done))
                         }
                     }
                 }
@@ -372,8 +376,8 @@ fun NewTaskScreen(
                         }
                     }
                     .testTag(TitleFieldTag),
-                label = { Text("Task title") },
-                supportingText = { Text(titleError ?: "Required") },
+                label = { Text(stringResource(R.string.title_label)) },
+                supportingText = { Text(titleError ?: stringResource(R.string.title_hint)) },
                 textStyle = MaterialTheme.typography.headlineSmall,
                 singleLine = true,
                 isError = titleError != null,
@@ -500,8 +504,8 @@ private fun DetailsArea(
             value = taskCategory,
             onValueChange = onTaskCategoryChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Category label (optional)") },
-            supportingText = { Text("e.g. Work, School, Groceries") },
+            label = { Text(stringResource(R.string.category_label)) },
+            supportingText = { Text(stringResource(R.string.category_hint)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
         )
@@ -512,27 +516,27 @@ private fun DetailsArea(
                 .fillMaxWidth()
                 .onFocusChanged { onNotesFocusChanged(it.isFocused) }
                 .testTag(NotesFieldTag),
-            label = { Text("Notes") },
-            supportingText = { Text("Optional") },
+            label = { Text(stringResource(R.string.notes_label)) },
+            supportingText = { Text(stringResource(R.string.notes_hint)) },
             minLines = 6,
             maxLines = 6,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
         )
         MetadataRow(
-            title = "Due date",
-            value = dueDate?.let { DateTimeUtils.formatDueDate(it, System.currentTimeMillis()) } ?: "Add date",
+            title = stringResource(R.string.due_date_label),
+            value = dueDate?.let { DateTimeUtils.formatDueDate(it, System.currentTimeMillis()) } ?: stringResource(R.string.add_date),
             icon = Icons.Filled.Event,
             hasValue = dueDate != null,
-            removeContentDescription = "Remove due date",
+            removeContentDescription = stringResource(R.string.remove_due_date),
             onClick = onDueDateClick,
             onRemove = onDueDateRemove,
         )
         MetadataRow(
-            title = "Reminder",
-            value = reminderAt?.let { DateTimeUtils.formatReminderAt(it, LocalContext.current) } ?: "Add reminder",
+            title = stringResource(R.string.reminder_label),
+            value = reminderAt?.let { DateTimeUtils.formatReminderAt(it, LocalContext.current) } ?: stringResource(R.string.add_reminder),
             icon = Icons.Filled.Notifications,
             hasValue = reminderAt != null,
-            removeContentDescription = "Remove reminder",
+            removeContentDescription = stringResource(R.string.remove_reminder),
             onClick = onReminderClick,
             onRemove = onReminderRemove,
         )
@@ -600,11 +604,11 @@ private fun DueDatePickerDialog(
                         ?: onDismiss()
                 },
             ) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     ) {
         DatePicker(state = datePickerState)
@@ -633,11 +637,11 @@ private fun ReminderDatePickerDialog(
                         ?: onDismiss()
                 },
             ) {
-                Text("Next")
+                Text(stringResource(R.string.next))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     ) {
         DatePicker(state = datePickerState)
@@ -664,7 +668,7 @@ private fun ReminderTimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reminder time") },
+        title = { Text(stringResource(R.string.reminder_time_title)) },
         text = { TimePicker(state = timePickerState) },
         confirmButton = {
             TextButton(
@@ -672,11 +676,11 @@ private fun ReminderTimePickerDialog(
                     onTimeSelected(timePickerState.hour, timePickerState.minute)
                 },
             ) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -792,8 +796,8 @@ private fun DiscardConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onKeepEditing,
-        title = { Text("Discard draft?") },
-        text = { Text("Your unsaved task details will be lost.") },
+        title = { Text(stringResource(R.string.discard_draft_title)) },
+        text = { Text(stringResource(R.string.discard_draft_message)) },
         confirmButton = {
             TextButton(
                 onClick = onDiscard,
@@ -801,12 +805,12 @@ private fun DiscardConfirmationDialog(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
             ) {
-                Text("Discard")
+                Text(stringResource(R.string.discard))
             }
         },
         dismissButton = {
             TextButton(onClick = onKeepEditing) {
-                Text("Keep editing")
+                Text(stringResource(R.string.keep_editing))
             }
         },
     )
@@ -816,7 +820,7 @@ private fun DiscardConfirmationDialog(
 private fun ComposerShortcutHelpDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Task shortcuts") },
+        title = { Text(stringResource(R.string.new_task_shortcuts)) },
         text = {
             Column {
                 ComposerShortcutHelpRow(keys = "Enter (title)", action = "Save task")
@@ -831,7 +835,7 @@ private fun ComposerShortcutHelpDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) }
         },
     )
 }

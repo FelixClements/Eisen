@@ -62,9 +62,11 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.domain.Task
 import com.example.myapplication.ui.category.presentation
@@ -85,6 +87,8 @@ fun TaskDetailScreen(
     val task by viewModel.task.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+
+    val reminderPastMsg = stringResource(R.string.reminder_past_warning)
 
     task?.let { currentTask ->
         var title by remember(currentTask.id) { mutableStateOf(currentTask.title) }
@@ -124,10 +128,10 @@ fun TaskDetailScreen(
                 },
             topBar = {
                 TopAppBar(
-                    title = { Text("Task Detail") },
+                    title = { Text(stringResource(R.string.task_detail_title)) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_button))
                         }
                     },
                     actions = {
@@ -136,7 +140,7 @@ fun TaskDetailScreen(
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.PushPin,
-                                contentDescription = if (currentTask.isPinned) "Unpin" else "Pin",
+                                contentDescription = if (currentTask.isPinned) stringResource(R.string.unpin_task) else stringResource(R.string.pin_task),
                                 tint = if (currentTask.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -144,13 +148,13 @@ fun TaskDetailScreen(
                             IconButton(onClick = {
                                 viewModel.updateTask(currentTask.copy(isArchived = true))
                             }) {
-                                Icon(Icons.Filled.Archive, contentDescription = "Archive")
+                                Icon(Icons.Filled.Archive, contentDescription = stringResource(R.string.archive_task, currentTask.title))
                             }
                         } else if (currentTask.isArchived) {
                             IconButton(onClick = {
                                 viewModel.updateTask(currentTask.copy(isArchived = false))
                             }) {
-                                Icon(Icons.Filled.Unarchive, contentDescription = "Unarchive")
+                                Icon(Icons.Filled.Unarchive, contentDescription = stringResource(R.string.unarchive_task, currentTask.title))
                             }
                         }
                     }
@@ -180,7 +184,7 @@ fun TaskDetailScreen(
                                 viewModel.updateTask(currentTask.copy(title = it))
                             }
                         },
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.title_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { titleHasFocus = it.isFocused },
@@ -193,7 +197,7 @@ fun TaskDetailScreen(
                             taskCategory = it
                             viewModel.updateTask(currentTask.copy(category = it.takeIf { it.isNotBlank() }))
                         },
-                        label = { Text("Category label (optional)") },
+                        label = { Text(stringResource(R.string.category_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { categoryHasFocus = it.isFocused },
@@ -206,7 +210,7 @@ fun TaskDetailScreen(
                             description = it
                             viewModel.updateTask(currentTask.copy(description = it.takeIf { it.isNotBlank() }))
                         },
-                        label = { Text("Notes") },
+                        label = { Text(stringResource(R.string.notes_label)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { notesHasFocus = it.isFocused },
@@ -235,11 +239,11 @@ fun TaskDetailScreen(
                     )
 
                     MetadataRow(
-                        title = "Due date",
-                        value = currentTask.dueDate?.let { DateTimeUtils.formatDueDate(it, System.currentTimeMillis()) } ?: "Add date",
+                        title = stringResource(R.string.due_date_label),
+                        value = currentTask.dueDate?.let { DateTimeUtils.formatDueDate(it, System.currentTimeMillis()) } ?: stringResource(R.string.add_date),
                         icon = Icons.Filled.Event,
                         hasValue = currentTask.dueDate != null,
-                        removeContentDescription = "Remove due date",
+                        removeContentDescription = stringResource(R.string.remove_due_date),
                         onClick = { showDueDatePicker = true },
                         onRemove = {
                             viewModel.updateTask(currentTask.copy(dueDate = null))
@@ -247,11 +251,11 @@ fun TaskDetailScreen(
                     )
 
                     MetadataRow(
-                        title = "Reminder",
-                        value = currentTask.reminderAt?.let { DateTimeUtils.formatReminderAt(it, LocalContext.current) } ?: "Add reminder",
+                        title = stringResource(R.string.reminder_label),
+                        value = currentTask.reminderAt?.let { DateTimeUtils.formatReminderAt(it, LocalContext.current) } ?: stringResource(R.string.add_reminder),
                         icon = Icons.Filled.Notifications,
                         hasValue = currentTask.reminderAt != null,
-                        removeContentDescription = "Remove reminder",
+                        removeContentDescription = stringResource(R.string.remove_reminder),
                         onClick = { showReminderDatePicker = true },
                         onRemove = {
                             viewModel.updateTask(currentTask.copy(reminderAt = null))
@@ -259,13 +263,13 @@ fun TaskDetailScreen(
                     )
 
                     ListItem(
-                        headlineContent = { Text("Status") },
+                        headlineContent = { Text(stringResource(R.string.status_label)) },
                         supportingContent = {
                             Text(
                                 when {
-                                    currentTask.isArchived -> "Archived"
-                                    currentTask.isCompleted -> "Completed"
-                                    else -> "Active"
+                                    currentTask.isArchived -> stringResource(R.string.status_archived)
+                                    currentTask.isCompleted -> stringResource(R.string.status_completed)
+                                    else -> stringResource(R.string.status_active)
                                 }
                             )
                         },
@@ -275,7 +279,7 @@ fun TaskDetailScreen(
                             }) {
                                 Icon(
                                     imageVector = if (currentTask.isCompleted) Icons.Filled.Check else Icons.Filled.Close,
-                                    contentDescription = if (currentTask.isCompleted) "Mark Incomplete" else "Mark Complete"
+                                    contentDescription = if (currentTask.isCompleted) stringResource(R.string.incomplete_task, currentTask.title) else stringResource(R.string.complete_task, currentTask.title)
                                 )
                             }
                         }
@@ -316,7 +320,7 @@ fun TaskDetailScreen(
                         val newReminderAt = DateTimeUtils.atLocalTime(date, hour, minute)
                         if (newReminderAt < System.currentTimeMillis()) {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Reminder is in the past and will not fire.")
+                                snackbarHostState.showSnackbar(reminderPastMsg)
                             }
                         }
                         viewModel.updateTask(currentTask.copy(reminderAt = newReminderAt))
@@ -448,11 +452,11 @@ private fun DueDatePickerDialog(
                         ?: onDismiss()
                 },
             ) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     ) {
         DatePicker(state = datePickerState)
@@ -481,11 +485,11 @@ private fun ReminderDatePickerDialog(
                         ?: onDismiss()
                 },
             ) {
-                Text("Next")
+                Text(stringResource(R.string.next))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     ) {
         DatePicker(state = datePickerState)
@@ -512,7 +516,7 @@ private fun ReminderTimePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reminder time") },
+        title = { Text(stringResource(R.string.reminder_time_title)) },
         text = { TimePicker(state = timePickerState) },
         confirmButton = {
             TextButton(
@@ -520,13 +524,11 @@ private fun ReminderTimePickerDialog(
                     onTimeSelected(timePickerState.hour, timePickerState.minute)
                 },
             ) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
-
-

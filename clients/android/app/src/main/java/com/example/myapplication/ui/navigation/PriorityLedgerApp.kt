@@ -55,6 +55,9 @@ import com.example.myapplication.ui.task.TaskDetailViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.res.stringResource
+import com.example.myapplication.R
+
 object PriorityLedgerRoutes {
     const val LEDGER = "ledger"
     const val HISTORY = "history"
@@ -236,25 +239,27 @@ private fun LedgerNavigationDrawer(
     onDestinationSelected: (String) -> Unit,
 ) {
     val destinations = listOf(
-        NavigationDestination("Ledger", PriorityLedgerRoutes.LEDGER, Icons.Filled.ViewList),
-        NavigationDestination("History", PriorityLedgerRoutes.HISTORY, Icons.Filled.History),
-        NavigationDestination("Settings", PriorityLedgerRoutes.SETTINGS, Icons.Filled.Settings),
+        NavigationDestination(stringResource(R.string.home_title), PriorityLedgerRoutes.LEDGER, Icons.Filled.ViewList),
+        NavigationDestination(stringResource(R.string.history_title), PriorityLedgerRoutes.HISTORY, Icons.Filled.History),
+        NavigationDestination(stringResource(R.string.settings_title), PriorityLedgerRoutes.SETTINGS, Icons.Filled.Settings),
         NavigationDestination(
-            "Keyboard shortcuts",
+            stringResource(R.string.keyboard_shortcuts_title),
             PriorityLedgerRoutes.KEYBOARD_SHORTCUTS,
             Icons.Filled.Keyboard,
         ),
     )
 
+    val navDrawerDescription = stringResource(R.string.nav_drawer_description)
+
     ModalDrawerSheet(
         modifier = Modifier
             .semantics {
-                contentDescription = "Navigation drawer"
+                contentDescription = navDrawerDescription
                 stateDescription = drawerStateDescription
             },
     ) {
         Text(
-            text = "Priority Ledger",
+            text = stringResource(R.string.app_name),
             modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
             style = MaterialTheme.typography.titleLarge,
         )
@@ -283,7 +288,7 @@ private fun KeyboardShortcutsScreen(onOpenNavigationDrawer: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Keyboard shortcuts") },
+                title = { Text(stringResource(R.string.keyboard_shortcuts_title)) },
                 navigationIcon = {
                     DrawerNavigationButton(onClick = onOpenNavigationDrawer)
                 },
@@ -298,28 +303,28 @@ private fun KeyboardShortcutsScreen(onOpenNavigationDrawer: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = "Global",
+                text = stringResource(R.string.global_shortcuts),
                 modifier = Modifier.padding(top = 16.dp, start = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
-            ShortcutListItem("?", "Show keyboard shortcuts (this dialog)")
-            ShortcutListItem("M", "Open navigation drawer")
+            ShortcutListItem("?", stringResource(R.string.show_help_shortcut))
+            ShortcutListItem("M", stringResource(R.string.open_drawer_shortcut))
             Text(
-                text = "Ledger",
+                text = stringResource(R.string.ledger_shortcuts),
                 modifier = Modifier.padding(top = 16.dp, start = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
-            ShortcutListItem("J / K", "Move through tasks")
-            ShortcutListItem("Q / W / E / R", "Jump between categories")
-            ShortcutListItem("Space", "Complete or uncomplete the selected task")
-            ShortcutListItem("Backspace", "Archive the selected task")
-            ShortcutListItem("A", "Open the New Task composer")
+            ShortcutListItem("J / K", stringResource(R.string.move_focus_shortcut))
+            ShortcutListItem("Q / W / E / R", stringResource(R.string.jump_category_shortcut))
+            ShortcutListItem("Space", stringResource(R.string.complete_uncomplete_shortcut))
+            ShortcutListItem("Backspace", stringResource(R.string.archive_selected_shortcut))
+            ShortcutListItem("A", stringResource(R.string.open_new_task_shortcut))
             Text(
-                text = "New Task composer",
+                text = stringResource(R.string.new_task_shortcuts),
                 modifier = Modifier.padding(top = 16.dp, start = 16.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
-            ShortcutListItem("Alt + Q / W / E / R", "Choose a task category")
+            ShortcutListItem("Alt + Q / W / E / R", stringResource(R.string.select_category_shortcut))
         }
     }
 }
@@ -338,7 +343,7 @@ private fun DrawerNavigationButton(onClick: () -> Unit) {
     IconButton(onClick = onClick) {
         Icon(
             imageVector = Icons.Filled.Menu,
-            contentDescription = "Open navigation drawer",
+            contentDescription = stringResource(R.string.open_nav_drawer),
         )
     }
 }

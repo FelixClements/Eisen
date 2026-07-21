@@ -42,11 +42,13 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.myapplication.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,12 +98,12 @@ fun SettingsScreen(
             },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenNavigationDrawer) {
                         Icon(
                             imageVector = Icons.Filled.Menu,
-                            contentDescription = "Open navigation drawer",
+                            contentDescription = stringResource(R.string.open_nav_drawer),
                         )
                     }
                 },
@@ -114,12 +116,12 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSectionHeader("Notifications and reminders")
+            SettingsSectionHeader(stringResource(R.string.notification_permission_label))
             ListItem(
-                headlineContent = { Text("Notification permission") },
+                headlineContent = { Text(stringResource(R.string.notification_permission_label)) },
                 supportingContent = {
                     Text(
-                        if (notificationsEnabled) "Enabled" else "Disabled",
+                        if (notificationsEnabled) stringResource(R.string.enabled) else stringResource(R.string.disabled),
                         color = if (notificationsEnabled) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -134,27 +136,27 @@ fun SettingsScreen(
                     IconButton(onClick = { openNotificationSettings(context) }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Open system notification settings",
+                            contentDescription = stringResource(R.string.open_notification_settings),
                         )
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             )
             ListItem(
-                headlineContent = { Text("Reminder timing") },
+                headlineContent = { Text(stringResource(R.string.reminder_timing_label)) },
                 supportingContent = {
-                    Text("Reminders use Android WorkManager and may not fire at the exact minute depending on battery optimization.")
+                    Text(stringResource(R.string.reminder_timing_description))
                 },
                 modifier = Modifier.fillMaxWidth()
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SettingsSectionHeader("Data and Storage")
+            SettingsSectionHeader(stringResource(R.string.offline_storage_label))
             ListItem(
-                headlineContent = { Text("Offline storage") },
+                headlineContent = { Text(stringResource(R.string.offline_storage_label)) },
                 supportingContent = {
-                    Text("All task data is stored locally on this device. The app does not currently sync with any cloud service.")
+                    Text(stringResource(R.string.offline_storage_description))
                 },
                 leadingContent = {
                     Icon(Icons.Filled.Storage, contentDescription = null)
@@ -164,17 +166,17 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SettingsSectionHeader("About")
+            SettingsSectionHeader(stringResource(R.string.product_label))
             ListItem(
-                headlineContent = { Text("Product") },
-                supportingContent = { Text("Priority Ledger") },
+                headlineContent = { Text(stringResource(R.string.product_label)) },
+                supportingContent = { Text(stringResource(R.string.app_name)) },
                 leadingContent = {
                     Icon(Icons.Filled.Info, contentDescription = null)
                 },
                 modifier = Modifier.fillMaxWidth()
             )
             ListItem(
-                headlineContent = { Text("Version") },
+                headlineContent = { Text(stringResource(R.string.version_label)) },
                 supportingContent = { Text(getAppVersion(context)) },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -199,7 +201,7 @@ private fun checkNotificationsEnabled(context: Context): Boolean {
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
     } else {
-        true // Assume true for older versions for now, or check NotificationManagerCompat
+        true
     }
 }
 

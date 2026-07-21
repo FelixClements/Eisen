@@ -1,3 +1,103 @@
 <resources>
     <string name="app_name">Priority Ledger</string>
+    <string name="home_title">Active tasks</string>
+    <string name="history_title">History</string>
+    <string name="settings_title">Settings</string>
+    <string name="keyboard_shortcuts_title">Keyboard shortcuts</string>
+    <string name="new_task_title">New Task</string>
+    <string name="task_detail_title">Task Detail</string>
+
+    <!-- Navigation -->
+    <string name="nav_drawer_description">Navigation drawer</string>
+    <string name="open_nav_drawer">Open navigation drawer</string>
+    <string name="back_button">Back</string>
+
+    <!-- Ledger Actions -->
+    <string name="add_task_fab">Add task</string>
+    <string name="add_task_fab_shortcut">[A] Add</string>
+    <string name="search_tasks">Search tasks</string>
+    <string name="search_placeholder">Search title or notes</string>
+    <string name="archive_task">Archive %1$s</string>
+    <string name="unarchive_task">Unarchive %1$s</string>
+    <string name="restore_task">Restore %1$s</string>
+    <string name="complete_task">Mark %1$s complete</string>
+    <string name="incomplete_task">Mark %1$s incomplete</string>
+    <string name="pinned_task">Pinned</string>
+    <string name="unpin_task">Unpin</string>
+    <string name="pin_task">Pin</string>
+    <string name="reminder_error">Reminder sync error</string>
+
+    <!-- Feedback -->
+    <string name="task_completed">Task completed</string>
+    <string name="task_archived">Task archived</string>
+    <string name="task_restored_ledger">Task restored to active tasks</string>
+    <string name="task_restored_archive">Task restored from archive</string>
+    <string name="undo">Undo</string>
+    <string name="retry">Retry</string>
+    <string name="reminder_past_warning">Reminder is in the past and will not fire.</string>
+
+    <!-- Empty States -->
+    <string name="ledger_empty">No active tasks. Tap + to add one.</string>
+    <string name="search_empty">No results found for \"%1$s\"</string>
+    <string name="history_completed_empty">Finished tasks appear here.</string>
+    <string name="history_archive_empty">Archived tasks can be restored here.</string>
+    <string name="do_now_guidance">Your deck is clear. Focus on what\'s next.</string>
+    <string name="schedule_guidance">No upcoming deadlines. Use this time to recharge.</string>
+    <string name="delegate_guidance">Nothing pending from others.</string>
+    <string name="eliminate_guidance">The ledger is lean.</string>
+
+    <!-- Task Fields -->
+    <string name="title_label">Title</string>
+    <string name="title_required">Task title is required.</string>
+    <string name="title_hint">Required</string>
+    <string name="notes_label">Notes</string>
+    <string name="notes_hint">Optional</string>
+    <string name="category_label">Category label (optional)</string>
+    <string name="category_hint">e.g. Work, School, Groceries</string>
+    <string name="due_date_label">Due date</string>
+    <string name="reminder_label">Reminder</string>
+    <string name="add_date">Add date</string>
+    <string name="add_reminder">Add reminder</string>
+    <string name="remove_due_date">Remove due date</string>
+    <string name="remove_reminder">Remove reminder</string>
+    <string name="status_label">Status</string>
+    <string name="status_active">Active</string>
+    <string name="status_completed">Completed</string>
+    <string name="status_archived">Archived</string>
+
+    <!-- Settings -->
+    <string name="notification_permission_label">Notification permission</string>
+    <string name="enabled">Enabled</string>
+    <string name="disabled">Disabled</string>
+    <string name="open_notification_settings">Open system notification settings</string>
+    <string name="reminder_timing_label">Reminder timing</string>
+    <string name="reminder_timing_description">Reminders use Android WorkManager and may not fire at the exact minute depending on battery optimization.</string>
+    <string name="offline_storage_label">Offline storage</string>
+    <string name="offline_storage_description">All task data is stored locally on this device. The app does not currently sync with any cloud service.</string>
+    <string name="product_label">Product</string>
+    <string name="version_label">Version</string>
+
+    <!-- Dialogs -->
+    <string name="discard_draft_title">Discard draft?</string>
+    <string name="discard_draft_message">Your unsaved task details will be lost.</string>
+    <string name="discard">Discard</string>
+    <string name="keep_editing">Keep editing</string>
+    <string name="reminder_time_title">Reminder time</string>
+    <string name="done">Done</string>
+    <string name="cancel">Cancel</string>
+    <string name="next">Next</string>
+
+    <!-- Shortcuts -->
+    <string name="ledger_shortcuts">Ledger</string>
+    <string name="move_focus_shortcut">Move through tasks</string>
+    <string name="jump_category_shortcut">Jump between categories</string>
+    <string name="complete_uncomplete_shortcut">Complete or uncomplete the selected task</string>
+    <string name="archive_selected_shortcut">Archive the selected task</string>
+    <string name="open_new_task_shortcut">Open the New Task composer</string>
+    <string name="new_task_shortcuts">New Task composer</string>
+    <string name="select_category_shortcut">Choose a task category</string>
+    <string name="global_shortcuts">Global</string>
+    <string name="show_help_shortcut">Show keyboard shortcuts (this dialog)</string>
+    <string name="open_drawer_shortcut">Open navigation drawer</string>
+
 </resources>

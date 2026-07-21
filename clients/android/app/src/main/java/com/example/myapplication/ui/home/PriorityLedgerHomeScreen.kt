@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,16 +27,14 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
@@ -52,8 +51,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -71,13 +70,17 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.domain.Task
 import com.example.myapplication.ui.category.presentation
@@ -136,7 +139,7 @@ fun PriorityLedgerHomeScreen(
     onOpenTaskDetail: (Task) -> Unit = {},
     onOpenKeyboardShortcuts: () -> Unit = {},
     onOpenNavigationDrawer: () -> Unit = {},
-    onSearch: (String) -> Unit = {}, // Added for Phase 9
+    onSearch: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val sectionSpecs = remember { priorityLedgerSectionSpecs() }
@@ -144,17 +147,20 @@ fun PriorityLedgerHomeScreen(
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
+
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
             searchFocusRequester.requestFocus()
         }
     }
+
     LaunchedEffect(Unit) {
         while (true) {
             delay(1.minutes)
             now = System.currentTimeMillis()
         }
     }
+
     val visibleTasks = remember(uiState.groupedTasks, sectionSpecs) {
         sectionSpecs.flatMap { spec -> uiState.groupedTasks[spec.category].orEmpty() }
     }
@@ -173,14 +179,18 @@ fun PriorityLedgerHomeScreen(
         buildListIndexMap(sectionSpecs, uiState.groupedTasks)
     }
 
+    val taskCompletedMsg = stringResource(R.string.task_completed)
+    val taskArchivedMsg = stringResource(R.string.task_archived)
+    val undoLabel = stringResource(R.string.undo)
+
     LaunchedEffect(events) {
         events.collect { event ->
             when (event) {
                 is HomeUiEvent.TaskCompleted -> {
                     if (event.isCompleted) {
                         val result = snackbarHostState.showSnackbar(
-                            message = "Task completed",
-                            actionLabel = "Undo",
+                            message = taskCompletedMsg,
+                            actionLabel = undoLabel,
                             duration = SnackbarDuration.Short,
                         )
                         if (result == SnackbarResult.ActionPerformed) {
@@ -190,8 +200,8 @@ fun PriorityLedgerHomeScreen(
                 }
                 is HomeUiEvent.TaskArchived -> {
                     val result = snackbarHostState.showSnackbar(
-                        message = "Task archived",
-                        actionLabel = "Undo",
+                        message = taskArchivedMsg,
+                        actionLabel = undoLabel,
                         duration = SnackbarDuration.Short,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -208,7 +218,7 @@ fun PriorityLedgerHomeScreen(
     LaunchedEffect(taskIds) {
         if (focusedTaskId == null && lastJumpedCategory == null) {
             focusedTaskId = taskIds.firstOrNull()
-        } else if (focusedTaskId != null && taskIds.none { taskId -> taskId == focusedTaskId }) {
+        } else if (focusedTaskId != null && taskIds.none { it == focusedTaskId }) {
             focusedTaskId = taskIds.firstOrNull()
         }
     }
@@ -243,7 +253,7 @@ fun PriorityLedgerHomeScreen(
             coroutineScope.launch { listState.animateScrollToItem(index) }
         }
         val firstTask = uiState.groupedTasks[category].orEmpty().firstOrNull()
-        focusedTaskId = firstTask?.id
+        focusedTaskId = firstTask?.id ?: focusedTaskId
         return true
     }
 
@@ -262,30 +272,10 @@ fun PriorityLedgerHomeScreen(
 
     fun completeTask(task: Task, completed: Boolean) {
         onTaskCompletionChange(task, completed)
-        if (completed) {
-            coroutineScope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = "Task completed",
-                    actionLabel = "Undo",
-                )
-                if (result == SnackbarResult.ActionPerformed) {
-                    onTaskCompletionChange(task, false)
-                }
-            }
-        }
     }
 
     fun archiveTask(task: Task): Boolean {
         onArchiveTask(task)
-        coroutineScope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = "Task archived",
-                actionLabel = "Undo",
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                onUnarchiveTask(task)
-            }
-        }
         return true
     }
 
@@ -309,12 +299,12 @@ fun PriorityLedgerHomeScreen(
                 )
             } else {
                 TopAppBar(
-                    title = { Text("Active tasks") },
+                    title = { Text(stringResource(R.string.home_title)) },
                     navigationIcon = {
                         IconButton(onClick = onOpenNavigationDrawer) {
                             Icon(
                                 imageVector = Icons.Filled.Menu,
-                                contentDescription = "Open navigation drawer",
+                                contentDescription = stringResource(R.string.open_nav_drawer),
                             )
                         }
                     },
@@ -322,7 +312,7 @@ fun PriorityLedgerHomeScreen(
                         IconButton(onClick = { isSearchActive = true }) {
                             Icon(
                                 imageVector = Icons.Filled.Search,
-                                contentDescription = "Search tasks",
+                                contentDescription = stringResource(R.string.search_tasks),
                             )
                         }
                     }
@@ -333,7 +323,7 @@ fun PriorityLedgerHomeScreen(
             ExtendedFloatingActionButton(
                 onClick = { openNewTask() },
                 icon = { Icon(imageVector = Icons.Filled.Add, contentDescription = null) },
-                text = { Text("[A] Add") },
+                text = { Text(stringResource(R.string.add_task_fab_shortcut)) },
                 modifier = Modifier.semantics {
                     contentDescription = "Add task. Keyboard shortcut A"
                 },
@@ -372,7 +362,7 @@ fun PriorityLedgerHomeScreen(
                             onClick = onRetry,
                             modifier = Modifier.padding(top = 16.dp),
                         ) {
-                            Text("Retry")
+                            Text(stringResource(R.string.retry))
                         }
                     }
                 }
@@ -386,7 +376,7 @@ fun PriorityLedgerHomeScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (isSearchActive) "No results found for \"$searchQuery\"" else "No active tasks. Tap + to add one.",
+                        text = if (isSearchActive) stringResource(R.string.search_empty, searchQuery) else stringResource(R.string.ledger_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -494,7 +484,7 @@ private fun SearchTopAppBar(
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
                     .padding(vertical = 4.dp),
-                placeholder = { Text("Search title or notes") },
+                placeholder = { Text(stringResource(R.string.search_placeholder)) },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
@@ -505,7 +495,7 @@ private fun SearchTopAppBar(
         },
         navigationIcon = {
             IconButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_button))
             }
         }
     )
@@ -519,14 +509,13 @@ private fun LedgerSummary(
     val taskCount = uiState.activeTasks.size
     val urgentCount = uiState.activeTasks.count { task -> task.isUrgent }
     val overdueCount = uiState.activeTasks.count { task ->
-        task.dueDate?.let { dueDate -> dueDate < now } == true
+        task.dueDate?.let { it < now } == true
     }
+    
     val summary = if (uiState.isLoading) {
         "Loading ledger..."
     } else {
-        "${taskCount.countLabel("task", "tasks")} · " +
-            "${urgentCount.countLabel("urgent", "urgent")} · " +
-            overdueCount.countLabel("overdue", "overdue")
+        "$taskCount active · $urgentCount urgent · $overdueCount overdue"
     }
 
     Surface(
@@ -557,7 +546,7 @@ private fun CategorySectionHeader(
             .semantics {
                 heading()
                 stateDescription =
-                    "${taskCount.countLabel("task", "tasks")}. Keyboard shortcut ${presentation.shortcutLabel}"
+                    "$taskCount tasks. Keyboard shortcut ${presentation.shortcutLabel}"
             },
         colors = CardDefaults.outlinedCardColors(
             containerColor = categoryColors.container,
@@ -628,6 +617,9 @@ private fun PriorityTaskRow(
     onClick: () -> Unit,
 ) {
     val statusLine = taskStatusLine(task, now)
+    val completeLabel = stringResource(R.string.complete_task, task.title)
+    val incompleteLabel = stringResource(R.string.incomplete_task, task.title)
+    val archiveLabel = stringResource(R.string.archive_task, task.title)
 
     OutlinedCard(
         onClick = onClick,
@@ -637,6 +629,16 @@ private fun PriorityTaskRow(
                 if (isFocused) {
                     stateDescription = "Selected for keyboard actions"
                 }
+                customActions = listOf(
+                    CustomAccessibilityAction(if (task.isCompleted) incompleteLabel else completeLabel) {
+                        onCheckedChange(!task.isCompleted)
+                        true
+                    },
+                    CustomAccessibilityAction(archiveLabel) {
+                        onArchive()
+                        true
+                    }
+                )
             },
         border = if (isFocused) {
             BorderStroke(3.dp, MaterialTheme.colorScheme.primary)
@@ -658,11 +660,7 @@ private fun PriorityTaskRow(
                     checked = task.isCompleted,
                     onCheckedChange = onCheckedChange,
                     modifier = Modifier.semantics {
-                        contentDescription = if (task.isCompleted) {
-                            "Mark ${task.title} incomplete"
-                        } else {
-                            "Mark ${task.title} complete"
-                        }
+                        contentDescription = if (task.isCompleted) incompleteLabel else completeLabel
                     },
                 )
             }
@@ -698,20 +696,20 @@ private fun PriorityTaskRow(
                 if (hasReminderError) {
                     Icon(
                         imageVector = Icons.Filled.Warning,
-                        contentDescription = "Reminder sync error",
+                        contentDescription = stringResource(R.string.reminder_error),
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
                 if (task.isPinned) {
                     Icon(
                         imageVector = Icons.Filled.PushPin,
-                        contentDescription = "Pinned",
+                        contentDescription = stringResource(R.string.pinned_task),
                     )
                 }
                 IconButton(onClick = onArchive) {
                     Icon(
                         imageVector = Icons.Filled.Archive,
-                        contentDescription = "Archive ${task.title}",
+                        contentDescription = archiveLabel,
                     )
                 }
             }
@@ -722,10 +720,10 @@ private fun PriorityTaskRow(
 @Composable
 private fun EmptyCategoryCard(category: EisenhowerCategory) {
     val guidance = when (category) {
-        EisenhowerCategory.DO_NOW -> "Your deck is clear. Focus on what's next."
-        EisenhowerCategory.SCHEDULE -> "No upcoming deadlines. Use this time to recharge."
-        EisenhowerCategory.DELEGATE_WAITING -> "Nothing pending from others."
-        EisenhowerCategory.ELIMINATE_LATER -> "The ledger is lean."
+        EisenhowerCategory.DO_NOW -> stringResource(R.string.do_now_guidance)
+        EisenhowerCategory.SCHEDULE -> stringResource(R.string.schedule_guidance)
+        EisenhowerCategory.DELEGATE_WAITING -> stringResource(R.string.delegate_guidance)
+        EisenhowerCategory.ELIMINATE_LATER -> stringResource(R.string.eliminate_guidance)
     }
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -833,9 +831,6 @@ private fun taskStatusLine(task: Task, now: Long): String? {
 
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
-
-private fun Int.countLabel(singular: String, plural: String): String =
-    "$this ${if (this == 1) singular else plural}"
 
 private val sampleNow = 1_800_000_000_000L
 
