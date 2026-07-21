@@ -49,7 +49,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P0.15 | [x] Specify the enrollment handshake. | project owner | owner initiation, new-device keys, bounded QR payload, expiring single-use capability, authenticated key exchange, confirmation code, encrypted epoch-key transfer, membership publication, cancellation, and disappearance handling. |
 | P0.16 | [x] Specify cloud and relay transport contracts. | project owner | separate service authentication/device-signature authorization, cloud pagination and snapshot APIs, relay manifest exchange and range inventory encoding, bounded frames, acknowledgement meaning, and reconnect rules. |
 | P0.17 | [x] Specify recovery, compatibility, and error contracts. | project owner | restore transaction and wrong-passphrase behavior, supported-version/deprecation/downgrade/rollback policy, and non-secret stable error taxonomy. |
-| P0.18 | Publish the threat-model review, retention policy, account/enrollment authentication design, and service metadata limitations. | project owner | reviewed documents that explicitly separate service access from cryptographic authorization and define offline old-epoch handling. |
+| P0.18 | [x] Publish the threat-model review, retention policy, account/enrollment authentication design, and service metadata limitations. | project owner | reviewed documents that explicitly separate service access from cryptographic authorization and define offline old-epoch handling. |
 
 ### - [ ] G0 — Protocol and product freeze
 
