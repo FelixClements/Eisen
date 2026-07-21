@@ -57,7 +57,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| G0.01 | Approve ADRs D-001 through D-011. | project owner | approved ADR set with protocol consequences and executable evidence for each decision. |
+| G0.01 | Approve ADRs D-001 through D-012. | project owner | approved ADR set with protocol consequences and executable evidence for each decision. |
 | G0.02 | Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | project owner | signed-off versioned specification bundle. |
 | G0.03 | Verify positive and negative vectors run in CI and unresolved critical threat-model findings are closed. | project owner | passing CI report and review record. |
 | G0.04 | Record the release sequence as local-only before cloud sync and defer relay implementation. | project owner | approved delivery-slice record. |
@@ -212,11 +212,11 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 ## - [ ] P5 — Volatile relay
 
-**Prerequisites:** G5 is passed. Record D-012 with its required evidence before relay implementation. Relay is opt-in and cannot block local use, durable recovery, or the already stable cloud reconciliation path.
+**Prerequisites:** G5 is passed. Record D-013 with its required evidence before relay implementation. Relay is opt-in and cannot block local use, durable recovery, or the already stable cloud reconciliation path.
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P5.01 | Record D-012 in an ADR. | project owner | relay launch bar defining bounded active-session memory, non-persistence, common anti-entropy protocol, and persistence/flood/reconnect evidence requirements. |
+| P5.01 | Record D-013 in an ADR. | project owner | relay launch bar defining bounded active-session memory, non-persistence, common anti-entropy protocol, and persistence/flood/reconnect evidence requirements. |
 | P5.02 | Implement relay capability lifecycle. | project owner | high-entropy vault/session-scoped capability with expiry and revocation/rotation behavior exchanged only through authenticated enrollment or user-confirmed channels, never logged in URLs. |
 | P5.03 | Implement WSS relay authentication and bounded connection state. | project owner | authenticated handshake/header/subprotocol design, per-capability peer limits, and minimal in-memory routing state only. |
 | P5.04 | Implement opaque bounded peer routing. | project owner | no decrypt, merge, durable acknowledgement, or persistence of operation payloads and explicit incompatible/abusive-peer error codes. |

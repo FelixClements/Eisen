@@ -46,6 +46,7 @@ P0 requires a recorded decision on the supported native stack, minimum OS versio
 - Core development can proceed in parallel with client UI work once the C API surface is stable.
 - Windows builds require a Windows environment or CI runner; macOS cannot produce Windows binaries.
 - Rust toolchain is required for local core development; `rustup` is the recommended installer.
+- The cloud/relay server stack is recorded separately in ADR-012; the server is implemented in Go and may call the Rust core for validation.
 
 ## Evidence
 

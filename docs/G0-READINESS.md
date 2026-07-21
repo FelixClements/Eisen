@@ -4,7 +4,7 @@
 
 All P0 tasks have been completed and the following artifacts are in `docs/adr/` and `docs/specs/`.
 
-### ADRs (D-001 through D-011)
+### ADRs (D-001 through D-012)
 
 | ADR | File | Topic |
 |---|---|---|
@@ -19,6 +19,7 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 | D-009 | `docs/adr/009-snapshot-contract.md` | Snapshot contract |
 | D-010 | `docs/adr/010-cloud-api.md` | Cloud API contract decision |
 | D-011 | `docs/adr/011-recovery-package.md` | Recovery package decision |
+| D-012 | `docs/adr/012-server-stack.md` | Cloud and relay server stack (Go) |
 
 ### Specifications
 
@@ -49,7 +50,7 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 
 | ID | Criterion | Status |
 |---|---|---|
-| G0.01 | Approve ADRs D-001 through D-011. | Pending project-owner approval. |
+| G0.01 | Approve ADRs D-001 through D-012. | Pending project-owner approval. |
 | G0.02 | Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | Pending project-owner sign-off; artifacts listed above. |
 | G0.03 | Verify positive and negative vectors run in CI and unresolved critical threat-model findings are closed. | CI configured; vector runner and seed vectors to be added in P1.18. |
 | G0.04 | Record the release sequence as local-only before cloud sync and defer relay implementation. | Recorded below and in `phasing-plan.md`. |

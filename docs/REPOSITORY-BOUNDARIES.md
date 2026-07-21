@@ -9,7 +9,7 @@ This document defines the top-level boundaries for the Eisen project. Each bound
 | Core library | `core/` | project owner / platform | Reference mutation/merge model, HLC, canonical protocol parsers, device identity, epoch-root/keys, nonce reservation, signed encrypted envelopes, manifest-chain verification, encrypted local store, and mutation transactions. |
 | Protocol specifications | `protocol/` | project owner / platform | Canonical encoding, envelope/nonce contracts, HLC/mutation/membership/epoch state machines, enrollment handshake, transport contracts, recovery/compatibility/error contracts, and test vectors. |
 | Storage abstractions | `storage/` | project owner / platform | Encrypted local-store schema, wrapping, WAL/journal handling, snapshot primitives, export/import staging, and repair/resync primitives. |
-| Servers | `servers/` | project owner / backend | Cloud-sync service, relay service, account/session APIs, and operational tooling. |
+| Servers | `servers/` | project owner / backend | Cloud-sync service, relay service, account/session APIs, and operational tooling. Implemented in Go; may call the Rust core for signature/manifest validation but never holds decryption keys or plaintext task content. |
 | Tests | `tests/` | project owner / qa | Cross-platform vectors, property tests, fault-injection scenarios, acceptance tests, and compatibility matrices. |
 | Documentation | `docs/` | project owner / docs | Architecture Decision Records (ADRs), specifications, threat-model review, retention policy, and release-readiness packets. |
 | Operations | `ops/` | project owner / ops | Deployment configs, runbooks, dashboards, alerts, backup/disaster-recovery procedures, and CI pipelines. |

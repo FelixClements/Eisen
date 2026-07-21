@@ -426,7 +426,8 @@ The following are not “nice to have” choices. Each must have an ADR, a proto
 | D-009 | Snapshot acceptance | Snapshots are signed optimization artifacts with explicit per-origin coverage and monotonic local checkpoint rules, never authoritative replacement state. | Stale, omitted-range, replay, corruption, and repair tests. |
 | D-010 | Cloud consistency | Define append idempotency, digest conflict behavior, cursor ordering/expiry, receipt durability, read-after-write expectations, and retention semantics. | API contract tests plus a fault-injected reference service. |
 | D-011 | Recovery boundary | A package restores local trust/key state without a server passphrase reset; cloud retrieval is optional and separately authenticated. | Offline restore, no-account restore, incompatible-locator, and wrong-passphrase tests. |
-| D-012 | Relay launch bar | Relay is not a durable store, has bounded memory, and uses the same anti-entropy protocol as cloud. | Persistence audit, flood/backpressure tests, reconnect convergence tests. |
+| D-012 | Server stack | The cloud and relay server is implemented in Go; it stores opaque encrypted blobs and may call the Rust core for signature/manifest validation. | Build evidence for `servers/` as a Go binary. |
+| D-013 | Relay launch bar | Relay is not a durable store, has bounded memory, and uses the same anti-entropy protocol as cloud. | Persistence audit, flood/backpressure tests, reconnect convergence tests. |
 
 ## 18. Protocol contract deliverables
 
