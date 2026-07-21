@@ -32,8 +32,8 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P0.01 | Create the agreed repository boundaries for clients, core, protocol, storage, servers, tests, docs, ops, and tools. | project owner | buildable empty module skeleton with ownership locations. |
-| P0.02 | Configure local and CI checks for formatting, static analysis, dependency/license/SBOM checks, schema compatibility, protocol vectors, reference-model tests, secret scanning, and unit tests. | project owner | documented commands and a blocking CI pipeline. |
+| P0.01 | [x] Create the agreed repository boundaries for clients, core, protocol, storage, servers, tests, docs, ops, and tools. | project owner | buildable empty module skeleton with ownership locations. |
+| P0.02 | [x] Configure local and CI checks for formatting, static analysis, dependency/license/SBOM checks, schema compatibility, protocol vectors, reference-model tests, secret scanning, and unit tests. | project owner | documented commands and a blocking CI pipeline. |
 | P0.03 | Record D-001 in an ADR: selected supported native stack, minimum OS versions, lifecycle APIs, and release/signing approach for Windows and Android. | project owner | spike-build, secure-storage, and lifecycle-test evidence. |
 | P0.04 | Record D-002 in an ADR and canonical-encoding specification. | project owner | bounded deterministic encoding rules, field ordering/types, duplicate-field rejection, integer/string rules, Unicode policy, version negotiation, and digest input. |
 | P0.05 | Record D-003 in an ADR. | project owner | maintained platform-reviewed API/library capability matrix, approved AES-GCM/HKDF/Argon2id/digest/signing/key-exchange choices, Argon2id benchmarked parameters, and review plan. |
