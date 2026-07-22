@@ -7,6 +7,7 @@
 
 pub mod canonical;
 pub mod clock;
+pub mod epoch;
 pub mod identity;
 
 use std::cmp::Ordering;

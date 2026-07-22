@@ -4,10 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+aes-gcm = "=0.10.3"
 cbor2 = "=1.1.3"
 ed25519-dalek = { version = "=2.2.0", features = ["zeroize"] }
 getrandom = "0.2"
+hkdf = "0.12"
 serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
 unicode-normalization = "0.1"
 x25519-dalek = { version = "=2.0.1", features = ["static_secrets", "zeroize"] }
 
