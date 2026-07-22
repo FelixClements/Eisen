@@ -5,6 +5,8 @@
 //! merge. It intentionally contains no encoding, crypto, or persistence logic;
 //! those are P1.03, P1.05, and P1.09.
 
+pub mod clock;
+
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
