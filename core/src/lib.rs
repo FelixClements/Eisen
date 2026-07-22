@@ -7,20 +7,76 @@
 
 pub mod canonical;
 pub mod clock;
+pub mod identity;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+
+use serde::{de, ser, Deserialize, Serialize};
 
 /// 128-bit device identifier (UUID bytes, big-endian).
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceId(pub [u8; 16]);
 
+impl DeviceId {
+    /// Hex string of the ID bytes, suitable for stable storage keys.
+    pub fn to_hex(&self) -> String {
+        self.0.iter().map(|b| format!("{b:02x}")).collect()
+    }
+}
+
+impl Serialize for DeviceId {
+    fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_bytes(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for DeviceId {
+    fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> de::Visitor<'de> for V {
+            type Value = DeviceId;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "a 16-byte CBOR byte string")
+            }
+            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                let arr: [u8; 16] = v.try_into().map_err(|_| E::custom("expected 16 bytes"))?;
+                Ok(DeviceId(arr))
+            }
+        }
+        d.deserialize_bytes(V)
+    }
+}
+
 /// 128-bit task identifier (UUID bytes, big-endian).
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TaskId(pub [u8; 16]);
 
+impl Serialize for TaskId {
+    fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_bytes(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for TaskId {
+    fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct V;
+        impl<'de> de::Visitor<'de> for V {
+            type Value = TaskId;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(f, "a 16-byte CBOR byte string")
+            }
+            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                let arr: [u8; 16] = v.try_into().map_err(|_| E::custom("expected 16 bytes"))?;
+                Ok(TaskId(arr))
+            }
+        }
+        d.deserialize_bytes(V)
+    }
+}
+
 /// Hybrid logical clock: (wall, counter, device_id).
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Hlc {
     pub wall: u64,
     pub counter: u32,
