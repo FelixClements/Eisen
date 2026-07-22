@@ -14,7 +14,7 @@ The server stack was not fixed during P0 because the protocol contracts (D-010, 
 
 - **Server language:** Go.
 - **Primary frameworks:** `net/http` or a lightweight router such as Gin or Echo; `net/http` is preferred for the initial implementation to minimize dependencies.
-- **WebSocket library:** `gorilla/websocket` or the standard library's `websocket` support where appropriate, for the volatile relay.
+- **WebSocket library:** a maintained third-party library for the volatile relay, since the Go standard library does not ship a WebSocket implementation. Candidates are `github.com/coder/websocket` (formerly `nhooyr.io/websocket`) or `github.com/gorilla/websocket`; the exact choice is fixed in P5 when the relay is implemented.
 - **Database:** a transactional SQL store (e.g., PostgreSQL) for account metadata, envelope references, cursors, and snapshot advertisements. Envelope and snapshot blobs are opaque bytes and may be stored in object storage or as large binary columns.
 - **Build and deployment:** single static binary produced by `go build`; container image or bare-metal deployment supported through `ops/` configurations.
 - **Crypto / protocol validation:** signature and manifest validation may call the shared Rust core through FFI or a sidecar. The server does not perform AEAD decryption and must not hold vault keys.

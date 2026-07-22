@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs / editors
+.idea/
+.vs/
+.vscode/
+*.iml
+*.swp
+*~
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.apk
+*.aab
+*.keystore
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Rust (shared core)
+target/
+**/*.rs.bk
+
+# Go (servers)
+*.exe
+*.test
+*.out
+/servers/**/bin/
+
+# Logs and temp
+*.log
