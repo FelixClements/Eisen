@@ -70,7 +70,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P1.01 | Implement the reference mutation/merge model. | project owner | deterministic task state oracle for create, update, complete, restore, delete, and local-only purge request. |
+| P1.01 | [x] Implement the reference mutation/merge model. | project owner | deterministic task state oracle for create, update, complete, restore, delete, and local-only purge request. |
 | P1.02 | Implement persisted HLC generation and receive merge. | project owner | monotonic restart-safe clock with canonical tuple comparison and skew diagnostics input. |
 | P1.03 | Implement canonical protocol parsers and validators. | project owner | bounded duplicate-rejecting decode/re-encode verification before crypto or storage application. |
 | P1.04 | Implement device identity and owner trust-anchor creation. | project owner | separate signing/encryption device keys, stable random device ID, separate owner signing key, and signed genesis manifest stored through platform secure storage. |
