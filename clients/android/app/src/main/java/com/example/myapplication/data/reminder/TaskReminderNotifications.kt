@@ -8,7 +8,7 @@ import androidx.core.app.NotificationManagerCompat
 
 object TaskReminderNotifications {
     const val CHANNEL_ID = "task_reminders"
-    private const val CHANNEL_NAME = "Priority Ledger reminders"
+    private const val CHANNEL_NAME = "Reminders"
 
     fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

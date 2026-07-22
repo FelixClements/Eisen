@@ -169,7 +169,6 @@ fun SettingsScreen(
             SettingsSectionHeader(stringResource(R.string.product_label))
             ListItem(
                 headlineContent = { Text(stringResource(R.string.product_label)) },
-                supportingContent = { Text(stringResource(R.string.app_name)) },
                 leadingContent = {
                     Icon(Icons.Filled.Info, contentDescription = null)
                 },

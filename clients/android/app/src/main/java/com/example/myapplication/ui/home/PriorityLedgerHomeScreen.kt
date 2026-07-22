@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,7 +34,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +48,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -97,6 +98,7 @@ import kotlinx.coroutines.launch
 private val LedgerCardOuterGutter = 16.dp
 private val LedgerLeadingRailWidth = 48.dp
 private val LedgerLeadingRailTextGap = 8.dp
+private val LedgerOverlayHeaderHeight = 56.dp
 private const val LedgerTaskListTag = "ledger-task-list"
 
 @Composable
@@ -126,7 +128,6 @@ fun PriorityLedgerHomeRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PriorityLedgerHomeScreen(
     uiState: HomeUiState,
@@ -282,43 +283,6 @@ fun PriorityLedgerHomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        topBar = {
-            if (isSearchActive) {
-                SearchTopAppBar(
-                    query = searchQuery,
-                    focusRequester = searchFocusRequester,
-                    onQueryChange = {
-                        searchQuery = it
-                        onSearch(it)
-                    },
-                    onClose = {
-                        isSearchActive = false
-                        searchQuery = ""
-                        onSearch("")
-                    }
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.home_title)) },
-                    navigationIcon = {
-                        IconButton(onClick = onOpenNavigationDrawer) {
-                            Icon(
-                                imageVector = Icons.Filled.Menu,
-                                contentDescription = stringResource(R.string.open_nav_drawer),
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { isSearchActive = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = stringResource(R.string.search_tasks),
-                            )
-                        }
-                    }
-                )
-            }
-        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { openNewTask() },
@@ -331,174 +295,229 @@ fun PriorityLedgerHomeScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
-        val hasTasks = uiState.activeTasks.isNotEmpty()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(innerPadding),
+        ) {
+            val hasTasks = uiState.activeTasks.isNotEmpty()
 
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            uiState.error != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = uiState.error ?: "",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Button(
-                            onClick = onRetry,
-                            modifier = Modifier.padding(top = 16.dp),
-                        ) {
-                            Text(stringResource(R.string.retry))
-                        }
+            when {
+                uiState.isLoading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = LedgerOverlayHeaderHeight),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
                     }
                 }
-            }
 
-            !hasTasks -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (isSearchActive) stringResource(R.string.search_empty, searchQuery) else stringResource(R.string.ledger_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            else -> {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .onPreviewKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                            when (event.key) {
-                                Key.J -> moveFocus(1)
-                                Key.K -> moveFocus(-1)
-                                Key.Q -> jumpToCategory(EisenhowerCategory.DO_NOW)
-                                Key.W -> jumpToCategory(EisenhowerCategory.SCHEDULE)
-                                Key.E -> jumpToCategory(EisenhowerCategory.DELEGATE_WAITING)
-                                Key.R -> jumpToCategory(EisenhowerCategory.ELIMINATE_LATER)
-                                Key.M -> {
-                                    onOpenNavigationDrawer()
-                                    true
-                                }
-                                Key.Slash -> {
-                                    if (event.isShiftPressed) {
-                                        onOpenKeyboardShortcuts()
-                                        true
-                                    } else false
-                                }
-                                Key.Spacebar -> {
-                                    visibleTasks.firstOrNull { it.id == focusedTaskId }?.let { task ->
-                                        completeTask(task, !task.isCompleted)
-                                        true
-                                    } ?: false
-                                }
-                                Key.Backspace -> {
-                                    visibleTasks.firstOrNull { it.id == focusedTaskId }?.let(::archiveTask) ?: false
-                                }
-                                Key.A -> openNewTask()
-                                else -> false
-                            }
-                        }
-                        .focusRequester(focusRequester)
-                        .focusable()
-                        .testTag(LedgerTaskListTag),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    item(key = "ledger-header") {
-                        LedgerSummary(uiState = uiState, now = now)
-                    }
-
-                    sectionSpecs.forEach { spec ->
-                        item(key = "section-${spec.category.name}") {
-                            CategorySectionHeader(
-                                spec = spec,
-                                taskCount = uiState.groupedTasks[spec.category].orEmpty().size,
+                uiState.error != null -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = LedgerOverlayHeaderHeight),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = uiState.error ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.error,
                             )
+                            Button(
+                                onClick = onRetry,
+                                modifier = Modifier.padding(top = 16.dp),
+                            ) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        }
+                    }
+                }
+
+                !hasTasks -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = LedgerOverlayHeaderHeight),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = if (isSearchActive) stringResource(R.string.search_empty, searchQuery) else stringResource(R.string.ledger_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onPreviewKeyEvent { event ->
+                                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                when (event.key) {
+                                    Key.J -> moveFocus(1)
+                                    Key.K -> moveFocus(-1)
+                                    Key.Q -> jumpToCategory(EisenhowerCategory.DO_NOW)
+                                    Key.W -> jumpToCategory(EisenhowerCategory.SCHEDULE)
+                                    Key.E -> jumpToCategory(EisenhowerCategory.DELEGATE_WAITING)
+                                    Key.R -> jumpToCategory(EisenhowerCategory.ELIMINATE_LATER)
+                                    Key.M -> {
+                                        onOpenNavigationDrawer()
+                                        true
+                                    }
+                                    Key.Slash -> {
+                                        if (event.isShiftPressed) {
+                                            onOpenKeyboardShortcuts()
+                                            true
+                                        } else false
+                                    }
+                                    Key.Spacebar -> {
+                                        visibleTasks.firstOrNull { it.id == focusedTaskId }?.let { task ->
+                                            completeTask(task, !task.isCompleted)
+                                            true
+                                        } ?: false
+                                    }
+                                    Key.Backspace -> {
+                                        visibleTasks.firstOrNull { it.id == focusedTaskId }?.let(::archiveTask) ?: false
+                                    }
+                                    Key.A -> openNewTask()
+                                    else -> false
+                                }
+                            }
+                            .focusRequester(focusRequester)
+                            .focusable()
+                            .testTag(LedgerTaskListTag),
+                        contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 96.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item(key = "ledger-header") {
+                            LedgerSummary(uiState = uiState, now = now)
                         }
 
-                        val tasks = uiState.groupedTasks[spec.category].orEmpty()
-                        if (tasks.isEmpty()) {
-                            item(key = "empty-${spec.category.name}") {
-                                EmptyCategoryCard(spec.category)
-                            }
-                        } else {
-                            items(
-                                items = tasks,
-                                key = { task -> "${spec.category.name}-${task.id}" },
-                            ) { task ->
-                                PriorityTaskRow(
-                                    task = task,
-                                    now = now,
-                                    isFocused = task.id == focusedTaskId,
-                                    hasReminderError = uiState.reminderErrors.contains(task.id),
-                                    onCheckedChange = { checked -> onTaskCompletionChange(task, checked) },
-                                    onArchive = { onArchiveTask(task) },
-                                    onClick = { onOpenTaskDetail(task) },
+                        sectionSpecs.forEach { spec ->
+                            item(key = "section-${spec.category.name}") {
+                                CategorySectionHeader(
+                                    spec = spec,
+                                    taskCount = uiState.groupedTasks[spec.category].orEmpty().size,
                                 )
                             }
+
+                            val tasks = uiState.groupedTasks[spec.category].orEmpty()
+                            if (tasks.isEmpty()) {
+                                item(key = "empty-${spec.category.name}") {
+                                    EmptyCategoryCard(spec.category)
+                                }
+                            } else {
+                                items(
+                                    items = tasks,
+                                    key = { task -> "${spec.category.name}-${task.id}" },
+                                ) { task ->
+                                    PriorityTaskRow(
+                                        task = task,
+                                        now = now,
+                                        isFocused = task.id == focusedTaskId,
+                                        hasReminderError = uiState.reminderErrors.contains(task.id),
+                                        onCheckedChange = { checked -> onTaskCompletionChange(task, checked) },
+                                        onArchive = { onArchiveTask(task) },
+                                        onClick = { onOpenTaskDetail(task) },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
+
+            LedgerTopOverlay(
+                isSearchActive = isSearchActive,
+                query = searchQuery,
+                focusRequester = searchFocusRequester,
+                onQueryChange = {
+                    searchQuery = it
+                    onSearch(it)
+                },
+                onCloseSearch = {
+                    isSearchActive = false
+                    searchQuery = ""
+                    onSearch("")
+                },
+                onOpenSearch = { isSearchActive = true },
+                onOpenNavigationDrawer = onOpenNavigationDrawer,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SearchTopAppBar(
+private fun LedgerTopOverlay(
+    isSearchActive: Boolean,
     query: String,
     focusRequester: FocusRequester,
     onQueryChange: (String) -> Unit,
-    onClose: () -> Unit,
+    onCloseSearch: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenNavigationDrawer: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    TopAppBar(
-        title = {
+    if (isSearchActive) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(LedgerOverlayHeaderHeight)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onCloseSearch) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.back_button),
+                )
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-                    .padding(vertical = 4.dp),
+                    .weight(1f)
+                    .focusRequester(focusRequester),
                 placeholder = { Text(stringResource(R.string.search_placeholder)) },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     disabledContainerColor = Color.Transparent,
-                )
+                ),
             )
-        },
-        navigationIcon = {
-            IconButton(onClick = onClose) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_button))
+        }
+    } else {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(LedgerOverlayHeaderHeight)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onOpenNavigationDrawer) {
+                Icon(
+                    imageVector = Icons.Filled.Menu,
+                    contentDescription = stringResource(R.string.open_nav_drawer),
+                )
+            }
+            IconButton(onClick = onOpenSearch) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = stringResource(R.string.search_tasks),
+                )
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -526,7 +545,12 @@ private fun LedgerSummary(
     ) {
         Text(
             text = summary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = LedgerOverlayHeaderHeight,
+                bottom = 12.dp,
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -932,7 +956,7 @@ private fun PriorityLedgerHomeScreenTitanPreview() {
     }
 }
 
-@Preview(name = "Priority Ledger light", showBackground = true)
+@Preview(name = "Home light", showBackground = true)
 @Composable
 private fun PriorityLedgerHomeScreenLightPreview() {
     val tasks = sampleTasks()

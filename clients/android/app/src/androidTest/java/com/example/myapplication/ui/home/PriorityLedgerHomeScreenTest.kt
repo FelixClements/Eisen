@@ -53,7 +53,6 @@ class PriorityLedgerHomeScreenTest {
         }
 
         composeRule.onNodeWithText("Do Now").assertIsDisplayed()
-        composeRule.onNodeWithText("Active tasks").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Add task. Keyboard shortcut A").assertHasClickAction()
         composeRule.onNodeWithContentDescription("Open navigation drawer").assertHasClickAction()
         composeRule.onNodeWithContentDescription("Archive Pay electricity bill")

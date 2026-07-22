@@ -85,7 +85,7 @@ class TaskReminderWorker(
             TaskReminderNotifications.CHANNEL_ID,
         )
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Priority Ledger reminder")
+            .setContentTitle("Reminder")
             .setContentText(taskBeforePosting.title)
             .setContentIntent(openAppIntent)
             .setAutoCancel(true)

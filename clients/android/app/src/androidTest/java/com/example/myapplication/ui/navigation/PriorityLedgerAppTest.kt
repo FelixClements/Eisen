@@ -83,7 +83,7 @@ class PriorityLedgerAppTest {
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Active tasks").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Open navigation drawer").assertIsDisplayed()
         assertDrawerState("Closed")
     }
 
@@ -144,14 +144,11 @@ class PriorityLedgerAppTest {
     }
 
     @Test
-    fun visibleIdentityUsesPriorityLedger() {
+    fun appNameIsCorrectAndHomeIsReachable() {
         setApp()
 
-        composeRule.onNodeWithText("Active tasks").assertIsDisplayed()
-        assertEquals("Priority Ledger", composeRule.activity.getString(R.string.app_name))
-
-        openDrawer()
-        composeRule.onNodeWithText("Priority Ledger").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Open navigation drawer").assertIsDisplayed()
+        assertEquals("Eisen", composeRule.activity.getString(R.string.app_name))
     }
 
     @Test

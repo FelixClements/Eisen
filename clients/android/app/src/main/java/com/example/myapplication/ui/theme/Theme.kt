@@ -169,7 +169,7 @@ private fun ThemePreviewContent() {
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Priority Ledger", style = MaterialTheme.typography.headlineMedium)
+            Text("Theme preview", style = MaterialTheme.typography.headlineMedium)
             Text("Material 3 color roles", style = MaterialTheme.typography.bodyLarge)
             Button(onClick = {}) {
                 Text("Add task")

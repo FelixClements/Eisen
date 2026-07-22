@@ -258,11 +258,6 @@ private fun LedgerNavigationDrawer(
                 stateDescription = drawerStateDescription
             },
     ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
-            style = MaterialTheme.typography.titleLarge,
-        )
         destinations.forEach { destination ->
             NavigationDrawerItem(
                 label = { Text(destination.label) },
