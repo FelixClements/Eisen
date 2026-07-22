@@ -75,7 +75,8 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1.03 | [x] Implement canonical protocol parsers and validators. | project owner | bounded duplicate-rejecting decode/re-encode verification before crypto or storage application. |
 | P1.04 | [x] Implement device identity and owner trust-anchor creation. | project owner | separate signing/encryption device keys, stable random device ID, separate owner signing key, and signed genesis manifest stored through platform secure storage. |
 | P1.05 | [x] Implement epoch-root key and local-store encryption (AEAD). | project owner | AES-256-GCM key derived per epoch, encrypting local snapshots and enforcing fail-closed counter policy. |
-| P1.06 | [~] Implement mutation envelope signing and verification. | project owner | device-signed mutation envelopes with HLC, canonical serialization, and owner/device trust verification. |
+| P1.06 | [x] Implement mutation envelope signing and verification. | project owner | device-signed mutation envelopes with HLC, canonical serialization, and owner/device trust verification. |
+| P1.07 | [~] Implement local snapshot persistence and replay. | project owner | encrypted local snapshot (task materialized view + mutation log) that can be written, loaded, and replayed deterministically. |
 | P1.03 | Implement canonical protocol parsers and validators. | project owner | bounded duplicate-rejecting decode/re-encode verification before crypto or storage application. |
 | P1.04 | Implement device identity and owner trust-anchor creation. | project owner | separate signing/encryption device keys, stable random device ID, separate owner signing key, and signed genesis manifest stored through platform secure storage. |
 | P1.05 | Implement epoch-root generation and scoped key derivation. | project owner | random epoch 0 key, epoch/purpose/origin-device HKDF contexts, historical-key retention, and no passphrase-derived vault key. |

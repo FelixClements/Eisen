@@ -7,6 +7,7 @@
 
 pub mod canonical;
 pub mod clock;
+pub mod envelope;
 pub mod epoch;
 pub mod identity;
 
