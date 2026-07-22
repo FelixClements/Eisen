@@ -177,13 +177,21 @@ class HomeViewModel(
 
     fun unarchiveTask(id: Long) {
         viewModelScope.launch {
-            repository.unarchiveTask(id)
+            runCatching {
+                repository.unarchiveTask(id)
+            }.onFailure {
+                _events.emit(HomeUiEvent.OperationFailed("Failed to restore task"))
+            }
         }
     }
 
     fun moveTask(id: Long, category: EisenhowerCategory) {
         viewModelScope.launch {
-            repository.moveTask(id, category)
+            runCatching {
+                repository.moveTask(id, category)
+            }.onFailure {
+                _events.emit(HomeUiEvent.OperationFailed("Failed to move task"))
+            }
         }
     }
 }

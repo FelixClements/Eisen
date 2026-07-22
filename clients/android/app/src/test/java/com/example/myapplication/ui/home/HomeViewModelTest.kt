@@ -9,6 +9,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -163,7 +165,55 @@ class HomeViewModelTest {
 
         assertTrue(scheduler.scheduledReminders.isEmpty())
     }
+
+    @Test
+    fun `unarchiveTask emits OperationFailed when repository fails`() = runTest(mainDispatcherRule.testDispatcher) {
+        val viewModel = HomeViewModel(FailingTaskRepository())
+        val events = mutableListOf<HomeUiEvent>()
+        val job = launch { viewModel.events.toList(events) }
+        advanceUntilIdle()
+
+        viewModel.unarchiveTask(id = 1L)
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is HomeUiEvent.OperationFailed)
+        job.cancel()
+    }
+
+    @Test
+    fun `moveTask emits OperationFailed when repository fails`() = runTest(mainDispatcherRule.testDispatcher) {
+        val viewModel = HomeViewModel(FailingTaskRepository())
+        val events = mutableListOf<HomeUiEvent>()
+        val job = launch { viewModel.events.toList(events) }
+        advanceUntilIdle()
+
+        viewModel.moveTask(id = 1L, category = EisenhowerCategory.DO_NOW)
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is HomeUiEvent.OperationFailed)
+        job.cancel()
+    }
 }
+
+private class FailingTaskRepository : TaskRepository {
+    override fun observeActiveTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeCompletedTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeArchivedTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeAllTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun searchTasks(query: String): Flow<List<Task>> = flowOf(emptyList())
+    override fun getTaskById(id: Long): Flow<Task?> = flowOf(null)
+    override suspend fun addTask(task: Task): Long = throw RuntimeRepositoryException()
+    override suspend fun updateTask(task: Task) = throw RuntimeRepositoryException()
+    override suspend fun completeTask(id: Long, isCompleted: Boolean) = throw RuntimeRepositoryException()
+    override suspend fun archiveTask(id: Long) = throw RuntimeRepositoryException()
+    override suspend fun unarchiveTask(id: Long) = throw RuntimeRepositoryException()
+    override suspend fun deleteTask(id: Long) = throw RuntimeRepositoryException()
+    override suspend fun moveTask(id: Long, category: EisenhowerCategory) = throw RuntimeRepositoryException()
+}
+
+private class RuntimeRepositoryException : RuntimeException("Simulated repository failure")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule(
