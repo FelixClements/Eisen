@@ -9,6 +9,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -76,6 +78,52 @@ class HistoryViewModelTest {
 
         assertTrue(viewModel.uiState.value.archivedTasks.isEmpty())
     }
+
+    @Test
+    fun `uncompleteTask emits OperationFailed when repository fails`() = runTest(mainDispatcherRule.testDispatcher) {
+        val viewModel = HistoryViewModel(FailingHistoryRepository(), NoOpReminderScheduler)
+        val events = mutableListOf<HistoryUiEvent>()
+        val job = launch { viewModel.events.toList(events) }
+        advanceUntilIdle()
+
+        viewModel.uncompleteTask(1L)
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is HistoryUiEvent.OperationFailed)
+        job.cancel()
+    }
+
+    @Test
+    fun `unarchiveTask emits OperationFailed when repository fails`() = runTest(mainDispatcherRule.testDispatcher) {
+        val viewModel = HistoryViewModel(FailingHistoryRepository(), NoOpReminderScheduler)
+        val events = mutableListOf<HistoryUiEvent>()
+        val job = launch { viewModel.events.toList(events) }
+        advanceUntilIdle()
+
+        viewModel.unarchiveTask(1L)
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is HistoryUiEvent.OperationFailed)
+        job.cancel()
+    }
+}
+
+private class FailingHistoryRepository : TaskRepository {
+    override fun observeActiveTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeCompletedTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeArchivedTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun observeAllTasks(): Flow<List<Task>> = flowOf(emptyList())
+    override fun searchTasks(query: String): Flow<List<Task>> = flowOf(emptyList())
+    override fun getTaskById(id: Long): Flow<Task?> = flowOf(null)
+    override suspend fun addTask(task: Task): Long = throw RuntimeException("fail")
+    override suspend fun updateTask(task: Task) = throw RuntimeException("fail")
+    override suspend fun completeTask(id: Long, isCompleted: Boolean) = throw RuntimeException("fail")
+    override suspend fun archiveTask(id: Long) = throw RuntimeException("fail")
+    override suspend fun unarchiveTask(id: Long) = throw RuntimeException("fail")
+    override suspend fun deleteTask(id: Long) = throw RuntimeException("fail")
+    override suspend fun moveTask(id: Long, category: EisenhowerCategory) = throw RuntimeException("fail")
 }
 
 private fun taskWith(

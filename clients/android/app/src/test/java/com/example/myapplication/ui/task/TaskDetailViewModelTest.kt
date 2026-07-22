@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestDispatcher
@@ -18,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestWatcher
@@ -85,6 +87,21 @@ class TaskDetailViewModelTest {
     }
 
     @Test
+    fun `updateTask emits OperationFailed when repository fails`() = runTest(mainDispatcherRule.testDispatcher) {
+        val viewModel = TaskDetailViewModel(taskId = 1L, repository = FailingTaskRepository())
+        val events = mutableListOf<TaskDetailUiEvent>()
+        val job = launch { viewModel.events.toList(events) }
+        advanceUntilIdle()
+
+        viewModel.updateTask(sampleTask(id = 1L, title = "Updated"))
+        advanceUntilIdle()
+
+        assertEquals(1, events.size)
+        assertTrue(events.single() is TaskDetailUiEvent.OperationFailed)
+        job.cancel()
+    }
+
+    @Test
     fun `factory builds a view model bound to the given id`() = runTest(mainDispatcherRule.testDispatcher) {
         val repository = FakeTaskRepository(initialTasks = listOf(sampleTask(id = 5L, title = "Factory task")))
 
@@ -131,7 +148,7 @@ class MainDispatcherRule(
     }
 }
 
-private class FakeTaskRepository(
+private open class FakeTaskRepository(
     initialTasks: List<Task> = emptyList(),
 ) : TaskRepository {
     private val tasks = MutableStateFlow(initialTasks.associateBy { it.id })
@@ -165,4 +182,8 @@ private class FakeTaskRepository(
     override suspend fun deleteTask(id: Long) = Unit
 
     override suspend fun moveTask(id: Long, category: EisenhowerCategory) = Unit
+}
+
+private class FailingTaskRepository : FakeTaskRepository() {
+    override suspend fun updateTask(task: Task) = throw RuntimeException("fail")
 }

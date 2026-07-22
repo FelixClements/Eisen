@@ -38,6 +38,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +82,14 @@ fun TaskDetailScreen(
     val coroutineScope = rememberCoroutineScope()
 
     val reminderPastMsg = stringResource(R.string.reminder_past_warning)
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is TaskDetailUiEvent.OperationFailed -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     task?.let { currentTask ->
         var title by remember(currentTask.id) { mutableStateOf(currentTask.title) }

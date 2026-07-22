@@ -55,6 +55,8 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.util.DateTimeUtils
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 private val HistoryContentGutter = 16.dp
@@ -71,6 +73,7 @@ fun HistoryRoute(
 
     HistoryScreen(
         uiState = uiState,
+        events = viewModel.events,
         onUncompleteTask = viewModel::uncompleteTask,
         onUnarchiveTask = viewModel::unarchiveTask,
         onOpenNavigationDrawer = onOpenNavigationDrawer,
@@ -84,6 +87,7 @@ fun HistoryRoute(
 @Composable
 fun HistoryScreen(
     uiState: HistoryUiState,
+    events: Flow<HistoryUiEvent> = emptyFlow(),
     onUncompleteTask: (Long) -> Unit,
     onUnarchiveTask: (Long) -> Unit,
     onOpenNavigationDrawer: () -> Unit = {},
@@ -110,6 +114,14 @@ fun HistoryScreen(
 
     val taskRestoredLedgerMsg = stringResource(R.string.task_restored_ledger)
     val taskRestoredArchiveMsg = stringResource(R.string.task_restored_archive)
+
+    LaunchedEffect(events) {
+        events.collect { event ->
+            when (event) {
+                is HistoryUiEvent.OperationFailed -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
 
     Scaffold(
         modifier = modifier

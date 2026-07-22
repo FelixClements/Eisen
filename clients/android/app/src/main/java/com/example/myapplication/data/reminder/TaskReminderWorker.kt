@@ -18,7 +18,15 @@ class TaskReminderWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = try {
+        deliverReminder()
+    } catch (e: Exception) {
+        // Transient failure (e.g. database or notification error): let WorkManager retry
+        // rather than silently dropping the reminder.
+        Result.retry()
+    }
+
+    private suspend fun deliverReminder(): Result {
         val taskId = inputData.getLong(KEY_TASK_ID, NO_TASK_ID)
         val expectedReminderAt = inputData.getLong(KEY_EXPECTED_REMINDER_AT, NO_REMINDER)
         if (taskId == NO_TASK_ID || expectedReminderAt == NO_REMINDER) return Result.success()
