@@ -30,7 +30,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
@@ -38,8 +37,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,10 +52,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -96,7 +90,6 @@ import com.example.myapplication.ui.category.presentation
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.ledgerCategoryColors
 import com.example.myapplication.ui.util.DateTimeUtils
-import java.util.Calendar
 import kotlinx.coroutines.launch
 
 private const val TitleFieldTag = "new-task-title"
@@ -541,148 +534,6 @@ private fun DetailsArea(
             onRemove = onReminderRemove,
         )
     }
-}
-
-@Composable
-private fun MetadataRow(
-    title: String,
-    value: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    hasValue: Boolean,
-    removeContentDescription: String,
-    onClick: () -> Unit,
-    onRemove: () -> Unit,
-) {
-    OutlinedCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        ListItem(
-            headlineContent = { Text(title) },
-            supportingContent = { Text(value) },
-            leadingContent = {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                )
-            },
-            trailingContent = if (hasValue) {
-                {
-                    IconButton(onClick = onRemove) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = removeContentDescription,
-                        )
-                    }
-                }
-            } else {
-                null
-            },
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DueDatePickerDialog(
-    dueDate: Long?,
-    onDismiss: () -> Unit,
-    onDateSelected: (Long) -> Unit,
-) {
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = dueDate?.let(DateTimeUtils::toDatePickerMillis),
-    )
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    datePickerState.selectedDateMillis
-                        ?.let(DateTimeUtils::datePickerMillisToLocalNoon)
-                        ?.let(onDateSelected)
-                        ?: onDismiss()
-                },
-            ) {
-                Text(stringResource(R.string.done))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    ) {
-        DatePicker(state = datePickerState)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ReminderDatePickerDialog(
-    reminderAt: Long?,
-    onDismiss: () -> Unit,
-    onDateSelected: (Long) -> Unit,
-) {
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = reminderAt?.let(DateTimeUtils::toDatePickerMillis),
-    )
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    datePickerState.selectedDateMillis
-                        ?.let(DateTimeUtils::datePickerMillisToLocalNoon)
-                        ?.let(onDateSelected)
-                        ?: onDismiss()
-                },
-            ) {
-                Text(stringResource(R.string.next))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    ) {
-        DatePicker(state = datePickerState)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ReminderTimePickerDialog(
-    initialReminderAt: Long?,
-    onDismiss: () -> Unit,
-    onTimeSelected: (Int, Int) -> Unit,
-) {
-    val initialTime = remember(initialReminderAt) {
-        Calendar.getInstance().apply {
-            initialReminderAt?.let { timeInMillis = it }
-        }
-    }
-    val timePickerState = rememberTimePickerState(
-        initialHour = initialTime.get(Calendar.HOUR_OF_DAY),
-        initialMinute = initialTime.get(Calendar.MINUTE),
-        is24Hour = android.text.format.DateFormat.is24HourFormat(LocalContext.current),
-    )
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.reminder_time_title)) },
-        text = { TimePicker(state = timePickerState) },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onTimeSelected(timePickerState.hour, timePickerState.minute)
-                },
-            ) {
-                Text(stringResource(R.string.done))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
 }
 
 @Composable

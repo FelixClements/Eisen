@@ -16,7 +16,8 @@
 ### Epoch keys
 
 - Old epoch root keys are retained on devices for 90 days.
-- After 90 days, old epoch keys are securely erased from all devices and recovery packages.
+- After 90 days, old epoch keys are securely erased from all devices and are no longer included in newly created recovery packages.
+- Recovery packages are static, user-held files (see `recovery-package.md`); the system cannot reach into an already-exported package to erase keys. Any recovery package created before the window can still decrypt the old-epoch data it captured, and retaining or discarding it is the user's responsibility.
 
 ### Local device artifacts
 
