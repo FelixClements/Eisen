@@ -50,10 +50,10 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 
 | ID | Criterion | Status |
 |---|---|---|
-| G0.01 | Approve ADRs D-001 through D-012. | Pending project-owner approval. |
-| G0.02 | Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | Pending project-owner sign-off; artifacts listed above. |
+| G0.01 | Approve ADRs D-001 through D-012. | Approved by project owner. |
+| G0.02 | Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | Signed off by project owner. |
 | G0.03 | Verify positive and negative vectors run in CI and unresolved critical threat-model findings are closed. | CI configured; vector runner and seed vectors to be added in P1.18. |
-| G0.04 | Record the release sequence as local-only before cloud sync and defer relay implementation. | Recorded below and in `phasing-plan.md`. |
+| G0.04 | Record the release sequence as local-only before cloud sync and defer relay implementation. | Approved by project owner. |
 
 ## Release sequence
 

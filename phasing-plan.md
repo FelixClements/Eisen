@@ -51,20 +51,20 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P0.17 | [x] Specify recovery, compatibility, and error contracts. | project owner | restore transaction and wrong-passphrase behavior, supported-version/deprecation/downgrade/rollback policy, and non-secret stable error taxonomy. |
 | P0.18 | [x] Publish the threat-model review, retention policy, account/enrollment authentication design, and service metadata limitations. | project owner | reviewed documents that explicitly separate service access from cryptographic authorization and define offline old-epoch handling. |
 
-### - [ ] G0 — Protocol and product freeze
+### - [x] G0 — Protocol and product freeze
 
 **Prerequisites:** P0.01–P0.18 are complete.
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| G0.01 | Approve ADRs D-001 through D-012. | project owner | approved ADR set with protocol consequences and executable evidence for each decision. |
-| G0.02 | Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | project owner | signed-off versioned specification bundle. |
-| G0.03 | Verify positive and negative vectors run in CI and unresolved critical threat-model findings are closed. | project owner | passing CI report and review record. |
-| G0.04 | Record the release sequence as local-only before cloud sync and defer relay implementation. | project owner | approved delivery-slice record. |
+| G0.01 | [x] Approve ADRs D-001 through D-012. | project owner | approved ADR set with protocol consequences and executable evidence for each decision. |
+| G0.02 | [x] Review and freeze the canonical schema, task/snapshot rules, protocol contracts, limits, and error taxonomy. | project owner | signed-off versioned specification bundle. |
+| G0.03 | [x] Verify positive and negative vectors run in CI and unresolved critical threat-model findings are closed. | project owner | passing CI report and review record. |
+| G0.04 | [x] Record the release sequence as local-only before cloud sync and defer relay implementation. | project owner | approved delivery-slice record. |
 
 ---
 
-## - [ ] P1 — Encrypted local core
+## - [~] P1 — Encrypted local core
 
 **Prerequisites:** G0 is passed. Implement only the frozen contracts; any needed contract change returns to P0 rules.
 
