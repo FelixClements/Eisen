@@ -298,7 +298,7 @@ fun NewTaskScreen(
             }
         },
     ) { innerPadding ->
-        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
+        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight + 16.dp
         Box(
             modifier = Modifier
                 .fillMaxSize()
