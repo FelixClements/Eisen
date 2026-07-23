@@ -389,13 +389,9 @@ fun PriorityLedgerHomeScreen(
                             .focusRequester(focusRequester)
                             .focusable()
                             .testTag(LedgerTaskListTag),
-                        contentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = LedgerOverlayHeaderHeight, end = 16.dp, bottom = 96.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        item(key = "ledger-header") {
-                            LedgerSummary(uiState = uiState, now = now)
-                        }
-
                         sectionSpecs.forEach { spec ->
                             item(key = "section-${spec.category.name}") {
                                 CategorySectionHeader(
@@ -513,43 +509,6 @@ private fun LedgerTopOverlay(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun LedgerSummary(
-    uiState: HomeUiState,
-    now: Long,
-) {
-    val taskCount = uiState.activeTasks.size
-    val urgentCount = uiState.activeTasks.count { task -> task.isUrgent }
-    val overdueCount = uiState.activeTasks.count { task ->
-        task.dueDate?.let { it < now } == true
-    }
-    
-    val summary = if (uiState.isLoading) {
-        "Loading ledger..."
-    } else {
-        "$taskCount active · $urgentCount urgent · $overdueCount overdue"
-    }
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        Text(
-            text = summary,
-            modifier = Modifier.padding(
-                start = 16.dp,
-                end = 16.dp,
-                top = LedgerOverlayHeaderHeight,
-                bottom = 12.dp,
-            ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
