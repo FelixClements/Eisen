@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="Eisen">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-07-23T05:32:37.381513Z">
+        <DropdownSelection timestamp="2026-07-23T20:10:03.376629Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/Users/maarten/.android/avd/Titian_2_elite.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=dc0d13b0" />
             </handle>
           </Target>
         </DropdownSelection>

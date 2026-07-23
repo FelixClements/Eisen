@@ -761,7 +761,7 @@ private fun buildListIndexMap(
     sectionSpecs: List<LedgerSectionSpec>,
     groupedTasks: Map<EisenhowerCategory, List<Task>>,
 ): LedgerListIndexes {
-    var index = 1 // The first lazy item is the page summary.
+    var index = 0
     val sectionIndexes = mutableMapOf<EisenhowerCategory, Int>()
     val taskIndexes = mutableMapOf<Long, Int>()
 
