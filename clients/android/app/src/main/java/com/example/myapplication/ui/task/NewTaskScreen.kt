@@ -11,15 +11,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -52,7 +54,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -87,6 +88,8 @@ import androidx.core.content.ContextCompat
 import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.ui.category.presentation
+import com.example.myapplication.ui.components.ScreenTopBar
+import com.example.myapplication.ui.components.TopBarHeight
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.ledgerCategoryColors
 import com.example.myapplication.ui.util.DateTimeUtils
@@ -262,47 +265,8 @@ fun NewTaskScreen(
 
                 false
             },
+        contentWindowInsets = WindowInsets.navigationBars,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.new_task_title)) },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = "More actions",
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.keyboard_shortcuts_title)) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
-                                        contentDescription = null,
-                                    )
-                                },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    showShortcutHelp = true
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.cancel)) },
-                                onClick = {
-                                    showOverflowMenu = false
-                                    requestCancel()
-                                },
-                            )
-                        }
-                    }
-                },
-            )
-        },
         bottomBar = {
             BottomAppBar(
                 windowInsets = WindowInsets.navigationBars.union(WindowInsets.ime),
@@ -334,49 +298,51 @@ fun NewTaskScreen(
             }
         },
     ) { innerPadding ->
+        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
         ) {
             Column(
                 modifier = Modifier
                     .widthIn(max = FormMaxWidth)
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
-                    .padding(horizontal = FormHorizontalGutter, vertical = 10.dp),
+                    .padding(horizontal = FormHorizontalGutter)
+                    .padding(top = topBarPadding, bottom = 10.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { newTitle ->
-                    title = newTitle
-                    titleError = null
-                    showDiscardConfirmation = false
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(titleFocusRequester)
-                    .bringIntoViewRequester(titleBringIntoViewRequester)
-                    .onFocusChanged { titleHasFocus = it.isFocused }
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
-                            save()
-                            true
-                        } else {
-                            false
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { newTitle ->
+                        title = newTitle
+                        titleError = null
+                        showDiscardConfirmation = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(titleFocusRequester)
+                        .bringIntoViewRequester(titleBringIntoViewRequester)
+                        .onFocusChanged { titleHasFocus = it.isFocused }
+                        .onPreviewKeyEvent { event ->
+                            if (event.type == KeyEventType.KeyDown && event.key == Key.Enter) {
+                                save()
+                                true
+                            } else {
+                                false
+                            }
                         }
-                    }
-                    .testTag(TitleFieldTag),
-                label = { Text(stringResource(R.string.title_label)) },
-                supportingText = { Text(titleError ?: stringResource(R.string.title_hint)) },
-                textStyle = MaterialTheme.typography.headlineSmall,
-                singleLine = true,
-                isError = titleError != null,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { save() }),
-            )
+                        .testTag(TitleFieldTag),
+                    label = { Text(stringResource(R.string.title_label)) },
+                    supportingText = { Text(titleError ?: stringResource(R.string.title_hint)) },
+                    textStyle = MaterialTheme.typography.headlineSmall,
+                    singleLine = true,
+                    isError = titleError != null,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { save() }),
+                )
 
             Text(
                 text = "Category",
@@ -419,6 +385,46 @@ fun NewTaskScreen(
                 onNotesFocusChanged = { notesHasFocus = it },
             )
             }
+
+            ScreenTopBar(
+                title = { Text(stringResource(R.string.new_task_title)) },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "More actions",
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.keyboard_shortcuts_title)) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.HelpOutline,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showShortcutHelp = true
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.cancel)) },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    requestCancel()
+                                },
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
     }
 

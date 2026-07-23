@@ -84,6 +84,7 @@ import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.domain.Task
 import com.example.myapplication.ui.category.presentation
+import com.example.myapplication.ui.components.TopBarHeight
 import com.example.myapplication.ui.theme.LedgerCategoryColor
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.theme.ledgerCategoryColors
@@ -97,7 +98,7 @@ import kotlinx.coroutines.launch
 private val LedgerCardOuterGutter = 16.dp
 private val LedgerLeadingRailWidth = 48.dp
 private val LedgerLeadingRailTextGap = 8.dp
-private val LedgerOverlayHeaderHeight = 56.dp
+
 private const val LedgerTaskListTag = "ledger-task-list"
 
 @Composable
@@ -307,7 +308,7 @@ fun PriorityLedgerHomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = LedgerOverlayHeaderHeight),
+                            .padding(top = TopBarHeight),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator()
@@ -318,7 +319,7 @@ fun PriorityLedgerHomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = LedgerOverlayHeaderHeight),
+                            .padding(top = TopBarHeight),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -341,7 +342,7 @@ fun PriorityLedgerHomeScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = LedgerOverlayHeaderHeight),
+                            .padding(top = TopBarHeight),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
@@ -392,7 +393,7 @@ fun PriorityLedgerHomeScreen(
                             .focusRequester(focusRequester)
                             .focusable()
                             .testTag(LedgerTaskListTag),
-                        contentPadding = PaddingValues(start = 16.dp, top = LedgerOverlayHeaderHeight, end = 16.dp, bottom = 96.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = TopBarHeight, end = 16.dp, bottom = 96.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         sectionSpecs.forEach { spec ->
@@ -465,7 +466,7 @@ private fun LedgerTopOverlay(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .height(LedgerOverlayHeaderHeight)
+                .height(TopBarHeight)
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -494,7 +495,7 @@ private fun LedgerTopOverlay(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .height(LedgerOverlayHeaderHeight)
+                .height(TopBarHeight)
                 .padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,

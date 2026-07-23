@@ -4,11 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -36,7 +40,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,12 +67,13 @@ import com.example.myapplication.R
 import com.example.myapplication.domain.EisenhowerCategory
 import com.example.myapplication.domain.Task
 import com.example.myapplication.ui.category.presentation
+import com.example.myapplication.ui.components.ScreenTopBar
+import com.example.myapplication.ui.components.TopBarHeight
 import com.example.myapplication.ui.theme.ledgerCategoryColors
 import com.example.myapplication.ui.util.DateTimeUtils
 import java.util.TimeZone
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
     viewModel: TaskDetailViewModel,
@@ -127,42 +131,10 @@ fun TaskDetailScreen(
                         }
                     } else false
                 },
-            topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(R.string.task_detail_title)) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_button))
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            viewModel.updateTask(currentTask.copy(isPinned = !currentTask.isPinned))
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.PushPin,
-                                contentDescription = if (currentTask.isPinned) stringResource(R.string.unpin_task) else stringResource(R.string.pin_task),
-                                tint = if (currentTask.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        if (!currentTask.isArchived && !currentTask.isCompleted) {
-                            IconButton(onClick = {
-                                viewModel.updateTask(currentTask.copy(isArchived = true))
-                            }) {
-                                Icon(Icons.Filled.Archive, contentDescription = stringResource(R.string.archive_task, currentTask.title))
-                            }
-                        } else if (currentTask.isArchived) {
-                            IconButton(onClick = {
-                                viewModel.updateTask(currentTask.copy(isArchived = false))
-                            }) {
-                                Icon(Icons.Filled.Unarchive, contentDescription = stringResource(R.string.unarchive_task, currentTask.title))
-                            }
-                        }
-                    }
-                )
-            },
+            contentWindowInsets = WindowInsets.navigationBars,
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { innerPadding ->
+            val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -174,6 +146,7 @@ fun TaskDetailScreen(
                         .widthIn(max = 720.dp)
                         .fillMaxWidth()
                         .padding(16.dp)
+                        .padding(top = topBarPadding)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -286,6 +259,40 @@ fun TaskDetailScreen(
                         }
                     )
                 }
+
+                ScreenTopBar(
+                    title = { Text(stringResource(R.string.task_detail_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back_button))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
+                            viewModel.updateTask(currentTask.copy(isPinned = !currentTask.isPinned))
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.PushPin,
+                                contentDescription = if (currentTask.isPinned) stringResource(R.string.unpin_task) else stringResource(R.string.pin_task),
+                                tint = if (currentTask.isPinned) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (!currentTask.isArchived && !currentTask.isCompleted) {
+                            IconButton(onClick = {
+                                viewModel.updateTask(currentTask.copy(isArchived = true))
+                            }) {
+                                Icon(Icons.Filled.Archive, contentDescription = stringResource(R.string.archive_task, currentTask.title))
+                            }
+                        } else if (currentTask.isArchived) {
+                            IconButton(onClick = {
+                                viewModel.updateTask(currentTask.copy(isArchived = false))
+                            }) {
+                                Icon(Icons.Filled.Unarchive, contentDescription = stringResource(R.string.unarchive_task, currentTask.title))
+                            }
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
             }
         }
 
