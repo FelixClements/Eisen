@@ -194,6 +194,7 @@ fun HistoryScreen(
                         onTaskClick = onOpenTaskDetail,
                     )
                 }
+            }
 
             ScreenTopBar(
                 title = { Text(stringResource(R.string.history_title)) },
