@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,21 +22,33 @@ fun ScreenTopBar(
     navigationIcon: @Composable (() -> Unit) = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(TopBarHeight)
-            .statusBarsPadding(),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.CenterVertically,
+            .statusBarsPadding()
+            .padding(horizontal = 4.dp),
     ) {
-        navigationIcon()
         Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier.align(Alignment.CenterStart),
+            contentAlignment = Alignment.Center,
+        ) {
+            navigationIcon()
+        }
+
+        Box(
+            modifier = Modifier.align(Alignment.Center),
+            contentAlignment = Alignment.Center,
         ) {
             title()
         }
-        actions()
+
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            actions()
+        }
     }
 }
