@@ -5,14 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -134,7 +131,7 @@ fun TaskDetailScreen(
             contentWindowInsets = WindowInsets.navigationBars,
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { innerPadding ->
-            val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight + 16.dp
+            val topBarPadding = TopBarHeight + 16.dp
             Box(
                 modifier = Modifier
                     .fillMaxSize()

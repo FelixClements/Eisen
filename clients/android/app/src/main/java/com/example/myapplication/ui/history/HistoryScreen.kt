@@ -6,12 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -149,7 +147,7 @@ fun HistoryScreen(
         contentWindowInsets = WindowInsets.navigationBars,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { innerPadding ->
-        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
+        val topBarPadding = TopBarHeight
         Box(
             modifier = Modifier
                 .fillMaxSize()

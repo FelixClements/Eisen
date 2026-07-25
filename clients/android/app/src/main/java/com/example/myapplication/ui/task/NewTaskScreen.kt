@@ -11,16 +11,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -298,7 +296,7 @@ fun NewTaskScreen(
             }
         },
     ) { innerPadding ->
-        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight + 16.dp
+        val topBarPadding = TopBarHeight + 16.dp
         Box(
             modifier = Modifier
                 .fillMaxSize()
