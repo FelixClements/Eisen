@@ -25,30 +25,39 @@ fun ScreenTopBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(TopBarHeight)
-            .statusBarsPadding()
-            .padding(horizontal = 4.dp),
+            .statusBarsPadding(),
+        contentAlignment = Alignment.BottomCenter,
     ) {
-        Box(
-            modifier = Modifier.align(Alignment.CenterStart),
-            contentAlignment = Alignment.Center,
-        ) {
-            navigationIcon()
-        }
-
-        Box(
-            modifier = Modifier.align(Alignment.Center),
-            contentAlignment = Alignment.Center,
-        ) {
-            title()
-        }
-
         Row(
-            modifier = Modifier.align(Alignment.CenterEnd),
-            horizontalArrangement = Arrangement.End,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(TopBarHeight)
+                .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            actions()
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                navigationIcon()
+            }
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                title()
+            }
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    actions()
+                }
+            }
         }
     }
 }
