@@ -7,10 +7,15 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,7 +24,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,13 +31,13 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -49,8 +53,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.myapplication.R
+import com.example.myapplication.ui.components.ScreenTopBar
+import com.example.myapplication.ui.components.TopBarHeight
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onOpenNavigationDrawer: () -> Unit,
@@ -96,91 +101,99 @@ fun SettingsScreen(
                     }
                 } else false
             },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onOpenNavigationDrawer) {
-                        Icon(
-                            imageVector = Icons.Filled.Menu,
-                            contentDescription = stringResource(R.string.open_nav_drawer),
-                        )
-                    }
-                },
-            )
-        },
+        contentWindowInsets = WindowInsets.navigationBars,
     ) { innerPadding ->
-        Column(
+        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSectionHeader(stringResource(R.string.notification_permission_label))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.notification_permission_label)) },
-                supportingContent = {
-                    Text(
-                        if (notificationsEnabled) stringResource(R.string.enabled) else stringResource(R.string.disabled),
-                        color = if (notificationsEnabled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.error
-                        }
-                    )
-                },
-                leadingContent = {
-                    Icon(Icons.Filled.Notifications, contentDescription = null)
-                },
-                trailingContent = {
-                    IconButton(onClick = { openNotificationSettings(context) }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = stringResource(R.string.open_notification_settings),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarPadding)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                SettingsSectionHeader(stringResource(R.string.notification_permission_label))
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.notification_permission_label)) },
+                    supportingContent = {
+                        Text(
+                            if (notificationsEnabled) stringResource(R.string.enabled) else stringResource(R.string.disabled),
+                            color = if (notificationsEnabled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
                         )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.reminder_timing_label)) },
-                supportingContent = {
-                    Text(stringResource(R.string.reminder_timing_description))
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+                    },
+                    leadingContent = {
+                        Icon(Icons.Filled.Notifications, contentDescription = null)
+                    },
+                    trailingContent = {
+                        IconButton(onClick = { openNotificationSettings(context) }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = stringResource(R.string.open_notification_settings),
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.reminder_timing_label)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.reminder_timing_description))
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SettingsSectionHeader(stringResource(R.string.offline_storage_label))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.offline_storage_label)) },
-                supportingContent = {
-                    Text(stringResource(R.string.offline_storage_description))
-                },
-                leadingContent = {
-                    Icon(Icons.Filled.Storage, contentDescription = null)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
+                SettingsSectionHeader(stringResource(R.string.offline_storage_label))
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.offline_storage_label)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.offline_storage_description))
+                    },
+                    leadingContent = {
+                        Icon(Icons.Filled.Storage, contentDescription = null)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SettingsSectionHeader(stringResource(R.string.product_label))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.product_label)) },
-                leadingContent = {
-                    Icon(Icons.Filled.Info, contentDescription = null)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.version_label)) },
-                supportingContent = { Text(getAppVersion(context)) },
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+                SettingsSectionHeader(stringResource(R.string.product_label))
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.product_label)) },
+                    leadingContent = {
+                        Icon(Icons.Filled.Info, contentDescription = null)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.version_label)) },
+                    supportingContent = { Text(getAppVersion(context)) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+        ScreenTopBar(
+            title = { Text(stringResource(R.string.settings_title)) },
+            navigationIcon = {
+                IconButton(onClick = onOpenNavigationDrawer) {
+                    Icon(
+                        imageVector = Icons.Filled.Menu,
+                        contentDescription = stringResource(R.string.open_nav_drawer),
+                    )
+                }
+            },
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
+}
 }
 
 @Composable

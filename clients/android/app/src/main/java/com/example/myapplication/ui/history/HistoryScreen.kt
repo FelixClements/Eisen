@@ -5,15 +5,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +27,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,6 +53,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.myapplication.R
 import com.example.myapplication.domain.Task
+import com.example.myapplication.ui.components.ScreenTopBar
+import com.example.myapplication.ui.components.TopBarHeight
 import com.example.myapplication.ui.theme.MyApplicationTheme
 import com.example.myapplication.ui.util.DateTimeUtils
 import kotlin.time.Duration.Companion.minutes
@@ -83,7 +87,6 @@ fun HistoryRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     uiState: HistoryUiState,
@@ -143,8 +146,56 @@ fun HistoryScreen(
                     }
                 } else false
             },
-        topBar = {
-            TopAppBar(
+        contentWindowInsets = WindowInsets.navigationBars,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+    ) { innerPadding ->
+        val topBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarHeight
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarPadding),
+            ) {
+                TabRow(selectedTabIndex = selectedTab) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text(title) },
+                        )
+                    }
+                }
+
+                when (selectedTab) {
+                    0 -> CompletedTab(
+                        tasks = uiState.completedTasks,
+                        now = now,
+                        onUncomplete = { taskId ->
+                            onUncompleteTask(taskId)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(taskRestoredLedgerMsg)
+                            }
+                        },
+                        onTaskClick = onOpenTaskDetail,
+                    )
+                    1 -> ArchiveTab(
+                        tasks = uiState.archivedTasks,
+                        now = now,
+                        onUnarchive = { taskId ->
+                            onUnarchiveTask(taskId)
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(taskRestoredArchiveMsg)
+                            }
+                        },
+                        onTaskClick = onOpenTaskDetail,
+                    )
+                }
+
+            ScreenTopBar(
                 title = { Text(stringResource(R.string.history_title)) },
                 navigationIcon = {
                     IconButton(onClick = onOpenNavigationDrawer) {
@@ -154,49 +205,8 @@ fun HistoryScreen(
                         )
                     }
                 },
+                modifier = Modifier.align(Alignment.TopCenter),
             )
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) },
-                    )
-                }
-            }
-
-            when (selectedTab) {
-                0 -> CompletedTab(
-                    tasks = uiState.completedTasks,
-                    now = now,
-                    onUncomplete = { taskId ->
-                        onUncompleteTask(taskId)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(taskRestoredLedgerMsg)
-                        }
-                    },
-                    onTaskClick = onOpenTaskDetail,
-                )
-                1 -> ArchiveTab(
-                    tasks = uiState.archivedTasks,
-                    now = now,
-                    onUnarchive = { taskId ->
-                        onUnarchiveTask(taskId)
-                        coroutineScope.launch {
-                            snackbarHostState.showSnackbar(taskRestoredArchiveMsg)
-                        }
-                    },
-                    onTaskClick = onOpenTaskDetail,
-                )
-            }
         }
     }
 }
