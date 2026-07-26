@@ -171,7 +171,7 @@ fn bytes(b: &[u8]) -> Value {
     Value::Bytes(b.to_vec())
 }
 
-fn hlc_to_value(hlc: &Hlc) -> Value {
+pub(crate) fn hlc_to_value(hlc: &Hlc) -> Value {
     Value::Array(vec![
         Value::Integer((hlc.wall).into()),
         Value::Integer((hlc.counter).into()),
@@ -179,7 +179,7 @@ fn hlc_to_value(hlc: &Hlc) -> Value {
     ])
 }
 
-fn value_to_hlc(v: &Value) -> Result<Hlc, EnvelopeError> {
+pub(crate) fn value_to_hlc(v: &Value) -> Result<Hlc, EnvelopeError> {
     match v {
         Value::Array(arr) if arr.len() == 3 => {
             let wall = to_u64(&arr[0])?;

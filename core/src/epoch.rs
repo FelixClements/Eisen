@@ -92,12 +92,37 @@ impl EpochRoot {
 }
 
 /// A per-epoch AES-256-GCM key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EpochKey {
     pub epoch: u64,
     pub key: [u8; KEY_LEN],
 }
 
-impl EpochKey {}
+impl EpochKey {
+    /// Derive a purpose-specific sub-key from this epoch key.
+    ///
+    /// The `purpose` string is mixed into the HKDF info so each logical store
+    /// (snapshot, log, wal, metadata, clock, nonce counter, ...) gets a unique
+    /// AES-256-GCM key, providing domain separation while remaining deterministic
+    /// for the same epoch and purpose.
+    pub fn derive_purpose(&self, purpose: &str) -> Result<Self, EpochError> {
+        const PURPOSE_PREFIX: &[u8] = b"eisen-purpose-v1";
+        let hk = Hkdf::<Sha256>::new(None, &self.key);
+        let mut info = Vec::with_capacity(PURPOSE_PREFIX.len() + 8 + purpose.len());
+        info.extend_from_slice(PURPOSE_PREFIX);
+        info.extend_from_slice(&self.epoch.to_be_bytes());
+        info.extend_from_slice(purpose.as_bytes());
+
+        let mut okm = [0u8; KEY_LEN];
+        hk.expand(&info, &mut okm)
+            .map_err(|e| EpochError::Derivation(e.to_string()))?;
+
+        Ok(Self {
+            epoch: self.epoch,
+            key: okm,
+        })
+    }
+}
 
 /// Encrypted snapshot with its counter.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -12,6 +12,7 @@ pub mod epoch;
 pub mod identity;
 pub mod manifest;
 pub mod snapshot;
+pub mod store;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
