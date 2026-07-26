@@ -105,6 +105,20 @@ pub struct StoreMetadata {
     pub last_nonce: u64,
     pub last_wall: u64,
     pub last_counter: u32,
+    /// Immutable log of operation IDs applied to this store.
+    pub applied: Vec<OperationId>,
+    /// Per-origin sequence coverage (origin, start_seq, end_seq).
+    pub coverage: Vec<CoverageRange>,
+    /// Highest committed sequence per origin (used to assign local seqs).
+    pub seq: std::collections::BTreeMap<DeviceId, u64>,
+}
+
+/// Per-origin contiguous sequence coverage.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CoverageRange {
+    pub origin: DeviceId,
+    pub start: u64,
+    pub end: u64,
 }
 
 /// A single WAL/journal entry recording a not-yet-committed local mutation.
@@ -138,6 +152,8 @@ pub struct LocalStore<'a> {
     metadata: StoreMetadata,
     wal: Vec<WalEntry>,
     outbox: Vec<OutboxEntry>,
+    device_id: DeviceId,
+    applied: std::collections::HashSet<OperationId>,
 }
 
 impl<'a> LocalStore<'a> {
@@ -173,6 +189,8 @@ impl<'a> LocalStore<'a> {
         let wal = wal_store.load()?;
         let outbox = outbox_store.load()?;
 
+        let applied: std::collections::HashSet<OperationId> =
+            metadata.applied.iter().copied().collect();
         let mut store = Self {
             snapshot_manager,
             clock,
@@ -183,6 +201,8 @@ impl<'a> LocalStore<'a> {
             metadata,
             wal,
             outbox,
+            device_id,
+            applied,
         };
 
         // Recover any pending WAL entries from an interrupted transaction.
@@ -237,9 +257,96 @@ impl<'a> LocalStore<'a> {
         self.metadata.last_nonce = nonce;
         self.metadata.last_wall = hlc.wall;
         self.metadata.last_counter = hlc.counter;
+
+        let local_seq = self.metadata.seq.get(&self.device_id).copied().unwrap_or(0) + 1;
+        self.metadata.seq.insert(self.device_id, local_seq);
+        self.update_coverage(self.device_id, local_seq);
+        self.metadata.applied.push(op_id);
+        self.applied.insert(op_id);
         self.metadata_store.store(&self.metadata)?;
 
         Ok(op_id)
+    }
+
+    /// Apply a verified external envelope to the local materialized view.
+    ///
+    /// The caller supplies the origin's `seq` for this operation so the store
+    /// can maintain per-origin coverage. Duplicate operation IDs are ignored
+    /// (idempotent). If the sequence number conflicts with an already-known
+    /// different operation, the mutation is quarantined rather than applied.
+    pub fn apply(
+        &mut self,
+        envelope: crate::envelope::Envelope,
+        owner_trust: &crate::identity::OwnerTrust,
+        origin_seq: u64,
+    ) -> Result<OperationId, StoreError> {
+        let mutation = envelope
+            .verify(owner_trust)
+            .map_err(|e| StoreError::Encode(e.to_string()))?;
+        let hlc = envelope.hlc;
+        let origin = envelope.device_id;
+        let op_id = operation_id(&hlc, &mutation)?;
+
+        if self.applied.contains(&op_id) {
+            return Ok(op_id);
+        }
+
+        // Sequence conflict detection: if this seq is already covered for this
+        // origin and maps to a different op_id, quarantine it.
+        if let Some(entry) = self.metadata.coverage.iter().find(|c| c.origin == origin) {
+            if origin_seq <= entry.end && origin_seq >= entry.start {
+                // Already covered range; if we reached here the op_id is new,
+                // which means a different operation reused a sequence number.
+                return Err(StoreError::Encode(
+                    "sequence conflict detected; operation quarantined".into(),
+                ));
+            }
+        }
+
+        self.snapshot_manager.apply(mutation)?;
+        self.snapshot_manager.save()?;
+
+        self.update_coverage(origin, origin_seq);
+        self.metadata.seq.insert(
+            origin,
+            origin_seq.max(self.metadata.seq.get(&origin).copied().unwrap_or(0)),
+        );
+        self.metadata.applied.push(op_id);
+        self.applied.insert(op_id);
+        self.metadata.operation_count = self.metadata.operation_count.saturating_add(1);
+        self.metadata_store.store(&self.metadata)?;
+
+        Ok(op_id)
+    }
+
+    /// Borrow the per-origin coverage ranges.
+    pub fn coverage(&self) -> &[CoverageRange] {
+        &self.metadata.coverage
+    }
+
+    fn update_coverage(&mut self, origin: DeviceId, seq: u64) {
+        let mut merged = false;
+        for entry in self.metadata.coverage.iter_mut() {
+            if entry.origin == origin {
+                if seq == entry.end + 1 {
+                    entry.end = seq;
+                } else if seq + 1 == entry.start {
+                    entry.start = seq;
+                } else if seq < entry.start || seq > entry.end {
+                    // Non-contiguous; start a new range (will be added below).
+                    continue;
+                }
+                merged = true;
+                break;
+            }
+        }
+        if !merged {
+            self.metadata.coverage.push(CoverageRange {
+                origin,
+                start: seq,
+                end: seq,
+            });
+        }
     }
 
     /// Borrow the materialized task store.
@@ -452,6 +559,33 @@ impl<'a> MetadataStore<'a> {
 }
 
 fn metadata_to_bytes(metadata: &StoreMetadata) -> Result<Vec<u8>, StoreError> {
+    let applied = Value::Array(
+        metadata
+            .applied
+            .iter()
+            .map(|id| Value::Bytes(id.0.to_vec()))
+            .collect(),
+    );
+    let coverage = Value::Array(
+        metadata
+            .coverage
+            .iter()
+            .map(|c| {
+                Value::Map(vec![
+                    (text("origin"), Value::Bytes(c.origin.0.to_vec())),
+                    (text("start"), Value::Integer(c.start.into())),
+                    (text("end"), Value::Integer(c.end.into())),
+                ])
+            })
+            .collect(),
+    );
+    let seq = Value::Map(
+        metadata
+            .seq
+            .iter()
+            .map(|(device, s)| (Value::Bytes(device.0.to_vec()), Value::Integer((*s).into())))
+            .collect(),
+    );
     let value = Value::Map(vec![
         (
             text("operation_count"),
@@ -466,6 +600,9 @@ fn metadata_to_bytes(metadata: &StoreMetadata) -> Result<Vec<u8>, StoreError> {
             text("last_counter"),
             Value::Integer(metadata.last_counter.into()),
         ),
+        (text("applied"), applied),
+        (text("coverage"), coverage),
+        (text("seq"), seq),
     ]);
     Ok(canonical::encode(&value)?)
 }
@@ -478,6 +615,9 @@ fn metadata_from_bytes(bytes: &[u8]) -> Result<StoreMetadata, StoreError> {
             last_nonce: u64_field(&map, "last_nonce")?,
             last_wall: u64_field(&map, "last_wall")?,
             last_counter: u64_field(&map, "last_counter")? as u32,
+            applied: applied_from_value(&get_field(&map, "applied")?)?,
+            coverage: coverage_from_value(&get_field(&map, "coverage")?)?,
+            seq: seq_from_value(&get_field(&map, "seq")?)?,
         }),
         _ => Err(StoreError::Decode("invalid metadata".into())),
     }
@@ -639,6 +779,72 @@ fn u64_field(map: &[(Value, Value)], key: &str) -> Result<u64, StoreError> {
     }
 }
 
+fn applied_from_value(v: &Value) -> Result<Vec<OperationId>, StoreError> {
+    match v {
+        Value::Array(arr) => arr
+            .iter()
+            .map(|v| match v {
+                Value::Bytes(b) if b.len() == 32 => {
+                    let arr: [u8; 32] = b.clone().try_into().unwrap();
+                    Ok(OperationId(arr))
+                }
+                _ => Err(StoreError::Decode("invalid applied op_id".into())),
+            })
+            .collect(),
+        _ => Err(StoreError::Decode("applied must be an array".into())),
+    }
+}
+
+fn coverage_from_value(v: &Value) -> Result<Vec<CoverageRange>, StoreError> {
+    match v {
+        Value::Array(arr) => arr
+            .iter()
+            .map(|v| match v {
+                Value::Map(map) => Ok(CoverageRange {
+                    origin: device_id_from_value(&get_field(map, "origin")?)?,
+                    start: u64_field(map, "start")?,
+                    end: u64_field(map, "end")?,
+                }),
+                _ => Err(StoreError::Decode("invalid coverage entry".into())),
+            })
+            .collect(),
+        _ => Err(StoreError::Decode("coverage must be an array".into())),
+    }
+}
+
+fn seq_from_value(v: &Value) -> Result<std::collections::BTreeMap<DeviceId, u64>, StoreError> {
+    match v {
+        Value::Map(map) => map
+            .iter()
+            .map(|(k, v)| {
+                let device = device_id_from_value(k)?;
+                let seq = match v {
+                    Value::Integer(i) => {
+                        let n: i128 = (*i).into();
+                        if n < 0 || n > u64::MAX as i128 {
+                            return Err(StoreError::Decode("seq out of u64 range".into()));
+                        }
+                        n as u64
+                    }
+                    _ => return Err(StoreError::Decode("seq value not an integer".into())),
+                };
+                Ok((device, seq))
+            })
+            .collect(),
+        _ => Err(StoreError::Decode("seq must be a map".into())),
+    }
+}
+
+fn device_id_from_value(v: &Value) -> Result<DeviceId, StoreError> {
+    match v {
+        Value::Bytes(b) if b.len() == 16 => {
+            let arr: [u8; 16] = b.clone().try_into().unwrap();
+            Ok(DeviceId(arr))
+        }
+        _ => Err(StoreError::Decode("invalid device id".into())),
+    }
+}
+
 fn op_id_field(map: &[(Value, Value)], key: &str) -> Result<OperationId, StoreError> {
     match get_field(map, key)? {
         Value::Bytes(b) if b.len() == 32 => {
@@ -691,7 +897,8 @@ fn mutation_from_value(v: &Value) -> Result<Mutation, StoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::identity::InMemorySecureStorage;
+    use crate::envelope::Envelope;
+    use crate::identity::{create_vault, InMemorySecureStorage};
     use crate::{Hlc, TaskId};
 
     fn dev(n: u8) -> DeviceId {
@@ -835,5 +1042,45 @@ mod tests {
             .unwrap();
 
         assert_eq!(store.metadata().last_nonce, 2);
+    }
+
+    #[test]
+    fn apply_is_idempotent_and_tracks_coverage() {
+        let storage = InMemorySecureStorage::default();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
+        let hlc = make_hlc(1, 0, 1);
+        let (owner_trust, device) = create_vault(&storage, hlc).unwrap();
+        let mut store = make_store(&storage, key, device.device_id);
+
+        let id = TaskId([4; 16]);
+        let hlc = Hlc {
+            wall: 2,
+            counter: 0,
+            device_id: device.device_id,
+        };
+        let mutation = Mutation::Create {
+            hlc,
+            id,
+            title: "Remote".into(),
+            notes: None,
+            quadrant: 2,
+            due_date: None,
+        };
+        let envelope = Envelope::sign(&mutation, hlc, &device.signing_key).unwrap();
+
+        let op_id = store.apply(envelope.clone(), &owner_trust, 1).unwrap();
+        assert_eq!(store.store().len(), 1);
+        assert_eq!(store.metadata().operation_count, 1);
+        assert_eq!(store.coverage().len(), 1);
+        assert_eq!(store.coverage()[0].end, 1);
+
+        // Applying the same envelope again must be a no-op.
+        let op_id2 = store.apply(envelope, &owner_trust, 1).unwrap();
+        assert_eq!(op_id, op_id2);
+        assert_eq!(store.store().len(), 1);
+        assert_eq!(store.metadata().operation_count, 1);
     }
 }
