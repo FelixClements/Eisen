@@ -11,9 +11,12 @@ use crate::clock::{Clock, ClockError, ClockStorage};
 use crate::envelope::{hlc_to_value, mutation_to_value};
 use crate::epoch::{EpochError, EpochKey, SnapshotStore};
 use crate::identity::SecureStorage;
-use crate::snapshot::{SnapshotError, SnapshotManager};
+use crate::identity::{OwnerTrust, VaultId};
+use crate::snapshot::{Snapshot, SnapshotError, SnapshotManager};
+use crate::snapshot_manifest::{task_store_commitments, SignedSnapshot, SnapshotManifest};
 use crate::{DeviceId, Hlc, Mutation, TaskStore};
 use cbor2::Value;
+use ed25519_dalek::SigningKey;
 use sha2::{Digest, Sha256};
 
 /// Errors returned by the local store.
@@ -153,6 +156,7 @@ pub struct LocalStore<'a> {
     wal: Vec<WalEntry>,
     outbox: Vec<OutboxEntry>,
     device_id: DeviceId,
+    epoch_key: EpochKey,
     applied: std::collections::HashSet<OperationId>,
 }
 
@@ -202,6 +206,7 @@ impl<'a> LocalStore<'a> {
             wal,
             outbox,
             device_id,
+            epoch_key,
             applied,
         };
 
@@ -364,6 +369,121 @@ impl<'a> LocalStore<'a> {
         &self.metadata
     }
 
+    /// Create a signed snapshot of the current local state.
+    pub fn create_signed_snapshot(
+        &mut self,
+        owner_signing_key: &SigningKey,
+        vault_id: VaultId,
+    ) -> Result<SignedSnapshot, StoreError> {
+        let snapshot =
+            Snapshot::from_store(self.snapshot_manager.store(), self.snapshot_manager.log());
+        let payload_bytes = snapshot.to_bytes()?;
+        let payload_digest = OperationId(Sha256::digest(&payload_bytes).into());
+
+        let (state_root, tombstone_root) = task_store_commitments(self.snapshot_manager.store());
+        let checkpoint = Hlc {
+            wall: self.metadata.last_wall,
+            counter: self.metadata.last_counter,
+            device_id: self.device_id,
+        };
+
+        let manifest = SnapshotManifest {
+            protocol_version: 1,
+            snapshot_version: 1,
+            vault_id,
+            checkpoint,
+            coverage: self.metadata.coverage.clone(),
+            state_root,
+            tombstone_root,
+            payload_digest,
+        };
+
+        let aead_snapshot = self.snapshot_manager.save()?;
+        let signature = manifest.sign(owner_signing_key);
+
+        Ok(SignedSnapshot {
+            manifest,
+            payload: aead_snapshot,
+            signature,
+        })
+    }
+
+    /// Install a verified signed snapshot, preserving local data not covered by
+    /// the snapshot (no-silent-local-replacement).
+    pub fn install_signed_snapshot(
+        &mut self,
+        signed: &SignedSnapshot,
+        owner_trust: &OwnerTrust,
+    ) -> Result<(), StoreError> {
+        signed
+            .verify_signature(owner_trust)
+            .map_err(|e| StoreError::Encode(e.to_string()))?;
+
+        if signed.manifest.vault_id != owner_trust.vault_id {
+            return Err(StoreError::Decode("snapshot vault id mismatch".into()));
+        }
+        if signed.manifest.protocol_version != 1 {
+            return Err(StoreError::Decode(
+                "unsupported snapshot protocol version".into(),
+            ));
+        }
+
+        let current = Hlc {
+            wall: self.metadata.last_wall,
+            counter: self.metadata.last_counter,
+            device_id: self.device_id,
+        };
+        if signed.manifest.checkpoint < current {
+            return Err(StoreError::Decode("snapshot checkpoint is stale".into()));
+        }
+
+        if !coverage_is_superset(&signed.manifest.coverage, &self.metadata.coverage) {
+            return Err(StoreError::Decode(
+                "snapshot does not cover current local state".into(),
+            ));
+        }
+
+        let snapshot_key = self.epoch_key.derive_purpose("snapshot")?;
+        let payload_bytes = signed
+            .payload
+            .decrypt(&snapshot_key)
+            .map_err(|e| StoreError::Crypto(e))?;
+        let payload_digest = OperationId(Sha256::digest(&payload_bytes).into());
+        if payload_digest != signed.manifest.payload_digest {
+            return Err(StoreError::Decode(
+                "snapshot payload digest mismatch".into(),
+            ));
+        }
+
+        let snapshot = Snapshot::from_bytes(&payload_bytes)?;
+        let replayed = snapshot.replay()?;
+        let (state_root, tombstone_root) = task_store_commitments(&replayed);
+        if state_root != signed.manifest.state_root {
+            return Err(StoreError::Decode("snapshot state root mismatch".into()));
+        }
+        if tombstone_root != signed.manifest.tombstone_root {
+            return Err(StoreError::Decode(
+                "snapshot tombstone root mismatch".into(),
+            ));
+        }
+
+        self.snapshot_manager.restore_from_snapshot(snapshot)?;
+        self.metadata.coverage = signed.manifest.coverage.clone();
+        self.applied.clear();
+        self.metadata.applied.clear();
+        for mutation in self.snapshot_manager.log() {
+            let hlc = mutation.hlc().unwrap_or(current);
+            let op_id = operation_id(&hlc, mutation)?;
+            self.applied.insert(op_id);
+            self.metadata.applied.push(op_id);
+        }
+        self.metadata.last_wall = signed.manifest.checkpoint.wall;
+        self.metadata.last_counter = signed.manifest.checkpoint.counter;
+        self.metadata_store.store(&self.metadata)?;
+
+        Ok(())
+    }
+
     /// Replay any pending WAL entries over the current snapshot state.
     fn replay_wal(&mut self) -> Result<(), StoreError> {
         if self.wal.is_empty() {
@@ -395,6 +515,20 @@ fn operation_id(hlc: &Hlc, mutation: &Mutation) -> Result<OperationId, StoreErro
     let bytes = canonical::encode(&value)?;
     let digest = Sha256::digest(&bytes);
     Ok(OperationId(digest.into()))
+}
+
+fn coverage_is_superset(new: &[CoverageRange], old: &[CoverageRange]) -> bool {
+    for old_range in old {
+        let covered = new.iter().any(|new_range| {
+            new_range.origin == old_range.origin
+                && new_range.start <= old_range.start
+                && new_range.end >= old_range.end
+        });
+        if !covered {
+            return false;
+        }
+    }
+    true
 }
 
 /// Encrypted clock storage backed by a `SnapshotStore`.

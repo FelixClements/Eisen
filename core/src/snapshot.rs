@@ -162,6 +162,14 @@ impl<'a> SnapshotManager<'a> {
     pub fn log(&self) -> &[Mutation] {
         &self.log
     }
+
+    /// Replace the in-memory store and log with a verified snapshot and persist.
+    pub fn restore_from_snapshot(&mut self, snapshot: Snapshot) -> Result<(), SnapshotError> {
+        self.store = snapshot.replay()?;
+        self.log = snapshot.log;
+        self.save()?;
+        Ok(())
+    }
 }
 
 fn text(s: &str) -> Value {

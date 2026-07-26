@@ -12,6 +12,7 @@ pub mod epoch;
 pub mod identity;
 pub mod manifest;
 pub mod snapshot;
+pub mod snapshot_manifest;
 pub mod store;
 
 use std::cmp::Ordering;
@@ -105,7 +106,7 @@ impl Ord for Hlc {
 
 /// A field value with its winning HLC.
 /// `value == None` means the field has been cleared by a winning update.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Field<T> {
     pub hlc: Hlc,
     pub value: Option<T>,
@@ -120,7 +121,7 @@ impl<T: Clone> Field<T> {
 }
 
 /// A task materialized from per-field LWW winners.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Task {
     pub id: TaskId,
     pub title: Field<String>,
@@ -296,6 +297,11 @@ impl TaskStore {
     /// Get a task by id.
     pub fn get(&self, id: TaskId) -> Option<&Task> {
         self.tasks.get(&id)
+    }
+
+    /// Iterate over all tasks, including tombstones.
+    pub fn all_iter(&self) -> impl Iterator<Item = (&TaskId, &Task)> + '_ {
+        self.tasks.iter()
     }
 
     /// Apply a single mutation to the local store.
