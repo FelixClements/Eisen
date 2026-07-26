@@ -115,7 +115,13 @@ impl Envelope {
             .verify(&body_bytes, &sig)
             .map_err(|_| EnvelopeError::BadSignature)?;
 
-        value_to_mutation(&self.mutation)
+        let mutation = value_to_mutation(&self.mutation)?;
+        if matches!(mutation, Mutation::Purge { .. }) {
+            return Err(EnvelopeError::InvalidMutation(
+                "purge cannot be enclosed".into(),
+            ));
+        }
+        Ok(mutation)
     }
 
     /// Encode the envelope to canonical CBOR bytes.
@@ -300,7 +306,7 @@ fn maybe_field(map: &[(Value, Value)], key: &str) -> Option<Value> {
         .map(|(_, v)| v.clone())
 }
 
-fn mutation_to_value(mutation: &Mutation) -> Result<Value, EnvelopeError> {
+pub(crate) fn mutation_to_value(mutation: &Mutation) -> Result<Value, EnvelopeError> {
     match mutation {
         Mutation::Create {
             hlc,
@@ -379,19 +385,26 @@ fn mutation_to_value(mutation: &Mutation) -> Result<Value, EnvelopeError> {
             (text("hlc"), hlc_to_value(hlc)),
             (text("id"), bytes(&id.0)),
         ])),
-        Mutation::Purge { .. } => Err(EnvelopeError::InvalidMutation(
-            "purge cannot be enclosed".into(),
-        )),
+        Mutation::Purge { id } => Ok(Value::Map(vec![
+            (text("kind"), text("purge")),
+            (text("id"), bytes(&id.0)),
+        ])),
     }
 }
 
-fn value_to_mutation(v: &Value) -> Result<Mutation, EnvelopeError> {
+pub(crate) fn value_to_mutation(v: &Value) -> Result<Mutation, EnvelopeError> {
     match v {
         Value::Map(map) => {
             let kind = match get_field(map, "kind")? {
                 Value::Text(s) => s,
                 _ => return Err(EnvelopeError::InvalidBody),
             };
+
+            if kind == "purge" {
+                let id = value_to_task_id(&get_field(map, "id")?)?;
+                return Ok(Mutation::Purge { id });
+            }
+
             let hlc = value_to_hlc(&get_field(map, "hlc")?)?;
             let id = value_to_task_id(&get_field(map, "id")?)?;
 
@@ -528,7 +541,7 @@ mod tests {
         let storage = InMemorySecureStorage::default();
         let (owner_trust, device) =
             create_vault(&storage, make_hlc(DeviceId([4; 16]), 4, 0)).unwrap();
-        let hlc = make_hlc(device.device_id, 4, 0);
+        let _hlc = make_hlc(device.device_id, 4, 0);
 
         let other_hlc = make_hlc(DeviceId([0xff; 16]), 4, 0);
         let mutation = Mutation::Delete {

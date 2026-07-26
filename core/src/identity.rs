@@ -223,6 +223,7 @@ pub enum IdentityError {
     Storage(String),
     MissingKey(String),
     InvalidManifest,
+    Chain(String),
 }
 
 impl std::fmt::Display for IdentityError {
@@ -235,6 +236,7 @@ impl std::fmt::Display for IdentityError {
             IdentityError::Storage(s) => write!(f, "storage error: {s}"),
             IdentityError::MissingKey(s) => write!(f, "missing storage key: {s}"),
             IdentityError::InvalidManifest => write!(f, "invalid manifest"),
+            IdentityError::Chain(s) => write!(f, "manifest chain error: {s}"),
         }
     }
 }

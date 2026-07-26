@@ -10,6 +10,8 @@ pub mod clock;
 pub mod envelope;
 pub mod epoch;
 pub mod identity;
+pub mod manifest;
+pub mod snapshot;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
