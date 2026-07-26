@@ -415,6 +415,100 @@ impl<'a> LocalStore<'a> {
         signed: &SignedSnapshot,
         owner_trust: &OwnerTrust,
     ) -> Result<(), StoreError> {
+        let snapshot = self.verify_and_decrypt_snapshot(signed, owner_trust)?;
+
+        if !coverage_is_superset(&signed.manifest.coverage, &self.metadata.coverage) {
+            return Err(StoreError::Decode(
+                "snapshot does not cover current local state".into(),
+            ));
+        }
+
+        self.install_snapshot(snapshot, signed.manifest.coverage.clone())?;
+        self.metadata.last_wall = signed.manifest.checkpoint.wall;
+        self.metadata.last_counter = signed.manifest.checkpoint.counter;
+        self.metadata_store.store(&self.metadata)?;
+        Ok(())
+    }
+
+    /// Repair local state from a verified snapshot and a list of subsequent
+    /// operations. Local operations not covered by the snapshot are preserved
+    /// and reconciled with the replayed subsequent operations.
+    pub fn repair(
+        &mut self,
+        signed: &SignedSnapshot,
+        owner_trust: &OwnerTrust,
+        subsequent: &[(crate::envelope::Envelope, u64)],
+    ) -> Result<(), StoreError> {
+        let snapshot = self.verify_and_decrypt_snapshot(signed, owner_trust)?;
+
+        // Preserve the local log, sequence counters, and coverage before replacing state.
+        let local_log: Vec<Mutation> = self.snapshot_manager.log().to_vec();
+        let saved_seq = self.metadata.seq.clone();
+        let saved_coverage = self.metadata.coverage.clone();
+
+        self.install_snapshot(snapshot, signed.manifest.coverage.clone())?;
+        self.metadata.last_wall = signed.manifest.checkpoint.wall;
+        self.metadata.last_counter = signed.manifest.checkpoint.counter;
+
+        // Re-apply local mutations not already covered by the snapshot first,
+        // so that later operations can reference them.
+        let current = Hlc {
+            wall: self.metadata.last_wall,
+            counter: self.metadata.last_counter,
+            device_id: self.device_id,
+        };
+        for mutation in local_log {
+            let hlc = mutation.hlc().unwrap_or(current);
+            let op_id = operation_id(&hlc, &mutation)?;
+            if !self.applied.contains(&op_id) {
+                self.snapshot_manager.apply(mutation)?;
+                self.applied.insert(op_id);
+                self.metadata.applied.push(op_id);
+                self.metadata.operation_count = self.metadata.operation_count.saturating_add(1);
+                if hlc.wall > self.metadata.last_wall
+                    || (hlc.wall == self.metadata.last_wall
+                        && hlc.counter > self.metadata.last_counter)
+                {
+                    self.metadata.last_wall = hlc.wall;
+                    self.metadata.last_counter = hlc.counter;
+                }
+            }
+        }
+
+        // Replay subsequent operations in the order provided.
+        for (envelope, seq) in subsequent {
+            self.apply(envelope.clone(), owner_trust, *seq)?;
+        }
+
+        // Restore per-origin high-sequence counters and merge saved coverage ranges.
+        for (origin, seq) in saved_seq {
+            let high = seq.max(self.metadata.seq.get(&origin).copied().unwrap_or(0));
+            self.metadata.seq.insert(origin, high);
+        }
+        for saved in saved_coverage {
+            if let Some(entry) = self
+                .metadata
+                .coverage
+                .iter_mut()
+                .find(|c| c.origin == saved.origin)
+            {
+                entry.start = entry.start.min(saved.start);
+                entry.end = entry.end.max(saved.end);
+            } else {
+                self.metadata.coverage.push(saved.clone());
+            }
+        }
+
+        self.metadata_store.store(&self.metadata)?;
+        self.snapshot_manager.save()?;
+        Ok(())
+    }
+
+    fn verify_and_decrypt_snapshot(
+        &self,
+        signed: &SignedSnapshot,
+        owner_trust: &OwnerTrust,
+    ) -> Result<Snapshot, StoreError> {
         signed
             .verify_signature(owner_trust)
             .map_err(|e| StoreError::Encode(e.to_string()))?;
@@ -425,21 +519,6 @@ impl<'a> LocalStore<'a> {
         if signed.manifest.protocol_version != 1 {
             return Err(StoreError::Decode(
                 "unsupported snapshot protocol version".into(),
-            ));
-        }
-
-        let current = Hlc {
-            wall: self.metadata.last_wall,
-            counter: self.metadata.last_counter,
-            device_id: self.device_id,
-        };
-        if signed.manifest.checkpoint < current {
-            return Err(StoreError::Decode("snapshot checkpoint is stale".into()));
-        }
-
-        if !coverage_is_superset(&signed.manifest.coverage, &self.metadata.coverage) {
-            return Err(StoreError::Decode(
-                "snapshot does not cover current local state".into(),
             ));
         }
 
@@ -466,9 +545,21 @@ impl<'a> LocalStore<'a> {
                 "snapshot tombstone root mismatch".into(),
             ));
         }
+        Ok(snapshot)
+    }
 
+    fn install_snapshot(
+        &mut self,
+        snapshot: Snapshot,
+        coverage: Vec<CoverageRange>,
+    ) -> Result<(), StoreError> {
+        let current = Hlc {
+            wall: self.metadata.last_wall,
+            counter: self.metadata.last_counter,
+            device_id: self.device_id,
+        };
         self.snapshot_manager.restore_from_snapshot(snapshot)?;
-        self.metadata.coverage = signed.manifest.coverage.clone();
+        self.metadata.coverage = coverage;
         self.applied.clear();
         self.metadata.applied.clear();
         for mutation in self.snapshot_manager.log() {
@@ -477,10 +568,6 @@ impl<'a> LocalStore<'a> {
             self.applied.insert(op_id);
             self.metadata.applied.push(op_id);
         }
-        self.metadata.last_wall = signed.manifest.checkpoint.wall;
-        self.metadata.last_counter = signed.manifest.checkpoint.counter;
-        self.metadata_store.store(&self.metadata)?;
-
         Ok(())
     }
 
@@ -1216,5 +1303,72 @@ mod tests {
         assert_eq!(op_id, op_id2);
         assert_eq!(store.store().len(), 1);
         assert_eq!(store.metadata().operation_count, 1);
+    }
+
+    #[test]
+    fn repair_preserves_local_ops_and_replays_subsequent() {
+        let storage = InMemorySecureStorage::default();
+        let empty_storage = InMemorySecureStorage::default();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
+        let hlc = make_hlc(1, 0, 1);
+        let (owner_trust, device) = create_vault(&storage, hlc).unwrap();
+
+        let mut store = LocalStore::open(&storage, key, device.device_id).unwrap();
+        let id = TaskId([5; 16]);
+        store
+            .commit(
+                2,
+                Mutation::Create {
+                    hlc: make_hlc(2, 0, 1),
+                    id,
+                    title: "Local".into(),
+                    notes: None,
+                    quadrant: 0,
+                    due_date: None,
+                },
+            )
+            .unwrap();
+
+        // Create an empty signed snapshot from a fresh store.
+        let mut empty_store = LocalStore::open(&empty_storage, key, device.device_id).unwrap();
+        let signed = empty_store
+            .create_signed_snapshot(&owner_trust.owner_signing_key, owner_trust.vault_id)
+            .unwrap();
+
+        // Subsequent update that depends on the preserved local create.
+        let update_hlc = Hlc {
+            wall: 3,
+            counter: 0,
+            device_id: device.device_id,
+        };
+        let update = Mutation::Update {
+            hlc: update_hlc,
+            id,
+            title: Some("Updated".into()),
+            notes: None,
+            quadrant: None,
+            due_date: None,
+        };
+        let envelope = Envelope::sign(&update, update_hlc, &device.signing_key).unwrap();
+
+        store
+            .repair(&signed, &owner_trust, &[(envelope, 2)])
+            .unwrap();
+
+        assert_eq!(store.store().len(), 1);
+        assert_eq!(
+            store.store().get(id).unwrap().title.value.as_ref().unwrap(),
+            "Updated"
+        );
+        let local_cov = store
+            .coverage()
+            .iter()
+            .find(|c| c.origin == device.device_id)
+            .unwrap();
+        assert_eq!(local_cov.start, 1);
+        assert_eq!(local_cov.end, 2);
     }
 }
