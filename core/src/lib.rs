@@ -11,6 +11,7 @@ pub mod envelope;
 pub mod epoch;
 pub mod identity;
 pub mod manifest;
+pub mod recovery;
 pub mod snapshot;
 pub mod snapshot_manifest;
 pub mod store;

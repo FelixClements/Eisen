@@ -26,7 +26,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 ---
 
-## - [ ] P0 — Decisions and protocol freeze
+## - [x] P0 — Decisions and protocol freeze
 
 **Prerequisites:** None. This phase starts with repository bootstrap and ends before persistence, client product, or service implementation.
 
@@ -83,7 +83,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1.11 | [x] Implement local apply and deduplication. | project owner | immutable operation-ID log, canonical-digest conflict quarantine, per-origin sequence/range coverage, idempotent merge, and tombstone visibility rules. |
 | P1.12 | [x] Implement snapshot primitives. | project owner | encrypted snapshot creation/verification with signed manifest, state/tombstone commitments, coverage indexes, compatibility checks, and no-silent-local-replacement rule. |
 | P1.13 | [x] Implement local repair/full-resync primitives. | project owner | preserve-and-mark-repair path that installs only compatible verified snapshot coverage and replays later operations without silently discarding local data. |
-| P1.14 | Implement the user-held recovery package. | project owner | Argon2id-derived wrapping, AEAD-verified versioned package containing encrypted keyring, trust state, retained keys, locator, and fresh device/nonce domain on restore. |
+| P1.14 | [x] Implement the user-held recovery package. | project owner | Argon2id-derived wrapping, AEAD-verified versioned package containing encrypted keyring, trust state, retained keys, locator, and fresh device/nonce domain on restore. |
 | P1.15 | Implement encrypted export/import staging. | project owner | explicit encrypted export/import flow that never writes plaintext vault content to excluded disk locations and preserves recovery limitations. |
 | P1.16 | Add transaction-boundary fault injection. | project owner | reproducible crash, rollback, full-disk, corrupted-row/snapshot, migration-interruption, and secure-storage-unavailability scenarios. |
 | P1.17 | Add core test suites. | project owner | unit tests for HLC, tuples, manifest/cutover, outbox, cursor primitives, digest conflicts, and recovery plus property tests for permutations, replay, duplicate, drop, and reorder convergence. |
