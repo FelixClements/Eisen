@@ -9,6 +9,7 @@ pub mod canonical;
 pub mod clock;
 pub mod envelope;
 pub mod epoch;
+pub mod export;
 pub mod identity;
 pub mod manifest;
 pub mod recovery;

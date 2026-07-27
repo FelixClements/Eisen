@@ -10,8 +10,10 @@ use crate::canonical::{self, Limits};
 use crate::clock::{Clock, ClockError, ClockStorage};
 use crate::envelope::{hlc_to_value, mutation_to_value};
 use crate::epoch::{EpochError, EpochKey, SnapshotStore};
+use crate::export::{ExportError, VaultExport};
 use crate::identity::SecureStorage;
 use crate::identity::{OwnerTrust, VaultId};
+use crate::manifest::ManifestChain;
 use crate::snapshot::{Snapshot, SnapshotError, SnapshotManager};
 use crate::snapshot_manifest::{task_store_commitments, SignedSnapshot, SnapshotManifest};
 use crate::{DeviceId, Hlc, Mutation, TaskStore};
@@ -83,6 +85,24 @@ impl From<crate::ModelError> for StoreError {
     }
 }
 
+impl From<ExportError> for StoreError {
+    fn from(e: ExportError) -> Self {
+        match e {
+            ExportError::Encode(s) | ExportError::Integrity(s) | ExportError::Entropy(s) => {
+                StoreError::Encode(s)
+            }
+            ExportError::Decode(s) => StoreError::Decode(s),
+            ExportError::Crypto(s) => StoreError::Crypto(EpochError::Encryption(s)),
+            ExportError::Epoch(e) => StoreError::Crypto(e),
+            ExportError::Snapshot(e) => StoreError::Snapshot(e),
+            ExportError::Identity(e) => StoreError::Encode(e.to_string()),
+            ExportError::Version(v) => {
+                StoreError::Decode(format!("unsupported export version {v}"))
+            }
+        }
+    }
+}
+
 /// A 32-byte operation identifier: SHA-256 digest over the canonical HLC and
 /// mutation.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -114,6 +134,18 @@ pub struct StoreMetadata {
     pub coverage: Vec<CoverageRange>,
     /// Highest committed sequence per origin (used to assign local seqs).
     pub seq: std::collections::BTreeMap<DeviceId, u64>,
+}
+
+impl StoreMetadata {
+    /// Serialize to canonical CBOR bytes.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, StoreError> {
+        metadata_to_bytes(self)
+    }
+
+    /// Parse from canonical CBOR bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, StoreError> {
+        metadata_from_bytes(bytes)
+    }
 }
 
 /// Per-origin contiguous sequence coverage.
@@ -504,6 +536,97 @@ impl<'a> LocalStore<'a> {
         Ok(())
     }
 
+    /// Export the current local store state as an encrypted `VaultExport`.
+    ///
+    /// The caller supplies the owner trust anchor and manifest chain so the
+    /// export is bound to the correct vault. The payload is encrypted under an
+    /// export-purpose sub-key derived from the current epoch key.
+    pub fn export(
+        &self,
+        owner_trust: &OwnerTrust,
+        manifest_chain: &ManifestChain,
+    ) -> Result<VaultExport, StoreError> {
+        if manifest_chain.current().content.vault_id != owner_trust.vault_id {
+            return Err(StoreError::Decode(
+                "manifest chain vault id mismatch".into(),
+            ));
+        }
+        let snapshot = Snapshot::from_store(self.store(), self.snapshot_manager.log());
+        VaultExport::new(
+            &self.epoch_key,
+            owner_trust.vault_id,
+            &snapshot,
+            &self.metadata,
+            &self.outbox,
+            &manifest_chain.iter().cloned().collect::<Vec<_>>(),
+            self.metadata.last_wall,
+        )
+        .map_err(|e: ExportError| StoreError::from(e))
+    }
+
+    /// Import an encrypted `VaultExport` into this store.
+    ///
+    /// The epoch key must match the export's key epoch. The manifest chain in
+    /// the export is verified against the owner trust anchor before the snapshot,
+    /// metadata, and outbox are installed. Local state not covered by the export
+    /// is replaced; the no-silent-local-replacement rule is enforced because the
+    /// export contains a complete snapshot.
+    pub fn import(
+        &mut self,
+        export: &VaultExport,
+        owner_trust: &OwnerTrust,
+    ) -> Result<(), StoreError> {
+        if export.vault_id != owner_trust.vault_id {
+            return Err(StoreError::Decode("export vault id mismatch".into()));
+        }
+        let payload = export
+            .decrypt(&self.epoch_key)
+            .map_err(|e: ExportError| StoreError::from(e))?;
+        if payload.vault_id != owner_trust.vault_id || payload.key_epoch != self.epoch_key.epoch {
+            return Err(StoreError::Decode(
+                "export payload identity mismatch".into(),
+            ));
+        }
+
+        if payload.manifests.is_empty() {
+            return Err(StoreError::Decode("export contains no manifests".into()));
+        }
+        let mut chain = ManifestChain::new(payload.manifests[0].clone())
+            .map_err(|e| StoreError::Encode(e.to_string()))?;
+        for m in &payload.manifests[1..] {
+            chain
+                .push(m.clone())
+                .map_err(|e| StoreError::Encode(e.to_string()))?;
+        }
+        if chain.current().content.vault_id != owner_trust.vault_id {
+            return Err(StoreError::Decode("manifest vault id mismatch".into()));
+        }
+
+        self.snapshot_manager
+            .restore_from_snapshot(payload.snapshot)?;
+
+        self.metadata = payload.metadata;
+        self.applied = self.metadata.applied.iter().copied().collect();
+        self.outbox = payload.outbox;
+        self.wal.clear();
+
+        self.metadata_store.store(&self.metadata)?;
+        self.outbox_store.store(&self.outbox)?;
+        self.wal_store.clear()?;
+        self.nonce_counter.set_at_least(self.metadata.last_nonce)?;
+
+        let last = Hlc {
+            wall: self.metadata.last_wall,
+            counter: self.metadata.last_counter,
+            device_id: self.device_id,
+        };
+        self.clock
+            .receive(self.metadata.last_wall, last)
+            .map_err(StoreError::Clock)?;
+
+        Ok(())
+    }
+
     fn verify_and_decrypt_snapshot(
         &self,
         signed: &SignedSnapshot,
@@ -745,6 +868,16 @@ impl<'a> NonceCounter<'a> {
         self.store.store(&bytes)?;
         Ok(next)
     }
+
+    /// Persist a counter value that is at least the supplied minimum.
+    fn set_at_least(&mut self, minimum: u64) -> Result<(), StoreError> {
+        let current = self.current()?;
+        let target = minimum.max(current);
+        let value = Value::Integer(target.into());
+        let bytes = canonical::encode(&value)?;
+        self.store.store(&bytes)?;
+        Ok(())
+    }
 }
 
 /// Encrypted metadata store.
@@ -946,7 +1079,7 @@ impl<'a> OutboxStore<'a> {
     }
 }
 
-fn outbox_to_bytes(entries: &[OutboxEntry]) -> Result<Vec<u8>, StoreError> {
+pub(crate) fn outbox_to_bytes(entries: &[OutboxEntry]) -> Result<Vec<u8>, StoreError> {
     let values: Vec<Value> = entries
         .iter()
         .map(|e| {
@@ -959,7 +1092,7 @@ fn outbox_to_bytes(entries: &[OutboxEntry]) -> Result<Vec<u8>, StoreError> {
     Ok(canonical::encode(&Value::Array(values))?)
 }
 
-fn outbox_from_bytes(bytes: &[u8]) -> Result<Vec<OutboxEntry>, StoreError> {
+pub(crate) fn outbox_from_bytes(bytes: &[u8]) -> Result<Vec<OutboxEntry>, StoreError> {
     let value = canonical::parse(bytes, &Limits::default())?;
     match value {
         Value::Array(arr) => arr
