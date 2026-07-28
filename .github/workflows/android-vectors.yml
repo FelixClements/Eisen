@@ -1,0 +1,53 @@
+name: Android Vector Runner
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  android-vectors:
+    name: Run vectors on Android emulator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          ndk-version: r26b
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build eisen-core Android .so
+        run: cargo ndk -t x86_64 -o clients/android/app/src/main/jniLibs build
+
+      - name: Run instrumented vector tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          script: |
+            cd clients/android
+            ./gradlew :app:connectedDebugAndroidTest
+            adb shell "run-as com.example.myapplication cat /data/data/com.example.myapplication/files/vector-report-android.json" > vector-report-android.json || true
+
+      - name: Upload Android vector report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vector-report-android
+          path: clients/android/vector-report-android.json
