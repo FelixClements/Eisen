@@ -1,0 +1,284 @@
+[
+  {
+    "id": "canonical-001",
+    "kind": "canonical",
+    "description": "Canonical CBOR round-trips through canonical parser",
+    "input": {
+      "bytes_hex": "a3636c6f6780657461736b7381a96163a263686c6383010050010101010101010101010101010101016576616c7565f66164a263686c6383010050010101010101010101010101010101016576616c7565f6616ea263686c6383010050010101010101010101010101010101016576616c7565f66171a263686c6383010050010101010101010101010101010101016576616c756581006172a263686c6383010050010101010101010101010101010101016576616c756581016174a263686c6383010050010101010101010101010101010101016576616c75658166566563746f726175a263686c6383010050010101010101010101010101010101016576616c756581016178a263686c6383010050010101010101010101010101010101016576616c7565f662696450010101010101010101010101010101016776657273696f6e01"
+    },
+    "expected": {
+      "valid": true
+    }
+  },
+  {
+    "id": "canonical-002",
+    "kind": "canonical",
+    "description": "Invalid CBOR is rejected by canonical parser",
+    "input": {
+      "bytes_hex": "1f"
+    },
+    "expected": {
+      "valid": false
+    }
+  },
+  {
+    "id": "hlc-001",
+    "kind": "hlc",
+    "description": "HLC ordering is wall-first then counter then device_id",
+    "input": {
+      "hlc_a": {
+        "counter": 0,
+        "device_id_hex": "02020202020202020202020202020202",
+        "wall": 1
+      },
+      "hlc_b": {
+        "counter": 0,
+        "device_id_hex": "01010101010101010101010101010101",
+        "wall": 2
+      }
+    },
+    "expected": {
+      "b_greater_than_a": true
+    }
+  },
+  {
+    "id": "merge-001",
+    "kind": "merge",
+    "description": "Duplicate updates do not change the merged task",
+    "input": {
+      "actions": [
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 1
+          },
+          "id_hex": "02020202020202020202020202020202",
+          "kind": "Create",
+          "quadrant": 0,
+          "title": "A"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 2
+          },
+          "id_hex": "02020202020202020202020202020202",
+          "kind": "Update",
+          "title": "B"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 2
+          },
+          "id_hex": "02020202020202020202020202020202",
+          "kind": "Update",
+          "title": "B"
+        }
+      ]
+    },
+    "expected": {
+      "title": "B"
+    }
+  },
+  {
+    "id": "merge-002",
+    "kind": "merge",
+    "description": "Dropping an update changes the merged title",
+    "input": {
+      "actions": [
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 1
+          },
+          "id_hex": "03030303030303030303030303030303",
+          "kind": "Create",
+          "quadrant": 0,
+          "title": "A"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 2
+          },
+          "id_hex": "03030303030303030303030303030303",
+          "kind": "Update",
+          "title": "B"
+        }
+      ]
+    },
+    "expected": {
+      "changed": true,
+      "with_update_title": "B",
+      "without_update_title": "A"
+    }
+  },
+  {
+    "id": "merge-003",
+    "kind": "merge",
+    "description": "Merge converges to the same state regardless of update order",
+    "input": {
+      "actions": [
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 1
+          },
+          "id_hex": "04040404040404040404040404040404",
+          "kind": "Create",
+          "quadrant": 0,
+          "title": "A"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 2
+          },
+          "id_hex": "04040404040404040404040404040404",
+          "kind": "Update",
+          "title": "B"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "01010101010101010101010101010101",
+            "wall": 3
+          },
+          "id_hex": "04040404040404040404040404040404",
+          "kind": "Update",
+          "title": "C"
+        }
+      ]
+    },
+    "expected": {
+      "title": "C"
+    }
+  },
+  {
+    "id": "snapshot-001",
+    "kind": "snapshot",
+    "description": "Snapshot round-trips through bytes and replays correctly",
+    "input": {
+      "bytes_hex": "a3636c6f6781a5626964500505050505050505050505050505050563686c638301005001010101010101010101010101010101646b696e6466637265617465657469746c6568536e617073686f74687175616472616e7401657461736b7381a96163a263686c6383010050010101010101010101010101010101016576616c7565f66164a263686c6383010050010101010101010101010101010101016576616c7565f6616ea263686c6383010050010101010101010101010101010101016576616c7565f66171a263686c6383010050010101010101010101010101010101016576616c756581016172a263686c6383010050010101010101010101010101010101016576616c756581016174a263686c6383010050010101010101010101010101010101016576616c75658168536e617073686f746175a263686c6383010050010101010101010101010101010101016576616c756581016178a263686c6383010050010101010101010101010101010101016576616c7565f662696450050505050505050505050505050505056776657273696f6e01"
+    },
+    "expected": {
+      "title": "Snapshot",
+      "valid": true
+    }
+  },
+  {
+    "id": "snapshot-002",
+    "kind": "snapshot",
+    "description": "Unsupported snapshot protocol version is rejected",
+    "input": {
+      "bytes_hex": "a3636c6f6780657461736b73806776657273696f6e02"
+    },
+    "expected": {
+      "error": "UnsupportedVersion(2)",
+      "valid": false
+    }
+  },
+  {
+    "id": "envelope-001",
+    "kind": "envelope",
+    "description": "A signed device envelope verifies against owner trust",
+    "input": {
+      "envelope_hex": "a463686c63a36477616c6c0267636f756e74657200696465766963655f69645020def97466d5c995788c6917dc89fbc7686d75746174696f6ea5626964500606060606060606060606060606060663686c638302005020def97466d5c995788c6917dc89fbc7646b696e6466637265617465657469746c6568456e76656c6f7065687175616472616e7400696465766963655f69645020def97466d5c995788c6917dc89fbc7697369676e61747572655840ec222835b8a01311e1219f0653b34cce7154fa56099511ce045de44d0e0880fbebf299da538deb101a4c64bd1672eb3af990f74a939ff6d553c0d1a9a2f70103",
+      "manifest_hex": "a267636f6e74656e74a8676465766963657381a46673746174757366416374697665696465766963655f69645020def97466d5c995788c6917dc89fbc76e7369676e696e675f7075626b6579582012c688cffcb6a774d00b22b65f5bd6d7d3b870af395041ad21990c74b9cb357f71656e6372797074696f6e5f7075626b657958201db910d0d40ffab4dd20c1b402efd407ef5f0185f7860eb1a36b9211880cdc2e687661756c745f696450fa2839725b18dd3caf53c64e219e4c08696b65795f65706f6368006a637265617465645f6174a36477616c6c0167636f756e74657200696465766963655f696450000000000000000000000000000000006c6f776e65725f7075626b65795820680c078deb857dd66cdf93931844f9a667be9ee65f651b1880f364b66e6364087070726f746f636f6c5f76657273696f6e00726d656d626572736869705f76657273696f6e00781a6f776e65725f6d616e6167656d656e745f6465766963655f69645020def97466d5c995788c6917dc89fbc7697369676e61747572655840a22e316b5f5b74565de2547d807015a3716b485f1fd322f91b8353da9f15154ebaadc4f867afe68669f4e523e792ae8a742d507f9eb625673b947e9b19085c0f",
+      "owner_signing_key_hex": "0cbe3e1eb8a7df40c5c49dadf5fba051438164d2c6863cde14968ad242bf8d47",
+      "vault_id_hex": "fa2839725b18dd3caf53c64e219e4c08"
+    },
+    "expected": {
+      "valid": true
+    }
+  },
+  {
+    "id": "envelope-002",
+    "kind": "envelope",
+    "description": "Malformed envelope bytes are rejected",
+    "input": {
+      "bytes_hex": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "expected": {
+      "valid": false
+    }
+  },
+  {
+    "id": "manifest-001",
+    "kind": "manifest",
+    "description": "Genesis manifest round-trips and verifies",
+    "input": {
+      "bytes_hex": "a267636f6e74656e74a8676465766963657381a46673746174757366416374697665696465766963655f696450cce2f84b05f92db4463b8424ac4aca896e7369676e696e675f7075626b65795820e26792797de978735344d881f2f80d8d7319daa9eba06180649746cf0fdbfab471656e6372797074696f6e5f7075626b65795820a68ec4d1582170aa7d937071da10d535531a78ee166f7bcd47e534dda9d67620687661756c745f696450f9ce8b9d80e1eb8f186d4443a004024f696b65795f65706f6368006a637265617465645f6174a36477616c6c0167636f756e74657200696465766963655f696450000000000000000000000000000000006c6f776e65725f7075626b657958206bab171b834e34b7c125ecbeda15d6251b53a4dea750d2171074f39c09fe3d9c7070726f746f636f6c5f76657273696f6e00726d656d626572736869705f76657273696f6e00781a6f776e65725f6d616e6167656d656e745f6465766963655f696450cce2f84b05f92db4463b8424ac4aca89697369676e6174757265584019419033bb77b9d2df28c031b5afececdb61e24f5d020a5d94c8ef10d7d4f56d77071d7cc45f96d237cdb16b376fe272b83cc6463840dd6244fff563d8461c0e"
+    },
+    "expected": {
+      "valid": true
+    }
+  },
+  {
+    "id": "nonce-001",
+    "kind": "nonce",
+    "description": "LocalStore nonces are monotonically assigned",
+    "input": {
+      "actions": [
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "08080808080808080808080808080808",
+            "wall": 1
+          },
+          "id_hex": "01010101010101010101010101010101",
+          "kind": "Create",
+          "quadrant": 0,
+          "title": "Nonce"
+        },
+        {
+          "hlc": {
+            "counter": 0,
+            "device_id_hex": "08080808080808080808080808080808",
+            "wall": 2
+          },
+          "id_hex": "02020202020202020202020202020202",
+          "kind": "Create",
+          "quadrant": 0,
+          "title": "Nonce"
+        }
+      ],
+      "device_id_hex": "08080808080808080808080808080808",
+      "epoch_root_hex": "0707070707070707070707070707070707070707070707070707070707070707"
+    },
+    "expected": {
+      "last_nonce": 2
+    }
+  },
+  {
+    "id": "recovery-001",
+    "kind": "recovery",
+    "description": "Malformed recovery package bytes are rejected",
+    "input": {
+      "bytes_hex": "0000000000000000000000000000000000000000"
+    },
+    "expected": {
+      "valid": false
+    }
+  },
+  {
+    "id": "recovery-002",
+    "kind": "recovery",
+    "description": "A valid recovery package parses structurally",
+    "input": {
+      "package_hex": "454953454e2d5245434f56455259000000016d01d41a909f0a09dd03c7531a430bc400000040000000010000000145a425301ea28cbf18a829d0aedd299c000000000000023119b0419f39ead416aedff1611383a40dedab95f983787f82875cf74a4be9767a8cbc06bd1a21be096c7852e5e29581d29f9eadd82e68595f84b39ee37c50a8318e7ea3ebbc47ac8a25c2284ff2ebdfa35f2fea930b97c544a02c5241651df8ee092fdb596fe6346e3524d1527510ff30c83e83b971c50031353bcd83a6e3734a7931a836a7605d63310c10b217926823c262e96b3ffc041af5ee85ea154a5d664bc00adc1ce6c9932687b77b1e0bab232a2423761c75ec1221e9baee7f96e6bbb4147ff56263ab96bb91668c57b22e9e53e8bac1a9afbdc4412b9777f31b17db364afbfcc2e92f61a2fb5818e39b7e964fbb134d24121ca0a06accfc075c46798317e91545fdd8914f521cf22e0624b3ea87186317ebfe0b52a8423456e940c4db35accba56a1227fc478f607b9a52a6705f792f65f35076475b97c192eb3fc44ad022cab0f37d2efcc8edb2bfffb40dfa1c7abe792ec0534d815569fb4d568f8f79b01f56e47382e13136ac8904ca87bee5df45969134addc6f610c1e373946d6a93fe7f3962b1f170790ab85fe46433669cfaa545bcbb12e3f7fd1aa86e9046fd8c3204ab31946c23f46a9b42496601b3e4849ed65739a81e091262bec0a358844b7e0840079669d3dae9ebb99432fd1f0022c404f4ea9f909f3ce9dd841890f7f0788b910a110f95047ac56b141a6327d8000b9edf1d10497bbc4f1607d93e651bc4245ccf60f3497bf1dac799637f5275340e7bff4df8db2ee829c6afe685cf369ae645d43762d7490530bb5e072ee00000000000002950d23ed26e7144748c1e5a677a3ad7ec9c845213be9a55a9f0449585dd0307fcd23d803a6f53eacd3330e99100d4ccc9e6af099e8667899d1f3cad5b8da47a8825bcbf57451c3875875b3a8171cb56ecaca5c8e52bb0bfb9b03c6a5dd683f0458015bc6c863079b6a2295599c446f394d570c627bec1e8d5448d8097f64625773571600455da4131191f827d7f4097a4cfc1f5798b422e7061807c73a4757929229d632f3f2ca0ea3f5f94162c82d55817abffb4f75d48706a412ee9b6f83e58c4cf09a643b8d890486a3e2d95da90216ae7ad2a2dd3c2501354d630a18e8b6c54b34e6dc468bd9574123ba3e903f2c5a1006b5a397a95889e50f0c7dea72305759e803264b61d13702180cd759a52d645e79ead79cef8463489d22ec8c019ccf93d9f11ba162d8e8a31064592e074c7a4f8d2817a58b1ecfeb93f0a84f217d24b2721e70f455a5acc92f2567b45ac32f9ab4cf46a7130cdfc55c7d6e18acc445d20b0e58f17f6561f140e8a475232403dce8fe2c86c6155359e154c77bcf54b1fc274ba945b8c06fa24111bc82a27f69b81b4aa2f8a10356467b399b613984c1f53443807e082c4fdc7beb290d03cd2df2f917dc81af7cb0219be583d518f9737a4ad42b40c64f11fe9e06e6d311a659f950d143317b488b61698b7f7d7b17329d8b6f0a8abe05d22c9bf51d8ac18ce7d755bb6b3ad038d8ea2b9c01761674f45647e4b03d5e1810602e6958a70bebc44ddd24bf6aae2909a2ff17bd8f8392113a12410b888d59e9ccbc43e748dc264c6a81dbb6741dc5f557d4aa575f4bb284664832051448d9b9b09b37e7e5d13237f7e78a6d01f9088ff3bcfb1de6f8ff46a9638bc11a9a4549e674e44d9aea5c8b6f3dde27b68bbd305610bc77fa18090ba74eee192c760acaae13ab20bc56e61f540025d10700000000000000083664303164343161d71d459e6ee868f1e52e65b03262a0836ad35f131623dbbc6bafb6a2b7478264",
+      "passphrase": "fixture-passphrase"
+    },
+    "expected": {
+      "valid": true
+    }
+  }
+]
