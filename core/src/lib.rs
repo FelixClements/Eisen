@@ -801,4 +801,121 @@ mod tests {
             Err(ModelError::InvalidQuadrant)
         ));
     }
+
+    // Property tests for permutations, replay, duplicate, drop, and reorder convergence (P1.17).
+
+    #[test]
+    fn merge_mutations_duplicate_update_is_idempotent() {
+        let id = TaskId([12; 16]);
+        let create = Mutation::Create {
+            hlc: hlc(1, 0, 1),
+            id,
+            title: "A".into(),
+            notes: None,
+            quadrant: 1,
+            due_date: None,
+        };
+        let update = Mutation::Update {
+            hlc: hlc(2, 0, 1),
+            id,
+            title: Some("B".into()),
+            notes: None,
+            quadrant: None,
+            due_date: None,
+        };
+
+        let once = merge_mutations(&[create.clone(), update.clone()]).unwrap();
+        let twice = merge_mutations(&[create.clone(), update.clone(), update.clone()]).unwrap();
+        assert_eq!(once, twice);
+        assert_eq!(once.as_ref().unwrap().title.value, Some("B".into()));
+    }
+
+    #[test]
+    fn merge_mutations_drop_changes_state() {
+        let id = TaskId([13; 16]);
+        let create = Mutation::Create {
+            hlc: hlc(1, 0, 1),
+            id,
+            title: "A".into(),
+            notes: None,
+            quadrant: 1,
+            due_date: None,
+        };
+        let update = Mutation::Update {
+            hlc: hlc(2, 0, 1),
+            id,
+            title: Some("B".into()),
+            notes: None,
+            quadrant: None,
+            due_date: None,
+        };
+
+        let with_update = merge_mutations(&[create.clone(), update.clone()]).unwrap();
+        let without_update = merge_mutations(&[create.clone()]).unwrap();
+        assert_ne!(with_update, without_update);
+    }
+
+    #[test]
+    fn task_merge_converges_for_reordered_mutation_sets() {
+        let id = TaskId([14; 16]);
+        let create = Mutation::Create {
+            hlc: hlc(1, 0, 1),
+            id,
+            title: "A".into(),
+            notes: None,
+            quadrant: 1,
+            due_date: None,
+        };
+        let update_b = Mutation::Update {
+            hlc: hlc(2, 0, 1),
+            id,
+            title: Some("B".into()),
+            notes: None,
+            quadrant: None,
+            due_date: None,
+        };
+        let update_c = Mutation::Update {
+            hlc: hlc(3, 0, 1),
+            id,
+            title: Some("C".into()),
+            notes: None,
+            quadrant: None,
+            due_date: None,
+        };
+        let complete = Mutation::Complete {
+            hlc: hlc(4, 0, 1),
+            id,
+        };
+
+        let perm_a = [create.clone(), update_b.clone(), update_c.clone(), complete.clone()];
+        let perm_b = [create.clone(), update_c.clone(), update_b.clone(), complete.clone()];
+        let perm_c = [create.clone(), complete.clone(), update_b.clone(), update_c.clone()];
+
+        fn build_task(mutations: &[Mutation]) -> Option<Task> {
+            let mut store = TaskStore::new();
+            for m in mutations {
+                store.apply(m.clone()).unwrap();
+            }
+            let id = mutations.first()?.task_id();
+            store.get(id).cloned()
+        }
+
+        let task_a = build_task(&perm_a).unwrap();
+        let task_b = build_task(&perm_b).unwrap();
+        let task_c = build_task(&perm_c).unwrap();
+
+        let mut store_ab = TaskStore::new();
+        store_ab.merge_task(&task_a);
+        store_ab.merge_task(&task_b);
+        let merged_ab = store_ab.get(id).unwrap().clone();
+
+        let mut store_ac = TaskStore::new();
+        store_ac.merge_task(&task_a);
+        store_ac.merge_task(&task_c);
+        let merged_ac = store_ac.get(id).unwrap().clone();
+
+        assert_eq!(merged_ab, merged_ac);
+        assert_eq!(merged_ab.title.value, Some("C".into()));
+        assert!(merged_ab.is_completed());
+    }
 }

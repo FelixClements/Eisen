@@ -86,7 +86,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1.14 | [x] Implement the user-held recovery package. | project owner | Argon2id-derived wrapping, AEAD-verified versioned package containing encrypted keyring, trust state, retained keys, locator, and fresh device/nonce domain on restore. |
 | P1.15 | [x] Implement encrypted export/import staging. | project owner | explicit encrypted export/import flow that never writes plaintext vault content to excluded disk locations and preserves recovery limitations. |
 | P1.16 | [x] Add transaction-boundary fault injection. | project owner | reproducible crash, rollback, full-disk, corrupted-row/snapshot, migration-interruption, and secure-storage-unavailability scenarios. |
-| P1.17 | Add core test suites. | project owner | unit tests for HLC, tuples, manifest/cutover, outbox, cursor primitives, digest conflicts, and recovery plus property tests for permutations, replay, duplicate, drop, and reorder convergence. |
+| P1.17 | [x] Add core test suites. | project owner | unit tests for HLC, tuples, manifest/cutover, outbox, cursor primitives, digest conflicts, and recovery plus property tests for permutations, replay, duplicate, drop, and reorder convergence. |
 | P1.18 | Implement the vector runner and seed vectors. | project owner | canonical-byte, valid-envelope, malformed/negative-envelope, manifest, recovery, nonce, HLC, merge, snapshot, and compatibility vector fixtures runnable by both clients. |
 | P1.19 | Run vectors independently on Windows and Android core implementations. | project owner | byte-for-byte vector report and matching reference-model resulting-state report. |
 
