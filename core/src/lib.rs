@@ -16,6 +16,10 @@ pub mod recovery;
 pub mod snapshot;
 pub mod snapshot_manifest;
 pub mod store;
+pub mod vector_runner;
+
+#[cfg(target_os = "android")]
+mod android;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
