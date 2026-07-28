@@ -1252,8 +1252,11 @@ fn mutation_from_value(v: &Value) -> Result<Mutation, StoreError> {
 mod tests {
     use super::*;
     use crate::envelope::Envelope;
-    use crate::identity::{create_vault, InMemorySecureStorage};
+    use crate::identity::{create_vault, IdentityError, InMemorySecureStorage, SecureStorage};
     use crate::{Hlc, TaskId};
+    use std::collections::{HashMap, HashSet};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
 
     fn dev(n: u8) -> DeviceId {
         let mut bytes = [0u8; 16];
@@ -1266,6 +1269,93 @@ mod tests {
             wall,
             counter,
             device_id: dev(device),
+        }
+    }
+
+    #[derive(Default)]
+    struct FaultConfig {
+        fail_total: Option<usize>,
+        fail_key_any: HashSet<String>,
+        fail_key_on: HashMap<String, usize>,
+        corrupt_keys: HashSet<String>,
+        fail_load: HashSet<String>,
+    }
+
+    struct FaultyStorage {
+        inner: InMemorySecureStorage,
+        total: AtomicUsize,
+        per_key: Mutex<HashMap<String, usize>>,
+        config: Mutex<FaultConfig>,
+    }
+
+    impl FaultyStorage {
+        fn new(inner: InMemorySecureStorage) -> Self {
+            Self {
+                inner,
+                total: AtomicUsize::new(0),
+                per_key: Mutex::new(HashMap::new()),
+                config: Mutex::new(FaultConfig::default()),
+            }
+        }
+
+        fn fail_key_on(&self, key: &str, n: usize) -> &Self {
+            self.config.lock().unwrap().fail_key_on.insert(key.to_string(), n);
+            self
+        }
+
+        fn corrupt_key(&self, key: &str) -> &Self {
+            self.config.lock().unwrap().corrupt_keys.insert(key.to_string());
+            self
+        }
+
+        fn fail_load_key(&self, key: &str) -> &Self {
+            self.config.lock().unwrap().fail_load.insert(key.to_string());
+            self
+        }
+    }
+
+    impl SecureStorage for FaultyStorage {
+        fn store(&self, key: &str, value: &[u8]) -> Result<(), IdentityError> {
+            let total = self.total.fetch_add(1, Ordering::SeqCst) + 1;
+            let mut per_key = self.per_key.lock().unwrap();
+            let key_n = per_key.entry(key.to_string()).or_insert(0);
+            *key_n += 1;
+            let key_n = *key_n;
+            drop(per_key);
+
+            let cfg = self.config.lock().unwrap();
+            if cfg.fail_total == Some(total)
+                || cfg.fail_key_any.contains(key)
+                || cfg.fail_key_on.get(key) == Some(&key_n)
+            {
+                return Err(IdentityError::Storage("injected store fault".into()));
+            }
+
+            let value = if cfg.corrupt_keys.contains(key) {
+                let mut v = value.to_vec();
+                for b in v.iter_mut() {
+                    *b ^= 0xff;
+                }
+                v
+            } else {
+                value.to_vec()
+            };
+            drop(cfg);
+
+            self.inner.store(key, &value)
+        }
+
+        fn load(&self, key: &str) -> Result<Option<Vec<u8>>, IdentityError> {
+            let cfg = self.config.lock().unwrap();
+            if cfg.fail_load.contains(key) {
+                return Err(IdentityError::Storage("injected load fault".into()));
+            }
+            drop(cfg);
+            self.inner.load(key)
+        }
+
+        fn delete(&self, key: &str) -> Result<(), IdentityError> {
+            self.inner.delete(key)
         }
     }
 
@@ -1503,5 +1593,150 @@ mod tests {
             .unwrap();
         assert_eq!(local_cov.start, 1);
         assert_eq!(local_cov.end, 2);
+    }
+
+    // Transaction-boundary fault injection tests (P1.16).
+
+    #[test]
+    fn rollback_before_any_durable_write_leaves_empty_store() {
+        let inner = InMemorySecureStorage::default();
+        let faulty = FaultyStorage::new(inner.clone());
+        // Fail on the very first durable write (nonce counter).
+        faulty.fail_key_on("nonce:counter", 1);
+
+        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let device_id = dev(1);
+        {
+            let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
+            let result = store.commit(
+                1,
+                Mutation::Create {
+                    hlc: make_hlc(1, 0, 1),
+                    id: TaskId([7; 16]),
+                    title: "Rolled back".into(),
+                    notes: None,
+                    quadrant: 0,
+                    due_date: None,
+                },
+            );
+            assert!(result.is_err());
+        }
+
+        let recovered = LocalStore::open(&inner, key, device_id).unwrap();
+        assert!(recovered.store().is_empty());
+        assert_eq!(recovered.metadata().operation_count, 0);
+    }
+
+    #[test]
+    fn crash_after_wal_replays_to_materialized_view() {
+        let inner = InMemorySecureStorage::default();
+        let faulty = FaultyStorage::new(inner.clone());
+        // Fail on the first snapshot ciphertext write: WAL is durable, snapshot is not.
+        faulty.fail_key_on("snapshot:ciphertext", 1);
+
+        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let device_id = dev(1);
+        let id = TaskId([8; 16]);
+        {
+            let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
+            let result = store.commit(
+                1,
+                Mutation::Create {
+                    hlc: make_hlc(1, 0, 1),
+                    id,
+                    title: "Replay me".into(),
+                    notes: None,
+                    quadrant: 0,
+                    due_date: None,
+                },
+            );
+            assert!(result.is_err());
+        }
+
+        let recovered = LocalStore::open(&inner, key, device_id).unwrap();
+        assert_eq!(recovered.store().len(), 1);
+        assert_eq!(
+            recovered.store().get(id).unwrap().title.value,
+            Some("Replay me".into())
+        );
+    }
+
+    #[test]
+    fn full_disk_during_outbox_does_not_corrupt_materialized_view() {
+        let inner = InMemorySecureStorage::default();
+        let faulty = FaultyStorage::new(inner.clone());
+        // Fail on the first outbox ciphertext write, which occurs after WAL and snapshot.
+        faulty.fail_key_on("outbox:ciphertext", 1);
+
+        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let device_id = dev(1);
+        let id = TaskId([10; 16]);
+        {
+            let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
+            let result = store.commit(
+                1,
+                Mutation::Create {
+                    hlc: make_hlc(1, 0, 1),
+                    id,
+                    title: "Full disk".into(),
+                    notes: None,
+                    quadrant: 0,
+                    due_date: None,
+                },
+            );
+            assert!(result.is_err());
+        }
+
+        let recovered = LocalStore::open(&inner, key, device_id).unwrap();
+        assert_eq!(recovered.store().len(), 1);
+        assert_eq!(
+            recovered.store().get(id).unwrap().title.value,
+            Some("Full disk".into())
+        );
+    }
+
+    #[test]
+    fn corrupted_snapshot_ciphertext_is_rejected() {
+        let inner = InMemorySecureStorage::default();
+        let faulty = FaultyStorage::new(inner.clone());
+        // Corrupt every snapshot ciphertext write.
+        faulty.corrupt_key("snapshot:ciphertext");
+
+        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let device_id = dev(1);
+        {
+            let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
+            store
+                .commit(
+                    1,
+                    Mutation::Create {
+                        hlc: make_hlc(1, 0, 1),
+                        id: TaskId([11; 16]),
+                        title: "Corrupt snapshot".into(),
+                        notes: None,
+                        quadrant: 0,
+                        due_date: None,
+                    },
+                )
+                .unwrap();
+        }
+
+        // An unauthentic snapshot must fail closed on reopen.
+        let result = LocalStore::open(&inner, key, device_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn secure_storage_unavailable_load_uses_defaults() {
+        let inner = InMemorySecureStorage::default();
+        let faulty = FaultyStorage::new(inner.clone());
+        // Make the metadata ciphertext unavailable to load.
+        faulty.fail_load_key("metadata:ciphertext");
+
+        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let device_id = dev(1);
+        // Opening should succeed with default metadata rather than panic.
+        let result = LocalStore::open(&faulty, key, device_id);
+        assert!(result.is_ok());
     }
 }
