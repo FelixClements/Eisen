@@ -13,7 +13,7 @@ Eisen is redesigned as a **local-first, installable PWA built with Leptos**, com
 ## Notes
 
 - Skills to consult during this map: `domain-modeling`, `grilling`, `research`, `prototype`.
-- Build language: Rust (Leptos UI + `eisen-core` in WASM); deployment with `trunk`/`cargo-leptos` and `wrangler`.
+- Build language: Rust (Leptos UI + `eisen-core` in WASM); deployment with `trunk` and `wrangler`.
 - Browser APIs: `web-sys`, `wasm-bindgen`, Web Crypto, OPFS, service worker, PWA manifest.
 - Keep existing `clients/android` and `clients/windows` directories for now; create `clients/pwa` or `clients/web`.
 - Update `phasing-plan.md` and ADRs as decisions close, not before.
@@ -27,13 +27,11 @@ Eisen is redesigned as a **local-first, installable PWA built with Leptos**, com
 - [#13 Design browser-profile device identity and key lifecycle](https://github.com/FelixClements/Eisen/issues/13) — device keys in Rust/WASM; `OpfsSecureStorage` encrypted under vault passphrase; each browser profile is a new device; recovery package contains owner trust + epoch roots, not the old device key.
 - [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14) — `clients/pwa` is a **Trunk + Leptos 0.8 CSR** app with PWA manifest, runtime-caching service worker, and `wrangler.toml` for Static Assets.
 - [#16 Cloudflare Worker + Static Assets project layout](https://github.com/FelixClements/Eisen/issues/16) — P2 uses `[assets]` in `wrangler.toml` (not `[[assets]]`) with `directory = "dist"` and `not_found_handling = "single-page-application"`; P3 adds a worker `main` and `binding = "ASSETS"`.
+- [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15) — `phasing-plan.md`, `plan-To-Do-App.md`, `architecture-data-flow.md`, `G0-READINESS.md`, `servers/README.md`, and ADRs 001/007/008/012 are updated.
 
 ## Open tickets (frontier)
 
-- [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15)
-- [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14)
-- [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15)
-- [#16 Cloudflare Worker + Static Assets project layout](https://github.com/FelixClements/Eisen/issues/16)
+None. All child tickets are closed.
 
 ## Not yet specified
 
