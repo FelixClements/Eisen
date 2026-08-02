@@ -25,10 +25,11 @@ Eisen is redesigned as a **local-first, installable PWA built with Leptos**, com
 - [#11 Prototype `eisen-core` compiled to WASM](https://github.com/FelixClements/Eisen/issues/11) — the core **compiles** to `wasm32-unknown-unknown` with one `getrandom/js` target dependency. Browser storage is the remaining work.
 - [#12 Design OPFS-backed `SecureStorage` and `ClockStorage`](https://github.com/FelixClements/Eisen/issues/12) — use **OPFS + Web Worker**; `OpfsSecureStorage` and `OpfsClockStorage` implement the synchronous core traits inside a worker.
 - [#13 Design browser-profile device identity and key lifecycle](https://github.com/FelixClements/Eisen/issues/13) — device keys in Rust/WASM; `OpfsSecureStorage` encrypted under vault passphrase; each browser profile is a new device; recovery package contains owner trust + epoch roots, not the old device key.
+- [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14) — `clients/pwa` is a **Trunk + Leptos 0.8 CSR** app with PWA manifest, runtime-caching service worker, and `wrangler.toml` for Static Assets.
 
 ## Open tickets (frontier)
 
-- [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14)
+- [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15)
 - [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14)
 - [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15)
 - [#16 Cloudflare Worker + Static Assets project layout](https://github.com/FelixClements/Eisen/issues/16)
