@@ -2,54 +2,81 @@
 
 ## Status
 
-Proposed / G0 amendment
+Accepted / Redesigned for Cloudflare Workers — 2026-08-02
 
 ## Context
 
-The Eisen server boundary (`servers/`) provides the cloud-sync service, volatile relay service, account/session APIs, and operational tooling. The server must never hold decryption keys or plaintext task content. It stores and serves opaque encrypted envelopes and snapshots, validates device signatures, and manages account authentication, quotas, cursors, and retention.
+The Eisen server boundary provides cloud-sync service, account/session APIs, encrypted snapshot storage, and (later) optional volatile relay service. The server must never hold decryption keys or plaintext task content. It stores and serves opaque encrypted envelopes and snapshots, validates device signatures, and manages account metadata, quotas, cursors, and retention.
 
-The server stack was not fixed during P0 because the protocol contracts (D-010, D-011, and the transport specs) are independent of implementation language. Before G0 passes, the backend stack needs a recorded decision so that P3/P5 implementation can begin with a frozen direction.
+The server stack was not fixed during P0 because the protocol contracts (D-010, D-011, and the transport specs) are independent of implementation language. After the client stack moved to a Leptos PWA, the cloud deployment is consolidated onto Cloudflare's free tier.
 
 ## Decision
 
-- **Server language:** Go.
-- **Primary frameworks:** `net/http` or a lightweight router such as Gin or Echo; `net/http` is preferred for the initial implementation to minimize dependencies.
-- **WebSocket library:** a maintained third-party library for the volatile relay, since the Go standard library does not ship a WebSocket implementation. Candidates are `github.com/coder/websocket` (formerly `nhooyr.io/websocket`) or `github.com/gorilla/websocket`; the exact choice is fixed in P5 when the relay is implemented.
-- **Database:** a transactional SQL store (e.g., PostgreSQL) for account metadata, envelope references, cursors, and snapshot advertisements. Envelope and snapshot blobs are opaque bytes and may be stored in object storage or as large binary columns.
-- **Build and deployment:** single static binary produced by `go build`; container image or bare-metal deployment supported through `ops/` configurations.
-- **Crypto / protocol validation:** signature and manifest validation may call the shared Rust core through FFI or a sidecar. The server does not perform AEAD decryption and must not hold vault keys.
+### P2 (local-only)
+
+- There is **no server**.
+- Vault data stays in the browser's Origin Private File System.
+- Recovery and cross-device transfer use a user-held encrypted recovery package.
+
+### P3 (cloud-sync beta)
+
+- **Cloud platform:** Cloudflare Workers (free tier) with Static Assets.
+- **Metadata store:** Cloudflare D1 for account metadata, device manifests, cursors, and envelope references.
+- **Blob store:** Cloudflare R2 for encrypted envelopes, signed snapshots, and recovery backups.
+- **Worker language:** TypeScript (`wrangler`/`workerd`) for P3.01–P3.17; Rust (`workers-rs`) is an option if a single-language boundary is desired later. The choice is fixed by P3.01.
+- **Build and deployment:** `wrangler deploy` from `clients/pwa/` for the PWA assets, and a separate worker directory (`servers/cloudflare/`) for the worker script.
+
+### P5 (volatile relay)
+
+- **Not decided here.** The volatile relay may use Cloudflare Durable Objects, a separate Go relay, or WebRTC/data channel. The decision is deferred until P5 and recorded separately.
+
+### Security invariants
+
+- The worker never decrypts task content; it only stores opaque encrypted bytes and validates signatures/manifests against public keys.
+- The worker does not hold vault keys or passphrases.
+- D1 contains only routing/operational metadata; R2 contains opaque blobs.
 
 ## Consequences
 
-- Go's standard library and ecosystem provide fast, safe HTTP API development, which matches the server's primarily API-and-blob-store role.
-- Build times and CI cycles are faster than Rust for the server boundary, while the security-sensitive crypto remains in the audited Rust core.
-- Rust cross-compilation is still required for the shared core and any validation sidecar, but not for the main server binary.
-- Deployment remains simple: a single Go binary with TLS termination and a PostgreSQL-compatible store.
-- Server engineers work in Go; client/core engineers continue to work in Kotlin, C#, and Rust.
+- No self-hosted Go server in P3.
+- Global edge caching and low-latency reads from R2.
+- Free-tier limits apply:
+  - Workers requests: 100,000/day.
+  - D1: 500,000 rows/day, 5,000 queries/day.
+  - R2: 10M reads/month, 1M writes/month.
+- The worker can be extended later with `main = "src/worker.ts"` and `assets.binding = "ASSETS"` to fetch static assets from worker code.
+- Crypto/protocol validation can still call the shared Rust core (compiled to WASM or a native sidecar) if needed, but the worker primarily uses canonical validation and signature verification.
 
 ## Evidence
 
-### Go toolchain availability
+### Wrangler dry run (P2, static assets only)
 
 ```bash
-go version
+cd cloudflare-deploy
+npx wrangler deploy --dry-run
 ```
 
-A local Go installation is required. The minimum supported Go version will be recorded in `servers/go.mod` when P3 begins.
+Result:
 
-### Spike build
+```
+✨ Read 2 files from the assets directory .../dist
+Total Upload: 0.34 KiB / gzip: 0.24 KiB
+No bindings found.
+--dry-run: exiting now.
+```
+
+### P3 worker deploy (to be verified in P3.01)
 
 ```bash
-cd servers
-go mod init eisen.dev/servers
-go build ./...
+cd servers/cloudflare
+npx wrangler deploy
 ```
 
-This will be verified in P3.01 when the first cloud-sync skeleton is implemented.
+This will be verified when the P3 worker skeleton is implemented.
 
 ## Relationship to other ADRs
 
-- D-001 fixes Android, Windows, and the shared Rust core.
-- D-003 fixes that all cryptographic operations live in the shared Rust core; the Go server may call that core for validation but does not decrypt content.
-- D-010 and the cloud API spec define the contract the Go server must implement.
-- D-011 and the relay transport spec define the relay contract the Go server may optionally implement in P5.
+- D-001 now fixes the Leptos PWA and the shared Rust/WASM core.
+- D-003 fixes that all cryptographic operations live in the shared Rust core; the worker validates signatures/manifests but does not decrypt content.
+- D-010 and the cloud API spec define the contract the Cloudflare worker must implement.
+- D-011 and the recovery package spec define how a device restores without a server passphrase reset.

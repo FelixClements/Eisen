@@ -1,81 +1,107 @@
-# ADR-001: Supported native stack, OS versions, lifecycle APIs, and release/signing approach
+# ADR-001: Supported client stack, browsers, lifecycle APIs, storage, and deployment
 
 ## Status
 
-Proposed / P0.03
+Accepted / Redesigned for PWA — 2026-08-02
 
 ## Context
 
-P0 requires a recorded decision on the supported native stack, minimum OS versions, lifecycle APIs, and release/signing approach for the Windows and Android clients before core implementation begins.
+P0 requires a recorded decision on the supported client stack, minimum platform requirements, lifecycle APIs, secure storage, release/signing, and deployment approach.
+
+The project originally planned separate native Windows and Android clients. After prototyping the build toolchain (Trunk + Wrangler), core WASM compilation, OPFS storage, and the Leptos PWA shell, the stack is consolidated into a single local-first Progressive Web App (PWA).
 
 ## Decision
 
-### Android client
+### Client
 
-- **Language / UI:** Kotlin with Jetpack Compose
-- **Build tooling:** Gradle with Kotlin DSL, Android Gradle Plugin 9.2.1, Kotlin 2.3.10, KSP
-- **Persistence:** Room with KSP-compiled DAOs
-- **Background work:** WorkManager
-- **Minimum OS:** Android 14 (API 34)
-- **Target / compile OS:** targetSdk 36, compileSdk 37
-- **JDK:** OpenJDK 21
-- **Lifecycle APIs:** Activity/Fragment/Compose lifecycle, `ViewModel`, `rememberSaveable`, `LaunchedEffect`, WorkManager workers, Room transactions
-- **Secure storage:** Android Keystore for key material; EncryptedSharedPreferences / Tink for small secrets; encrypted Room or SQLCipher for at-rest task data
-- **Release / signing:** Google Play App Signing for releases; AAB distribution; debug keystore for local development
+- **Framework:** Leptos 0.8 client-side rendered (CSR) in Rust.
+- **Build tooling:** `trunk` compiles `clients/pwa/index.html` and the Rust/WASM app to `clients/pwa/dist/`.
+- **Deployment:** Cloudflare Workers + Static Assets, served by `wrangler` from the `dist/` directory.
 
-### Windows client
+### Supported browsers
 
-- **Language / UI:** C# with WinUI 3 (Windows App SDK)
-- **Build tooling:** .NET SDK + MSBuild
-- **Minimum OS:** Windows 10 version 2004 (build 19041) or Windows 11
-- **Lifecycle APIs:** Windows App SDK app lifecycle, window events, background tasks, suspension/resume
-- **Secure storage:** `Windows.Security.Credentials.PasswordVault` / Credential Locker for keys; Windows Data Protection API (DPAPI) for local data encryption
-- **Release / signing:** MSIX packaging; Authenticode code-signing certificate; Microsoft Store or enterprise sideload distribution
+- **Minimum baseline:** Chromium (Chrome/Edge 88+), Firefox 107+, Safari 16+.
+- **Required APIs:** `Web Crypto`, Origin Private File System (OPFS), Service Workers, Web App Manifest, `crypto.getRandomValues()`.
+- **Installability:** Optional PWA install from the browser. The app is also usable directly from the URL without installing, which is the primary fallback for locked-down work laptops.
 
 ### Shared core
 
-- **Language:** Rust
-- **Rationale:** Memory safety, deterministic builds, and mature audited crypto crates
-- **Crypto / primitives:** `aes-gcm`, `hkdf`, `argon2`, `sha2`, `ed25519-dalek`, `x25519-dalek` (or `ring` where appropriate)
-- **Interface:** Rust core exposed through a small C API; consumed by Android via JNI and by Windows via P/Invoke
-- **Build tooling:** `cargo` + `rustc` with cross-compilation targets (`aarch64-linux-android`, `armv7-linux-androideabi`, `x86_64-pc-windows-msvc`, `aarch64-pc-windows-msvc`)
+- **Language:** Rust compiled to `wasm32-unknown-unknown`.
+- **Interface:** The core is linked as a WASM crate and runs in a **Web Worker** so it can use OPFS `FileSystemSyncAccessHandle`.
+- **Crypto primitives:** `ed25519-dalek`, `x25519-dalek`, `aes-gcm`, `hkdf`, `argon2`, `sha2` (same as before; now compiled to WASM).
+
+### Secure storage
+
+- **Device key material:** stored in `OpfsSecureStorage`, a single OPFS file encrypted under a passphrase-derived key.
+- **Vault data:** encrypted snapshots and WAL/outbox metadata are stored in `SnapshotStore` backed by the same encrypted `OpfsSecureStorage`.
+- **HLC counter:** stored in `OpfsClockStorage`, or in `SnapshotStore` when using `EncryptedClockStorage`.
+- **No OS secure enclave:** the browser has no equivalent to Android Keystore or Windows Credential Locker, so all at-rest protection is in-app encryption.
+
+### Lifecycle APIs
+
+- Browser page lifecycle (`pagehide`, `pageshow`, `beforeunload`, `visibilitychange`).
+- Service worker `install`, `activate`, and `fetch` events.
+- Web Worker lifecycle for the core worker.
+
+### Release / signing
+
+- No app-store packaging or OS-level code signing.
+- HTTPS delivery via Cloudflare.
+- `trunk build --release` produces the deployable artifact.
+
+## Previous decision
+
+- Native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose) clients.
+- Platform secure storage (Windows Credential Locker / DPAPI, Android Keystore / Tink).
+- See commit history for the original ADR-001 text.
 
 ## Consequences
 
-- Android and Windows clients share no UI code but share the Rust core for crypto, protocol, and merge logic.
-- Core development can proceed in parallel with client UI work once the C API surface is stable.
-- Windows builds require a Windows environment or CI runner; macOS cannot produce Windows binaries.
-- Rust toolchain is required for local core development; `rustup` is the recommended installer.
-- The cloud/relay server stack is recorded separately in ADR-012; the server is implemented in Go and may call the Rust core for validation.
+- Single UI codebase for all desktop and mobile platforms.
+- The PWA can run on work laptops where users cannot install `.exe` or mobile apps from app stores.
+- The core and UI share the Rust language and `cargo` ecosystem.
+- Build requires `rustup` with the `wasm32-unknown-unknown` target and `trunk` for the client build.
+- Secure-storage verification must prove the encrypted OPFS file cannot be read without the passphrase and that the device key material is cleared on lock/reset.
+- Cloud/server stack is recorded in ADR-012.
 
 ## Evidence
 
-### Android spike build
+### Core WASM compile
 
 ```bash
-export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-./gradlew assembleDebug --no-daemon
+cd core
+cargo check --target wasm32-unknown-unknown
 ```
 
-Result: `BUILD SUCCESSFUL in 6s` — 37 actionable tasks: 7 executed, 30 up-to-date.
+Result: `Finished`.
 
-### Windows spike build (pending Windows toolchain)
+### PWA shell compile
 
 ```bash
-# Requires Windows + .NET SDK + Windows App SDK
-msbuild Eisen.Windows.sln /p:Configuration=Release /p:Platform=x64
+cd clients/pwa
+cargo check --target wasm32-unknown-unknown
 ```
 
-### Core spike build (pending Rust toolchain)
+Result: `Finished`.
+
+### OPFS storage prototype
+
+Branch: `prototype/opfs-storage`
+- `OpfsSecureStorage` and `OpfsClockStorage` implement core traits.
+- Uses `FileSystemSyncAccessHandle` in a Web Worker.
+
+### Wrangler dry run
 
 ```bash
-# Requires rustup + Android NDK + Windows SDK
-cargo build --release
-cargo test
+cd cloudflare-deploy
+npx wrangler deploy --dry-run
 ```
 
-## Lifecycle and secure-storage verification
+Result:
 
-- Android lifecycle and background behavior will be validated in P2 with instrumented tests and manual lifecycle transitions.
-- Windows lifecycle behavior will be validated in P2 on Windows hardware.
-- Secure storage APIs chosen above are the baseline; P1/P2 will add functional tests that verify key material never leaves platform secure storage and that encrypted data cannot be read without the key.
+```
+✨ Read 2 files from the assets directory .../dist
+Total Upload: 0.34 KiB / gzip: 0.24 KiB
+No bindings found.
+--dry-run: exiting now.
+```

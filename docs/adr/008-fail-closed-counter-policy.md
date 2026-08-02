@@ -16,6 +16,7 @@ P0 requires a decision on how the local mutation counter, nonce, and secure stor
 - On every local mutation, a new nonce is reserved and the counter is advanced before the mutation commits.
 - If the transaction fails, the reserved nonce is marked as consumed and not reused.
 - On startup, the last persisted counter value is loaded. If secure storage is unavailable, the counter is considered uncertain and no new nonces are issued until storage is restored.
+- In the browser, the counter is persisted in `OpfsClockStorage` or in `SnapshotStore` through `EncryptedClockStorage` inside the encrypted OPFS file.
 
 ### Rollback detection
 
@@ -27,6 +28,7 @@ P0 requires a decision on how the local mutation counter, nonce, and secure stor
 - Vault data must not be cloned to another device by copying database files.
 - Each device has a unique device identity and nonce domain. A clone would result in duplicate device IDs or nonce reuse and is rejected by the membership and nonce checks.
 - Restoring from a recovery package creates a new device identity and a fresh nonce domain.
+- A browser profile is a single device. Two browser profiles on the same machine have separate OPFS roots and therefore separate nonce domains.
 
 ## Consequences
 

@@ -415,7 +415,7 @@ The following are not “nice to have” choices. Each must have an ADR, a proto
 
 | ID | Decision | Working direction | Required evidence |
 | --- | --- | --- | --- |
-| D-001 | Windows and Android stacks | Select one supported native stack per platform, minimum OS versions, lifecycle APIs, and release/signing approach. | Spike builds, secure-storage proof, background/lifecycle test. |
+| D-001 | Client stack (Leptos PWA) | Select one supported client stack, minimum browser versions, lifecycle APIs, secure storage, and deployment approach. | Spike builds, encrypted OPFS proof, browser lifecycle and service-worker tests. |
 | D-002 | Canonical serialization | Prefer a deterministic, bounded binary format with duplicate-field rejection; record canonical map ordering and integer/string rules. | Cross-language byte-for-byte vectors and malformed-input tests. |
 | D-003 | Cryptographic suite | Approve AES-GCM, HKDF, Argon2id, digest, signing, and authenticated key-exchange algorithms only through maintained platform-reviewed libraries. | API capability matrix, benchmark, negative vectors, independent review plan. |
 | D-004 | Owner-key custody | Separate owner signing key; one owner-management device in V1; encrypted recovery package is the loss/replacement path. | Enrollment, transfer, loss, restore, and unauthorized-manifest tests. |
@@ -426,7 +426,7 @@ The following are not “nice to have” choices. Each must have an ADR, a proto
 | D-009 | Snapshot acceptance | Snapshots are signed optimization artifacts with explicit per-origin coverage and monotonic local checkpoint rules, never authoritative replacement state. | Stale, omitted-range, replay, corruption, and repair tests. |
 | D-010 | Cloud consistency | Define append idempotency, digest conflict behavior, cursor ordering/expiry, receipt durability, read-after-write expectations, and retention semantics. | API contract tests plus a fault-injected reference service. |
 | D-011 | Recovery boundary | A package restores local trust/key state without a server passphrase reset; cloud retrieval is optional and separately authenticated. | Offline restore, no-account restore, incompatible-locator, and wrong-passphrase tests. |
-| D-012 | Server stack | The cloud and relay server is implemented in Go; it stores opaque encrypted blobs and may call the Rust core for signature/manifest validation. | Build evidence for `servers/` as a Go binary. |
+| D-012 | Server stack | The cloud and relay server is implemented on Cloudflare Workers with D1 for metadata and R2 for encrypted blobs; it may call the Rust core for signature/manifest validation. | Build evidence for the Worker and a `wrangler deploy --dry-run` against D1/R2. |
 | D-013 | Relay launch bar | Relay is not a durable store, has bounded memory, and uses the same anti-entropy protocol as cloud. | Persistence audit, flood/backpressure tests, reconnect convergence tests. |
 
 ## 18. Protocol contract deliverables

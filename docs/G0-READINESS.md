@@ -8,7 +8,7 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 
 | ADR | File | Topic |
 |---|---|---|
-| D-001 | `docs/adr/001-native-stack.md` | Native stack, OS versions, lifecycle APIs, release/signing |
+| D-001 | `docs/adr/001-native-stack.md` | Client stack, browsers, lifecycle APIs, secure storage, deployment (Leptos PWA) |
 | D-002 | `docs/adr/002-canonical-encoding.md` | Canonical encoding decision |
 | D-003 | `docs/adr/003-crypto-primitives.md` | Crypto primitives, capability matrix, Argon2id parameters |
 | D-004 | `docs/adr/004-owner-key-custody.md` | Owner key custody and transfer |
@@ -19,7 +19,7 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 | D-009 | `docs/adr/009-snapshot-contract.md` | Snapshot contract |
 | D-010 | `docs/adr/010-cloud-api.md` | Cloud API contract decision |
 | D-011 | `docs/adr/011-recovery-package.md` | Recovery package decision |
-| D-012 | `docs/adr/012-server-stack.md` | Cloud and relay server stack (Go) |
+| D-012 | `docs/adr/012-server-stack.md` | Cloud and relay server stack (Cloudflare Workers + D1 + R2) |
 
 ### Specifications
 
@@ -57,7 +57,7 @@ All P0 tasks have been completed and the following artifacts are in `docs/adr/` 
 
 ## Release sequence
 
-1. **Slice 1 — Local-only native product**: P1 encrypted local core + P2 native clients (Windows and Android) without cloud or relay. G3 release.
+1. **Slice 1 — Local-only PWA product**: P1 encrypted local core + P2 Leptos PWA without cloud or relay. G3 release.
 2. **Slice 2 — Cloud-sync beta**: P3 + G4, optional, after local-only release.
 3. **Slice 3 — Cloud hardening**: P4 + G5.
 4. **Slice 4 — Volatile relay**: P5 + G6, opt-in, deferred until after cloud is stable.

@@ -18,11 +18,30 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 1. Decisions and protocol freeze
 2. Encrypted local core
-3. Local-only native product
+3. Local-only PWA product
 4. Cloud-sync beta
 5. Cloud hardening
 6. Volatile relay
 7. Public-release evidence
+
+## Current stack
+
+The client is a **Leptos 0.8 CSR PWA** in Rust/WASM:
+
+- **Build:** `trunk` compiles `clients/pwa` to `dist/`.
+- **Deploy:** Cloudflare Workers + Static Assets via `wrangler`.
+- **Storage:** browser Origin Private File System (OPFS), accessed from a Web Worker.
+- **Core:** `eisen-core` compiled to `wasm32-unknown-unknown`.
+- **Crypto:** `ed25519-dalek`, `x25519-dalek`, `aes-gcm`, `argon2`, `hkdf`, `sha2`; device keys generated in Rust/WASM and stored encrypted in OPFS.
+- **Identity:** one device per browser profile; device key never leaves the browser.
+
+The P3 cloud backend is **Cloudflare Workers + D1 + R2**:
+
+- **D1:** account metadata, device manifests, cursors, envelope references.
+- **R2:** encrypted envelopes, signed snapshots, recovery backups.
+- **Worker:** validates signatures/manifests, never decrypts task content.
+
+The previous native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose) clients are no longer in scope for this plan.
 
 ---
 
@@ -34,7 +53,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 |---|---|---|---|
 | P0.01 | [x] Create the agreed repository boundaries for clients, core, protocol, storage, servers, tests, docs, ops, and tools. | project owner | buildable empty module skeleton with ownership locations. |
 | P0.02 | [x] Configure local and CI checks for formatting, static analysis, dependency/license/SBOM checks, schema compatibility, protocol vectors, reference-model tests, secret scanning, and unit tests. | project owner | documented commands and a blocking CI pipeline. |
-| P0.03 | [x] Record D-001 in an ADR: selected supported native stack, minimum OS versions, lifecycle APIs, and release/signing approach for Windows and Android. | project owner | spike-build, secure-storage, and lifecycle-test evidence. |
+| P0.03 | [x] Record D-001 in an ADR: selected supported client stack, minimum browser versions, lifecycle APIs, secure storage, and deployment approach for the Leptos PWA. | project owner | spike-build, secure-storage, and lifecycle-test evidence. |
 | P0.04 | [x] Record D-002 in an ADR and canonical-encoding specification. | project owner | bounded deterministic encoding rules, field ordering/types, duplicate-field rejection, integer/string rules, Unicode policy, version negotiation, and digest input. |
 | P0.05 | [x] Record D-003 in an ADR. | project owner | maintained platform-reviewed API/library capability matrix, approved AES-GCM/HKDF/Argon2id/digest/signing/key-exchange choices, Argon2id benchmarked parameters, and review plan. |
 | P0.06 | [x] Record D-004 and D-005 in ADRs. | project owner | owner-key custody/transfer rules, genesis trust anchor, epoch-key rotation and per-recipient distribution rules, retention boundary, and old-epoch cutover behavior. |
@@ -73,7 +92,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1.01 | [x] Implement the reference mutation/merge model. | project owner | deterministic task state oracle for create, update, complete, restore, delete, and local-only purge request. |
 | P1.02 | [x] Implement persisted HLC generation and receive merge. | project owner | monotonic restart-safe clock with canonical tuple comparison and skew diagnostics input. |
 | P1.03 | [x] Implement canonical protocol parsers and validators. | project owner | bounded duplicate-rejecting decode/re-encode verification before crypto or storage application. |
-| P1.04 | [x] Implement device identity and owner trust-anchor creation. | project owner | separate signing/encryption device keys, stable random device ID, separate owner signing key, and signed genesis manifest stored through platform secure storage. |
+| P1.04 | [x] Implement device identity and owner trust-anchor creation. | project owner | separate signing/encryption device keys, stable random device ID, separate owner signing key, and signed genesis manifest stored in encrypted OPFS secure storage. |
 | P1.05 | [x] Implement epoch-root key and local-store encryption (AEAD). | project owner | AES-256-GCM key derived per epoch, encrypting local snapshots and enforcing fail-closed counter policy. |
 | P1.06 | [x] Implement mutation envelope signing and verification. | project owner | device-signed mutation envelopes with HLC, canonical serialization, and owner/device trust verification. |
 | P1.07 | [x] Implement local snapshot persistence and replay. | project owner | encrypted local snapshot (task materialized view + mutation log) that can be written, loaded, and replayed deterministically. |
@@ -87,8 +106,8 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1.15 | [x] Implement encrypted export/import staging. | project owner | explicit encrypted export/import flow that never writes plaintext vault content to excluded disk locations and preserves recovery limitations. |
 | P1.16 | [x] Add transaction-boundary fault injection. | project owner | reproducible crash, rollback, full-disk, corrupted-row/snapshot, migration-interruption, and secure-storage-unavailability scenarios. |
 | P1.17 | [x] Add core test suites. | project owner | unit tests for HLC, tuples, manifest/cutover, outbox, cursor primitives, digest conflicts, and recovery plus property tests for permutations, replay, duplicate, drop, and reorder convergence. |
-| P1.18 | [x] Implement the vector runner and seed vectors. | project owner | canonical-byte, valid-envelope, malformed/negative-envelope, manifest, recovery, nonce, HLC, merge, snapshot, and compatibility vector fixtures runnable by both clients. |
-| P1.19 | [x] Run vectors independently on Windows and Android core implementations. | project owner | byte-for-byte vector report and matching reference-model resulting-state report. |
+| P1.18 | [x] Implement the vector runner and seed vectors. | project owner | canonical-byte, valid-envelope, malformed/negative-envelope, manifest, recovery, nonce, HLC, merge, snapshot, and compatibility vector fixtures runnable by the PWA and core tests. |
+| P1.19 | [x] Run vectors in the browser/WASM core implementation. | project owner | byte-for-byte vector report and matching reference-model resulting-state report. |
 
 ### - [x] G1 — Durable local vault
 
@@ -109,31 +128,31 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| G2.01 | Verify both platforms consume identical canonical and negative vectors. | project owner | cross-platform vector CI report. |
+| G2.01 | Verify Chromium, Firefox, and WebKit/Safari consume identical canonical and negative vectors. | project owner | cross-browser vector CI report. |
 | G2.02 | Verify valid permutations, duplicates, delay, replay, and reordering converge to one materialized state. | project owner | model/property test report. |
 | G2.03 | Verify HLC rollback/skew, tombstone/restore, epoch cutover, and counter tests. | project owner | cross-platform core correctness report. |
 | G2.04 | Define how the product will expose merge/history evidence for overwritten concurrent edits. | project owner | approved UX behavior note tied to the frozen merge contract. |
 
 ---
 
-## - [ ] P2 — Local-only native product
+## - [ ] P2 — Local-only PWA product
 
 **Prerequisites:** G1 and G2 are passed. Cloud accounts, cloud transport, and relay transport are not exposed in this phase.
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P2.01 | Build the Windows vault create/unlock flow on the encrypted local core. | project owner | native flow with secure-storage failure and locked-vault recovery states. |
-| P2.02 | Build the Android vault create/unlock flow on the encrypted local core. | project owner | native flow that respects device lock/key availability and has recoverable failure states. |
-| P2.03 | Implement the native four-quadrant matrix views. | project owner | local materialized tasks rendered by quadrant without adding remote assumptions. |
+| P2.01 | Build the PWA vault create/unlock flow on the encrypted local core. | project owner | Leptos flow with passphrase key derivation, OPFS failure, and locked-vault recovery states. |
+| P2.02 | Build the PWA install / URL fallback flow. | project owner | install prompt when supported, plus a usable URL path for locked-down work laptops where installs are blocked. |
+| P2.03 | Implement the four-quadrant matrix views. | project owner | local materialized tasks rendered by quadrant without adding remote assumptions. |
 | P2.04 | Implement bounded task create and edit UI. | project owner | title/notes/quadrant field validation and local mutation submission. |
 | P2.05 | Implement complete, restore, delete, and move UI actions. | project owner | explicit mutations with completed/deleted views and no implicit tombstone clearing. |
 | P2.06 | Implement local conflict/history evidence. | project owner | user-visible indication sufficient to understand a winning concurrent LWW update without exposing secrets. |
 | P2.07 | Implement recovery-package creation and encrypted local export/import UX. | project owner | explicit user-held backup/recovery actions and clear required-secret messaging. |
 | P2.08 | Implement corruption and repair UX. | project owner | preserve-local-vault, repair-required path that cannot silently create an empty vault over recoverable data. |
-| P2.09 | Implement lifecycle-safe local persistence. | project owner | Windows suspension/resume and Android process-death/Doze/network-change paths resume from a consistent transaction boundary. |
-| P2.10 | Apply local privacy controls. | project owner | platform-appropriate suppression of task plaintext from logs, analytics, crash reports, backups, notifications, clipboard, and app-switcher previews where controls permit. |
+| P2.09 | Implement lifecycle-safe local persistence. | project owner | browser page show/hide, service worker activation, tab/window close, and mobile browser background paths resume from a consistent transaction boundary. |
+| P2.10 | Apply local privacy controls. | project owner | suppression of task plaintext from browser logs, analytics, crash reports, form autofill, browser extensions, clipboard, and app-switcher/previews where controls permit. |
 | P2.11 | Implement honest local-only status and failure messaging. | project owner | visible local-only state with no sync-ready claim and recovery limitations stated. |
-| P2.12 | Add native acceptance tests. | project owner | Windows and Android offline task, restart, backup/export, recovery, corruption, and lifecycle scenario results. |
+| P2.12 | Add PWA acceptance tests. | project owner | Chrome, Firefox, Safari, and Edge offline task, restart, backup/export, recovery, corruption, and lifecycle scenario results. |
 
 ### - [ ] G3 — Local-only product release
 
@@ -141,7 +160,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| G3.01 | Verify both native clients can create/unlock a vault and perform create, edit, complete, restore, delete, and move operations offline. | project owner | device-matrix acceptance report. |
+| G3.01 | Verify the PWA can create/unlock a vault and perform create, edit, complete, restore, delete, and move operations offline across Chromium, Firefox, WebKit/Safari, and mobile browsers. | project owner | browser device-matrix acceptance report. |
 | G3.02 | Verify local recovery/export/import and rollback behavior before user reliance. | project owner | independent local-only recovery walkthrough results. |
 | G3.03 | Verify local-only status and repair messaging do not overstate sync, backup, or recovery guarantees. | project owner | reviewed product-copy and UX evidence. |
 
@@ -153,23 +172,23 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P3.01 | Implement account/session registration, refresh, and service authorization boundaries. | project owner | short-lived authenticated service access that is explicitly separate from vault-operation authorization. |
+| P3.01 | Implement account/session registration, refresh, and service authorization boundaries on Cloudflare Workers. | project owner | short-lived authenticated service access that is explicitly separate from vault-operation authorization. |
 | P3.02 | Implement owner-controlled device enrollment. | project owner | separate new-device signing/encryption identities, authenticated QR flow, confirmation code, expiring/cancelled capability, encrypted epoch-key transfer, and durable membership mutation. |
 | P3.03 | Implement membership publication and retrieval. | project owner | immutable versioned owner-signed manifests with replay protection and client-side chain verification. |
 | P3.04 | Implement ownership transfer, revocation, rotation, and cutover flows. | project owner | per-recipient new epoch-key delivery, declared cutover, old-epoch rejection, re-enrollment requirement, and clear advisory-until-rotation UX. |
-| P3.05 | Implement opaque cloud-store persistence and migrations. | project owner | append-only vault-partitioned records containing only allowed routing/operational fields and encrypted envelope bytes. |
+| P3.05 | Implement opaque cloud-store persistence and migrations on Cloudflare D1 and R2. | project owner | append-only D1 records containing only allowed routing/operational fields and encrypted envelope bytes; R2 for opaque snapshots and backups. |
 | P3.06 | Implement idempotent cloud append. | project owner | bounded one/batch upload, operation-ID plus digest dedupe, conflicting-digest rejection, per-item outcome, and digest-bound durable receipt. |
 | P3.07 | Implement cloud reads and cursor lifecycle. | project owner | bounded pagination by opaque cursor, ordered envelope delivery, continuation, expired-cursor/full-resync response, and no task ordering derived from cursor. |
-| P3.08 | Implement authenticated snapshot endpoints. | project owner | bounded upload/advertisement/download of signed opaque snapshot artifacts without server plaintext interpretation. |
-| P3.09 | Implement service validation and operational limits. | project owner | TLS/authentication/tenant isolation, schema/size/rate/concurrency/quota checks before allocation, non-content audit events, and explicit limit responses. |
-| P3.10 | Implement retention, backup, deletion, and health operations. | project owner | documented retention semantics, encrypted service storage/backups, quota/health status, and no overclaim of deletion or availability. |
-| P3.11 | Implement the client cloud transport adapter. | project owner | locally stored transport configuration, authentication, protocol compatibility check, and transport-specific cursors/checkpoints. |
+| P3.08 | Implement authenticated R2 snapshot upload/advertisement/download endpoints. | project owner | bounded upload/advertisement/download of signed opaque snapshot artifacts without server plaintext interpretation. |
+| P3.09 | Implement service validation and operational limits. | project owner | TLS/authentication/tenant isolation, schema/size/rate/concurrency/quota checks before allocation, non-content audit events, Workers free-tier guardrails, and explicit limit responses. |
+| P3.10 | Implement retention, backup, deletion, and health operations. | project owner | documented retention semantics for D1 and R2, encrypted service storage/backups, quota/health status, and no overclaim of deletion or availability. |
+| P3.11 | Implement the client cloud transport adapter. | project owner | locally stored transport configuration, Cloudflare Worker authentication, protocol compatibility check, and D1/R2-specific cursors/checkpoints. |
 | P3.12 | Implement durable outbox upload and receipt handling. | project owner | safe retry/backoff and delivery marking only after the matching durable digest-bound receipt. |
 | P3.13 | Implement cloud receive and acknowledgement handling. | project owner | bounded fetch, full envelope verification, local insert/merge/cursor commit in one transaction, then acknowledgement after that durable commit. |
 | P3.14 | Implement cloud bootstrap, compaction safety, and repair. | project owner | verified snapshot-plus-watermark bootstrap, coverage-safe pruning, cursor-expiry/missing/corruption full resync, and preserved local discrepancies. |
 | P3.15 | Implement cloud transport status UX. | project owner | evidence-bound connecting/syncing/caught-up-through-last-observed-cursor/offline/auth/quota/repair states, last receipt/checkpoint, and non-secret errors. |
-| P3.16 | Implement cloud contract and adversarial integration tests. | project owner | fault-injected staging service tests for forged operations, retries, conflicts, pagination, expiry, snapshots, acknowledgement ordering, retention, and full resync. |
-| P3.17 | Add cloud observability and support runbooks. | project owner | non-content operational signals, redacted server logging, incident/restore/retention/key-compromise guidance, and support prohibition on requesting secrets. |
+| P3.16 | Implement cloud contract and adversarial integration tests. | project owner | fault-injected staging Workers tests for forged operations, retries, conflicts, pagination, expiry, snapshots, acknowledgement ordering, retention, and full resync. |
+| P3.17 | Add cloud observability and support runbooks. | project owner | non-content operational signals, redacted Workers/Tail logs, D1/R2 usage and quota dashboards, incident/restore/retention/key-compromise guidance, and support prohibition on requesting secrets. |
 
 ### - [ ] G4 — Cloud-sync beta
 
@@ -177,7 +196,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| G4.01 | Demonstrate in staging that cloud service processing cannot decrypt task content and service tokens cannot authorize a forged operation. | project owner | adversarial staging report. |
+| G4.01 | Demonstrate in staging that the Cloudflare Worker cannot decrypt task content and service tokens cannot authorize a forged operation. | project owner | adversarial staging report. |
 | G4.02 | Verify idempotent append, conflicting operation-ID/digest rejection, and digest-bound receipts. | project owner | API fault matrix. |
 | G4.03 | Verify acknowledgement follows local durable commit and outbox recovery survives interruption. | project owner | transaction/interruption test evidence. |
 | G4.04 | Verify cursor expiry, missing operations, snapshot bootstrap, retention, repair, and full resync preserve local data. | project owner | bootstrap and repair scenario report. |
@@ -194,10 +213,10 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P4.02 | Test cloud storage migration interruption and restoration. | project owner | resumable migration, backup, retention, and restore exercise evidence. |
 | P4.03 | Expand parser, manifest, snapshot, and allocation-limit fuzzing. | project owner | reproducible fuzz corpus and results for malformed/oversized/untrusted input before decryption. |
 | P4.04 | Run cloud load and limit testing. | project owner | bounded payload/batch/rate/quota/cursor-expiry behavior and queue/storage-growth report without content telemetry. |
-| P4.05 | Run cross-platform cloud lifecycle testing. | project owner | Windows suspension and Android background/process-death reconnection and reconciliation report. |
+| P4.05 | Run cross-browser cloud lifecycle testing. | project owner | page show/hide, background tabs, mobile browser background/process-death, service worker reconnection, and reconciliation report. |
 | P4.06 | Rehearse cloud backup, restore, retention, and disaster recovery. | project owner | runbook execution record showing preserved local-vault and service recovery behavior. |
 | P4.07 | Complete independent crypto/protocol review for cloud sync. | project owner | closed findings or explicitly accepted residual findings with remediations tracked. |
-| P4.08 | Validate cloud deployment controls. | project owner | separate environment identities/secrets/data, pinned reproducible inputs, signed artifacts, health checks, rollback procedure, least-privilege access, dashboards, and alerts. |
+| P4.08 | Validate cloud deployment controls. | project owner | separate Cloudflare environment identities/secrets/data, pinned reproducible `trunk`/`wrangler` inputs, signed artifacts, health checks, rollback procedure, least-privilege access, dashboards, and alerts. |
 | P4.09 | Perform a staged cloud rollout rehearsal. | project owner | rollout/rollback decision record that preserves evidence-bound caught-up wording. |
 
 ### - [ ] G5 — Cloud-sync release hardening
@@ -250,9 +269,9 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P6.01 | Run end-to-end Windows/Android device scenarios. | project owner | offline edits, QR enrollment, recovery-package restore, rotation/cutover with unseen old-epoch mutations, mode switching, suspension/restart, and status-accuracy results. |
+| P6.01 | Run end-to-end browser/PWA scenarios. | project owner | URL and install flow, offline edits, QR enrollment, recovery-package restore, rotation/cutover with unseen old-epoch mutations, mode switching, tab close/reopen, mobile browser background, and status-accuracy results. |
 | P6.02 | Run the corner-case release suite. | project owner | evidence for concurrent fields, HLC rollback/skew, delete/restore races, replay/malformed frames, digest conflicts, nonce exhaustion, snapshot coverage, compaction, and transport-specific state. |
-| P6.03 | Complete storage and secret-bearing data inspection. | project owner | report covering databases, WAL/journal, caches, backups, exports, logs, telemetry, crash reports, diagnostics, and committed fixtures. |
+| P6.03 | Complete storage and secret-bearing data inspection. | project owner | report covering OPFS, service-worker cache, IndexedDB/localStorage, browser extension surface, WAL/journal, caches, backups, exports, logs, telemetry, crash reports, diagnostics, and committed fixtures. |
 | P6.04 | Run final security assurance. | project owner | dependency scan, authorization tests, rate-limit tests, threat-model review, and independent crypto/protocol review closure or accepted residual findings. |
 | P6.05 | Validate deployment and operational readiness. | project owner | signed reproducible builds, staged rollout, rollback rehearsal, dashboards, alerts, service SLO documentation, backup/disaster-recovery exercise, and least-privilege access review. |
 | P6.06 | Validate privacy and support readiness. | project owner | metadata/availability limitations, telemetry retention/access documentation, support guidance for loss/revocation/corruption/outage/relay-only use, and explicit no-secret-sharing policy. |
@@ -280,7 +299,7 @@ All gate approvals, reviews, and sign-offs in this plan are performed by the pro
 | P1 — Encrypted local core | §5 Key hierarchy, §6 Local data model, §11 Client lifecycle, §21 Gate 1, §21 Gate 2 |
 | G1 — Durable local vault | §21 Gate 1, §12 Testing |
 | G2 — Cross-platform convergence | §21 Gate 2, §12 Testing |
-| P2 — Local-only native product | §11 Client lifecycle, §14 Phase 2, §21 Gate 1/2 |
+| P2 — Local-only PWA product | §11 Client lifecycle, §14 Phase 2, §21 Gate 1/2 |
 | G3 — Local-only product release | §16 Slice 1, §21 Gate 1/2 |
 | P3 — Cloud-sync beta | §4 Vault/account/device, §7 Sync protocol, §8 Cloud delivery, §14 Phase 3, §21 Gate 3 |
 | G4 — Cloud-sync beta | §21 Gate 3 |
