@@ -1,7 +1,10 @@
 ---
 labels: wayfinder:map
 skills: domain-modeling, grilling, research, prototype
+github_issue: https://github.com/FelixClements/Eisen/issues/8
 ---
+
+> This map is now tracked as [GitHub issue #8](https://github.com/FelixClements/Eisen/issues/8). The local markdown is a mirror; issue numbers below point to GitHub.
 
 ## Destination
 
@@ -17,17 +20,17 @@ Eisen is redesigned as a **local-first, installable PWA built with Leptos**, com
 
 ## Decisions so far
 
-- [TICKET-01 Destination and scope for the Eisen redesign](tickets/TICKET-01-destination.md) — local-first Leptos PWA, Cloudflare Workers + Static Assets, P2 local, P3 cloud, existing clients kept for now.
+- [#9 Destination and scope for the Eisen redesign](https://github.com/FelixClements/Eisen/issues/9) — local-first Leptos PWA, Cloudflare Workers + Static Assets, P2 local, P3 cloud, existing clients kept for now.
 
 ## Open tickets (frontier)
 
-- [TICKET-02 Choose the Leptos build and deployment toolchain](tickets/TICKET-02-build-toolchain.md)
-- [TICKET-03 Prototype `eisen-core` compiled to WASM](tickets/TICKET-03-core-wasm.md)
-- [TICKET-04 Design OPFS-backed `SecureStorage` and `ClockStorage`](tickets/TICKET-04-opfs-storage.md)
-- [TICKET-05 Design browser-profile device identity and key lifecycle](tickets/TICKET-05-device-identity.md)
-- [TICKET-06 PWA manifest, service worker, and install UX](tickets/TICKET-06-pwa-shell.md)
-- [TICKET-07 Update `phasing-plan.md` and ADRs for the new stack](tickets/TICKET-07-plan-adr-updates.md)
-- [TICKET-08 Cloudflare Worker + Static Assets project layout](tickets/TICKET-08-cloudflare-deploy.md)
+- [#10 Choose the Leptos build and deployment toolchain](https://github.com/FelixClements/Eisen/issues/10)
+- [#11 Prototype `eisen-core` compiled to WASM](https://github.com/FelixClements/Eisen/issues/11)
+- [#12 Design OPFS-backed `SecureStorage` and `ClockStorage`](https://github.com/FelixClements/Eisen/issues/12)
+- [#13 Design browser-profile device identity and key lifecycle](https://github.com/FelixClements/Eisen/issues/13)
+- [#14 PWA manifest, service worker, and install UX](https://github.com/FelixClements/Eisen/issues/14)
+- [#15 Update `phasing-plan.md` and ADRs for the new stack](https://github.com/FelixClements/Eisen/issues/15)
+- [#16 Cloudflare Worker + Static Assets project layout](https://github.com/FelixClements/Eisen/issues/16)
 
 ## Not yet specified
 
