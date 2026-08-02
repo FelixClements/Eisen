@@ -1299,17 +1299,29 @@ mod tests {
         }
 
         fn fail_key_on(&self, key: &str, n: usize) -> &Self {
-            self.config.lock().unwrap().fail_key_on.insert(key.to_string(), n);
+            self.config
+                .lock()
+                .unwrap()
+                .fail_key_on
+                .insert(key.to_string(), n);
             self
         }
 
         fn corrupt_key(&self, key: &str) -> &Self {
-            self.config.lock().unwrap().corrupt_keys.insert(key.to_string());
+            self.config
+                .lock()
+                .unwrap()
+                .corrupt_keys
+                .insert(key.to_string());
             self
         }
 
         fn fail_load_key(&self, key: &str) -> &Self {
-            self.config.lock().unwrap().fail_load.insert(key.to_string());
+            self.config
+                .lock()
+                .unwrap()
+                .fail_load
+                .insert(key.to_string());
             self
         }
     }
@@ -1604,7 +1616,10 @@ mod tests {
         // Fail on the very first durable write (nonce counter).
         faulty.fail_key_on("nonce:counter", 1);
 
-        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
         let device_id = dev(1);
         {
             let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
@@ -1634,7 +1649,10 @@ mod tests {
         // Fail on the first snapshot ciphertext write: WAL is durable, snapshot is not.
         faulty.fail_key_on("snapshot:ciphertext", 1);
 
-        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
         let device_id = dev(1);
         let id = TaskId([8; 16]);
         {
@@ -1668,7 +1686,10 @@ mod tests {
         // Fail on the first outbox ciphertext write, which occurs after WAL and snapshot.
         faulty.fail_key_on("outbox:ciphertext", 1);
 
-        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
         let device_id = dev(1);
         let id = TaskId([10; 16]);
         {
@@ -1702,7 +1723,10 @@ mod tests {
         // Corrupt every snapshot ciphertext write.
         faulty.corrupt_key("snapshot:ciphertext");
 
-        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
         let device_id = dev(1);
         {
             let mut store = LocalStore::open(&faulty, key, device_id).unwrap();
@@ -1733,7 +1757,10 @@ mod tests {
         // Make the metadata ciphertext unavailable to load.
         faulty.fail_load_key("metadata:ciphertext");
 
-        let key = crate::epoch::EpochRoot::generate().unwrap().derive(0).unwrap();
+        let key = crate::epoch::EpochRoot::generate()
+            .unwrap()
+            .derive(0)
+            .unwrap();
         let device_id = dev(1);
         // Opening should succeed with default metadata rather than panic.
         let result = LocalStore::open(&faulty, key, device_id);

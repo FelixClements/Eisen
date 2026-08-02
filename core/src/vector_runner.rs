@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Fixture {
     id: String,
@@ -536,7 +535,12 @@ fn generate_envelope_valid() -> Result<Fixture, String> {
     };
     let envelope = Envelope::sign(&create, hlc, &device.signing_key).map_err(|e| e.to_string())?;
     let envelope_hex = to_hex(&envelope.to_bytes().map_err(|e| e.to_string())?);
-    let manifest_hex = to_hex(&owner_trust.genesis_manifest.to_bytes().map_err(|e| e.to_string())?);
+    let manifest_hex = to_hex(
+        &owner_trust
+            .genesis_manifest
+            .to_bytes()
+            .map_err(|e| e.to_string())?,
+    );
     let owner_signing_bytes = owner_trust.owner_signing_key.to_bytes();
     let owner_signing_key_hex = to_hex(owner_signing_bytes.as_ref());
     let vault_id_hex = owner_trust.vault_id.to_hex();
@@ -635,7 +639,8 @@ fn generate_recovery_valid() -> Result<Fixture, String> {
         device_id: DeviceId([0; 16]),
     };
     let (owner_trust, device) = create_vault(&storage, hlc).map_err(|e| e.to_string())?;
-    let chain = ManifestChain::new(owner_trust.genesis_manifest.clone()).map_err(|e| e.to_string())?;
+    let chain =
+        ManifestChain::new(owner_trust.genesis_manifest.clone()).map_err(|e| e.to_string())?;
     let devices = vec![device.manifest_entry(crate::identity::DeviceStatus::Active)];
     let epoch_roots: BTreeMap<u64, crate::epoch::EpochRoot> = BTreeMap::new();
     let passphrase = "fixture-passphrase";
@@ -724,20 +729,23 @@ fn verify_hlc_ordering(f: &Fixture) -> Result<(), String> {
 }
 
 fn verify_merge_duplicate(f: &Fixture) -> Result<(), String> {
-    let actions = f.input["actions"].as_array().ok_or("actions must be an array")?;
+    let actions = f.input["actions"]
+        .as_array()
+        .ok_or("actions must be an array")?;
     let title = task_title(&merge_actions(actions)?)?;
     assert_string(&f.expected["title"], &title, "title")?;
     Ok(())
 }
 
 fn verify_merge_drop(f: &Fixture) -> Result<(), String> {
-    let actions = f.input["actions"].as_array().ok_or("actions must be an array")?;
+    let actions = f.input["actions"]
+        .as_array()
+        .ok_or("actions must be an array")?;
     let full = actions_to_mutations(actions)?;
     let mut dropped = full.clone();
     dropped.pop();
     let full_title = task_title(&crate::merge_mutations(&full).map_err(|e| e.to_string())?)?;
-    let dropped_title =
-        task_title(&crate::merge_mutations(&dropped).map_err(|e| e.to_string())?)?;
+    let dropped_title = task_title(&crate::merge_mutations(&dropped).map_err(|e| e.to_string())?)?;
     assert_string(
         &f.expected["with_update_title"],
         &full_title,
@@ -748,17 +756,19 @@ fn verify_merge_drop(f: &Fixture) -> Result<(), String> {
         &dropped_title,
         "without_update_title",
     )?;
-    assert_bool(&f.expected["changed"], full_title != dropped_title, "changed")?;
+    assert_bool(
+        &f.expected["changed"],
+        full_title != dropped_title,
+        "changed",
+    )?;
     Ok(())
 }
 
 fn verify_merge_permutation(f: &Fixture) -> Result<(), String> {
-    let actions = f.input["actions"].as_array().ok_or("actions must be an array")?;
-    let id = task_id_from_hex(
-        actions[0]["id_hex"]
-            .as_str()
-            .ok_or("missing id_hex")?,
-    )?;
+    let actions = f.input["actions"]
+        .as_array()
+        .ok_or("actions must be an array")?;
+    let id = task_id_from_hex(actions[0]["id_hex"].as_str().ok_or("missing id_hex")?)?;
     let original = actions_to_mutations(actions)?;
     let mut swapped = original.clone();
     swapped.swap(1, 2);
@@ -853,7 +863,10 @@ fn verify_envelope_valid(f: &Fixture) -> Result<(), String> {
         )
         .map_err(|e| e.to_string())?;
     storage
-        .store(&format!("vault:{}:genesis", vault_id.to_hex()), &manifest_bytes)
+        .store(
+            &format!("vault:{}:genesis", vault_id.to_hex()),
+            &manifest_bytes,
+        )
         .map_err(|e| e.to_string())?;
 
     let owner_trust = OwnerTrust::load(vault_id, &storage).map_err(|e| e.to_string())?;
@@ -899,7 +912,9 @@ fn verify_nonce_monotonic(f: &Fixture) -> Result<(), String> {
             .as_str()
             .ok_or("device_id_hex must be a string")?,
     )?;
-    let actions = f.input["actions"].as_array().ok_or("actions must be an array")?;
+    let actions = f.input["actions"]
+        .as_array()
+        .ok_or("actions must be an array")?;
 
     let root = EpochRoot::from_bytes(root_bytes);
     let epoch_key = root.derive(0).map_err(|e| e.to_string())?;
@@ -1032,7 +1047,10 @@ pub fn run_vectors_str(input: &str) -> Result<(), String> {
     if failures.is_empty() {
         Ok(())
     } else {
-        Err(format!("{} vector(s) failed:\n{}", failures.len(), failures.join("\n")))
+        Err(format!(
+            "{} vector(s) failed:\n{}",
+            failures.len(),
+            failures.join("\n")
+        ))
     }
 }
-

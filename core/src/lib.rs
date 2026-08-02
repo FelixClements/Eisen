@@ -891,9 +891,24 @@ mod tests {
             id,
         };
 
-        let perm_a = [create.clone(), update_b.clone(), update_c.clone(), complete.clone()];
-        let perm_b = [create.clone(), update_c.clone(), update_b.clone(), complete.clone()];
-        let perm_c = [create.clone(), complete.clone(), update_b.clone(), update_c.clone()];
+        let perm_a = [
+            create.clone(),
+            update_b.clone(),
+            update_c.clone(),
+            complete.clone(),
+        ];
+        let perm_b = [
+            create.clone(),
+            update_c.clone(),
+            update_b.clone(),
+            complete.clone(),
+        ];
+        let perm_c = [
+            create.clone(),
+            complete.clone(),
+            update_b.clone(),
+            update_c.clone(),
+        ];
 
         fn build_task(mutations: &[Mutation]) -> Option<Task> {
             let mut store = TaskStore::new();
