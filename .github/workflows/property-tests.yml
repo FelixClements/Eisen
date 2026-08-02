@@ -1,0 +1,37 @@
+name: Property Convergence Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  property-tests:
+    name: Model/property tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run convergence property tests
+        shell: bash
+        working-directory: ./core
+        run: |
+          set -euo pipefail
+          cargo test merge_ -- --nocapture 2>&1 | tee "property-test-report-${{ matrix.os }}.log"
+
+      - name: Upload property test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: property-test-report-${{ matrix.os }}
+          path: core/property-test-report-${{ matrix.os }}.log
