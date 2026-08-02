@@ -21,10 +21,10 @@ Eisen is redesigned as a **local-first, installable PWA built with Leptos**, com
 ## Decisions so far
 
 - [#9 Destination and scope for the Eisen redesign](https://github.com/FelixClements/Eisen/issues/9) — local-first Leptos PWA, Cloudflare Workers + Static Assets, P2 local, P3 cloud, existing clients kept for now.
+- [#10 Choose the Leptos build and deployment toolchain](https://github.com/FelixClements/Eisen/issues/10) — use **Trunk** for the CSR build; deploy with **Wrangler + Cloudflare Workers Static Assets**.
 
 ## Open tickets (frontier)
 
-- [#10 Choose the Leptos build and deployment toolchain](https://github.com/FelixClements/Eisen/issues/10)
 - [#11 Prototype `eisen-core` compiled to WASM](https://github.com/FelixClements/Eisen/issues/11)
 - [#12 Design OPFS-backed `SecureStorage` and `ClockStorage`](https://github.com/FelixClements/Eisen/issues/12)
 - [#13 Design browser-profile device identity and key lifecycle](https://github.com/FelixClements/Eisen/issues/13)
