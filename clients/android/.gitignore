@@ -40,3 +40,9 @@ Thumbs.db
 
 # Local deepwork session state
 .slim/deepwork/
+
+# Android Studio per-user state
+.idea/deploymentTargetSelector.xml
+
+# Prebuilt native libraries copied in by the build
+app/src/main/jniLibs/
