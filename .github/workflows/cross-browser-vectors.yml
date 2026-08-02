@@ -1,0 +1,57 @@
+name: Cross-Browser Vectors
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  cross-browser-vectors:
+    name: Vectors in ${{ matrix.browser }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chrome
+            os: ubuntu-latest
+            flag: --chrome
+          - browser: firefox
+            os: ubuntu-latest
+            flag: --firefox
+          - browser: safari
+            os: macos-latest
+            flag: --safari
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        shell: bash
+        run: |
+          set -e
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Enable Safari driver
+        if: matrix.browser == 'safari'
+        run: sudo safaridriver --enable
+
+      - name: Run vector tests in ${{ matrix.browser }}
+        shell: bash
+        working-directory: ./core
+        run: |
+          set -euo pipefail
+          wasm-pack test --headless --test wasm_vectors ${{ matrix.flag }} 2>&1 | tee "vector-report-${{ matrix.browser }}.log"
+
+      - name: Upload vector report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vector-report-${{ matrix.browser }}
+          path: core/vector-report-${{ matrix.browser }}.log

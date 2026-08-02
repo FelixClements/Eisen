@@ -1019,3 +1019,20 @@ pub fn run_vectors_path(input_path: &str, output_path: &str) -> Result<(), Strin
     }
 }
 
+/// Run all fixtures from an in-memory JSON string. This avoids `std::fs` so
+/// it can be used from the browser/WASM test harness.
+pub fn run_vectors_str(input: &str) -> Result<(), String> {
+    let fixtures: Vec<Fixture> = serde_json::from_str(input).map_err(|e| e.to_string())?;
+    let mut failures = Vec::new();
+    for f in &fixtures {
+        if let Err(e) = verify_fixture(f) {
+            failures.push(format!("{}: {}", f.id, e));
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{} vector(s) failed:\n{}", failures.len(), failures.join("\n")))
+    }
+}
+
