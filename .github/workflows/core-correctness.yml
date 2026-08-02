@@ -1,0 +1,37 @@
+name: Core Correctness Report
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core-correctness:
+    name: Core correctness (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run core unit and integration tests
+        shell: bash
+        working-directory: ./core
+        run: |
+          set -euo pipefail
+          cargo test -- --nocapture 2>&1 | tee "core-correctness-report-${{ matrix.os }}.log"
+
+      - name: Upload core correctness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-correctness-report-${{ matrix.os }}
+          path: core/core-correctness-report-${{ matrix.os }}.log
