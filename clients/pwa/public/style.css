@@ -41,3 +41,72 @@ p {
   font-size: 0.9rem;
   color: #475569;
 }
+
+.vault {
+  width: 100%;
+  max-width: 24rem;
+  margin-top: 2rem;
+}
+
+.vault h2 {
+  margin: 0 0 1rem;
+  color: #0f766e;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.tabs button.selected {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: #0f766e;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panel input {
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+.panel button {
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 0.95rem;
+}
+
+.success {
+  color: #0f766e;
+  font-size: 0.95rem;
+}
+
+.hidden {
+  display: none;
+}
