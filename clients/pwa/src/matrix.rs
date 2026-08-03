@@ -1,4 +1,4 @@
-use eisen_core::{DeviceId, Hlc, Mutation, TaskId, TaskStore};
+use eisen_core::{DeviceId, Hlc, Mutation, Task, TaskId, TaskStore};
 use leptos::prelude::*;
 
 const QUADRANT_LABELS: [&str; 4] = [
@@ -8,7 +8,7 @@ const QUADRANT_LABELS: [&str; 4] = [
     "Not Urgent, Not Important",
 ];
 
-fn seed_store() -> TaskStore {
+pub fn seed_store() -> TaskStore {
     let mut store = TaskStore::new();
     let device = DeviceId([1u8; 16]);
     let hlc = |wall, counter| Hlc {
@@ -43,9 +43,10 @@ fn seed_store() -> TaskStore {
 }
 
 #[component]
-pub fn Matrix() -> impl IntoView {
-    let (store, _set_store) = signal(seed_store());
-
+pub fn Matrix(
+    store: ReadSignal<TaskStore>,
+    set_editing: WriteSignal<Option<Task>>,
+) -> impl IntoView {
     view! {
         <section class="matrix">
             <h2>"Eisenhower Matrix"</h2>
@@ -70,10 +71,27 @@ pub fn Matrix() -> impl IntoView {
                                     <h3 class="quadrant-title">{QUADRANT_LABELS[q]}</h3>
                                     <ul class="task-list">
                                         {tasks.into_iter().map(|task| {
-                                            let title = task.title.value.as_deref().unwrap_or("Untitled").to_string();
+                                            let task_for_edit = task.clone();
+                                            let title = task
+                                                .title
+                                                .value
+                                                .as_deref()
+                                                .unwrap_or("Untitled")
+                                                .to_string();
                                             view! {
-                                                <li class="task-item" class:completed=task.is_completed()>
-                                                    {title}
+                                                <li
+                                                    class="task-item"
+                                                    class:completed=task.is_completed()
+                                                >
+                                                    <span class="task-title">{title}</span>
+                                                    <button
+                                                        class="edit"
+                                                        on:click=move |_| {
+                                                            set_editing.set(Some(task_for_edit.clone()));
+                                                        }
+                                                    >
+                                                        "Edit"
+                                                    </button>
                                                 </li>
                                             }
                                         }).collect::<Vec<_>>()}

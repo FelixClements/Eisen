@@ -1,15 +1,17 @@
 mod bridge;
 mod install;
 mod matrix;
+mod task_form;
 mod vault;
 
 use eisen_core::clock::ClockStorage;
 use eisen_core::identity::SecureStorage;
-use eisen_core::Hlc;
+use eisen_core::{Hlc, Task};
 use install::InstallPrompt;
 use leptos::prelude::*;
 use leptos_meta::*;
-use matrix::Matrix;
+use matrix::{seed_store, Matrix};
+use task_form::TaskForm;
 use vault::Vault;
 use wasm_bindgen::prelude::*;
 
@@ -29,6 +31,9 @@ fn main() {}
 fn App() -> impl IntoView {
     provide_meta_context();
 
+    let (store, set_store) = signal(seed_store());
+    let (editing, set_editing) = signal(None::<Task>);
+
     view! {
         <Html attr:lang="en" attr:dir="ltr" />
         <Title text="Eisen" />
@@ -42,7 +47,8 @@ fn App() -> impl IntoView {
             <p>"A local-first, installable PWA for secure task management."</p>
             <InstallPrompt />
             <Vault />
-            <Matrix />
+            <TaskForm store=store set_store=set_store editing=editing set_editing=set_editing />
+            <Matrix store=store set_editing=set_editing />
         </main>
     }
 }
