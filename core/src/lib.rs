@@ -18,6 +18,9 @@ pub mod snapshot_manifest;
 pub mod store;
 pub mod vector_runner;
 
+#[cfg(target_arch = "wasm32")]
+pub mod opfs_storage;
+
 #[cfg(target_os = "android")]
 mod android;
 
