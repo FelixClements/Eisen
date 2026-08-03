@@ -1,9 +1,11 @@
 mod bridge;
+mod install;
 mod vault;
 
 use eisen_core::clock::ClockStorage;
 use eisen_core::identity::SecureStorage;
 use eisen_core::Hlc;
+use install::InstallPrompt;
 use leptos::prelude::*;
 use leptos_meta::*;
 use vault::Vault;
@@ -36,6 +38,7 @@ fn App() -> impl IntoView {
         <main>
             <h1>"Eisen"</h1>
             <p>"A local-first, installable PWA for secure task management."</p>
+            <InstallPrompt />
             <Vault />
         </main>
     }
