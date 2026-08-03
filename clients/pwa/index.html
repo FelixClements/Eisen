@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link data-trunk rel="icon" href="public/icon.svg" />
+  <link data-trunk rel="css" href="public/style.css" />
+
+  <link rel="manifest" href="/manifest.json" />
+  <link data-trunk rel="copy-file" data-target-path="/" href="public/manifest.json" />
+  <link data-trunk rel="copy-file" data-target-path="/" href="public/icon.svg" />
+  <link data-trunk rel="copy-file" data-target-path="/" href="public/service-worker.js" />
+
+  <link data-trunk rel="rust" data-wasm-opt="z" data-weak-refs />
+</head>
+
+<body>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js');
+    }
+  </script>
+</body>
+
+</html>

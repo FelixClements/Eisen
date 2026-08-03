@@ -1,0 +1,12 @@
+[package]
+name = "eisen-pwa"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leptos = { version = "0.8", features = ["csr"] }
+leptos_meta = { version = "0.8" }
+eisen-core = { path = "../../core" }
+console_log = "1"
+log = "0.4"
+console_error_panic_hook = "0.1"

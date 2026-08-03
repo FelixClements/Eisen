@@ -1,0 +1,43 @@
+/* Minimal, honest PWA shell styles. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2.5rem;
+  color: #0f766e;
+}
+
+p {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+  max-width: 24rem;
+}
+
+.install-hint {
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: #475569;
+}

@@ -1,0 +1,20 @@
+{
+  "short_name": "Eisen",
+  "name": "Eisen — local-first task vault",
+  "description": "A local-first, installable PWA for secure task management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "en"
+}
