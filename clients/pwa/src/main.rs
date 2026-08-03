@@ -1,5 +1,6 @@
 mod bridge;
 mod install;
+mod matrix;
 mod vault;
 
 use eisen_core::clock::ClockStorage;
@@ -8,6 +9,7 @@ use eisen_core::Hlc;
 use install::InstallPrompt;
 use leptos::prelude::*;
 use leptos_meta::*;
+use matrix::Matrix;
 use vault::Vault;
 use wasm_bindgen::prelude::*;
 
@@ -40,6 +42,7 @@ fn App() -> impl IntoView {
             <p>"A local-first, installable PWA for secure task management."</p>
             <InstallPrompt />
             <Vault />
+            <Matrix />
         </main>
     }
 }
