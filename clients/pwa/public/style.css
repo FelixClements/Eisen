@@ -335,6 +335,12 @@ p {
   color: #0f766e;
 }
 
+.merge-evidence {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.85rem;
+  color: #0f766e;
+}
+
 .task-actions {
   display: flex;
   flex-wrap: wrap;

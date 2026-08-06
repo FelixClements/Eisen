@@ -1,9 +1,18 @@
-use eisen_core::{DeviceId, Hlc, Mutation, Task, TaskId, TaskStore};
+use eisen_core::{DeviceId, Field, Hlc, Mutation, Task, TaskId, TaskStore};
 use js_sys::Date;
 use leptos::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
+
+fn short_device_label(id: &DeviceId) -> String {
+    let prefix =
+        id.0.iter()
+            .take(2)
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>();
+    format!("Device {}...", prefix)
+}
 
 fn format_hlc(hlc: &Hlc) -> String {
     let date = Date::new(&JsValue::from_f64(hlc.wall as f64));
@@ -11,14 +20,42 @@ fn format_hlc(hlc: &Hlc) -> String {
         .to_utc_string()
         .as_string()
         .unwrap_or_else(|| hlc.wall.to_string());
-    let device = hlc
-        .device_id
-        .0
-        .iter()
-        .take(4)
-        .map(|b| format!("{b:02x}"))
-        .collect::<String>();
-    format!("{} on Device {}", timestamp, device)
+    let device = short_device_label(&hlc.device_id);
+    format!("{} on {}", timestamp, device)
+}
+
+fn field_evidence<T>(
+    field: &Field<T>,
+    local: DeviceId,
+    label: Option<&str>,
+    set_msg: &str,
+    clear_msg: Option<&str>,
+) -> AnyView {
+    if field.hlc.device_id == local {
+        return view! {}.into_any();
+    }
+    let outcome = if field.value.is_some() {
+        set_msg
+    } else if let Some(msg) = clear_msg {
+        msg
+    } else {
+        set_msg
+    };
+    let time = format_hlc(&field.hlc);
+    let text = match label {
+        Some(l) => format!("{}: {} at {}", l, outcome, time),
+        None => format!("{} at {}", outcome, time),
+    };
+    view! { <p class="merge-evidence">{text}</p> }.into_any()
+}
+
+fn has_remote_evidence(task: &Task, local: DeviceId) -> bool {
+    task.title.hlc.device_id != local
+        || task.notes.hlc.device_id != local
+        || task.quadrant.hlc.device_id != local
+        || task.due_date.hlc.device_id != local
+        || task.completed_at.hlc.device_id != local
+        || task.deleted_at.hlc.device_id != local
 }
 
 #[component]
@@ -48,6 +85,7 @@ pub fn TaskForm(
                 set_notes.set(t.notes.value.clone().unwrap_or_default());
                 set_quadrant.set(t.quadrant.value.unwrap_or(0));
             }
+            set_show_history.set(false);
         }
     });
 
@@ -78,11 +116,10 @@ pub fn TaskForm(
             let new_quadrant = quadrant.get();
 
             let mut s = store.get();
-            let hlc = new_hlc();
 
             let result = if let Some(task) = editing.get() {
                 Mutation::Update {
-                    hlc,
+                    hlc: new_hlc(),
                     id: task.id,
                     title: Some(new_title),
                     notes: Some(if new_notes.is_empty() {
@@ -94,9 +131,15 @@ pub fn TaskForm(
                     due_date: None,
                 }
             } else {
-                let mut id_bytes = [0u8; 16];
+                let now = js_sys::Date::now() as u64;
                 let id = next_id.get_untracked();
                 set_next_id.set(id + 1);
+                let hlc = Hlc {
+                    wall: now,
+                    counter: id as u32,
+                    device_id: device,
+                };
+                let mut id_bytes = [0u8; 16];
                 id_bytes[0..8].copy_from_slice(&id.to_be_bytes());
                 id_bytes[8..12].copy_from_slice(&1u32.to_be_bytes());
                 Mutation::Create {
@@ -162,6 +205,12 @@ pub fn TaskForm(
                 }
             />
 
+            {move || if let Some(task) = editing.get() {
+                field_evidence(&task.title, device, None, "Updated from another device", None)
+            } else {
+                view! {}.into_any()
+            }}
+
             <textarea
                 placeholder="Notes"
                 prop:value=notes
@@ -173,6 +222,12 @@ pub fn TaskForm(
                     }
                 }
             />
+
+            {move || if let Some(task) = editing.get() {
+                field_evidence(&task.notes, device, None, "Updated from another device", None)
+            } else {
+                view! {}.into_any()
+            }}
 
             <select
                 prop:value=move || quadrant.get().to_string()
@@ -190,6 +245,12 @@ pub fn TaskForm(
                 <option value="3">"Not Urgent, Not Important"</option>
             </select>
 
+            {move || if let Some(task) = editing.get() {
+                field_evidence(&task.quadrant, device, None, "Updated from another device", None)
+            } else {
+                view! {}.into_any()
+            }}
+
             <div class="form-actions">
                 <button on:click=on_submit>
                     {move || if editing.get().is_some() { "Update task" } else { "Create task" }}
@@ -204,16 +265,20 @@ pub fn TaskForm(
                 }}
             </div>
 
-            {move || if editing.get().is_some() {
-                view! {
-                    <button
-                        class="secondary history-toggle"
-                        on:click=move |_| set_show_history.set(!show_history.get())
-                    >
-                        {move || if show_history.get() { "Hide history" } else { "Show history" }}
-                    </button>
+            {move || if let Some(task) = editing.get() {
+                if has_remote_evidence(&task, device) {
+                    view! {
+                        <button
+                            class="secondary history-toggle"
+                            on:click=move |_| set_show_history.set(!show_history.get())
+                        >
+                            {move || if show_history.get() { "Hide history" } else { "Show history" }}
+                        </button>
+                    }
+                    .into_any()
+                } else {
+                    view! {}.into_any()
                 }
-                .into_any()
             } else {
                 view! {}.into_any()
             }}
@@ -222,20 +287,15 @@ pub fn TaskForm(
                 editing
                     .get()
                     .map(|task| {
-                        let title_hlc = task.title.hlc;
-                        let notes_hlc = task.notes.hlc;
-                        let quadrant_hlc = task.quadrant.hlc;
-                        let completed_hlc = task.completed_at.hlc;
-                        let deleted_hlc = task.deleted_at.hlc;
-
                         view! {
                             <div class="history">
-                                <h4>"Field history"</h4>
-                                <p><strong>"Title: "</strong>{format_hlc(&title_hlc)}</p>
-                                <p><strong>"Notes: "</strong>{format_hlc(&notes_hlc)}</p>
-                                <p><strong>"Quadrant: "</strong>{format_hlc(&quadrant_hlc)}</p>
-                                <p><strong>"Completed: "</strong>{format_hlc(&completed_hlc)}</p>
-                                <p><strong>"Deleted: "</strong>{format_hlc(&deleted_hlc)}</p>
+                                <h4>"Merge history"</h4>
+                                {field_evidence(&task.title, device, Some("Title"), "Updated from another device", None)}
+                                {field_evidence(&task.notes, device, Some("Notes"), "Updated from another device", None)}
+                                {field_evidence(&task.quadrant, device, Some("Quadrant"), "Updated from another device", None)}
+                                {field_evidence(&task.due_date, device, Some("Due date"), "Updated from another device", None)}
+                                {field_evidence(&task.completed_at, device, Some("Completed"), "Marked complete from another device", Some("Restored from another device"))}
+                                {field_evidence(&task.deleted_at, device, Some("Deleted"), "Deleted from another device", Some("Restored from another device"))}
                             </div>
                         }
                         .into_any()
