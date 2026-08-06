@@ -1,7 +1,25 @@
 use eisen_core::{DeviceId, Hlc, Mutation, Task, TaskId, TaskStore};
+use js_sys::Date;
 use leptos::prelude::*;
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
+
+fn format_hlc(hlc: &Hlc) -> String {
+    let date = Date::new(&JsValue::from_f64(hlc.wall as f64));
+    let timestamp = date
+        .to_utc_string()
+        .as_string()
+        .unwrap_or_else(|| hlc.wall.to_string());
+    let device = hlc
+        .device_id
+        .0
+        .iter()
+        .take(4)
+        .map(|b| format!("{b:02x}"))
+        .collect::<String>();
+    format!("{} on Device {}", timestamp, device)
+}
 
 #[component]
 pub fn TaskForm(
@@ -16,6 +34,7 @@ pub fn TaskForm(
     let (notes, set_notes) = signal(String::new());
     let (quadrant, set_quadrant) = signal(0u8);
     let (error, set_error) = signal(None::<String>);
+    let (show_history, set_show_history) = signal(false);
     let device = DeviceId([1u8; 16]);
 
     // Populate form when a task is selected for editing.
@@ -184,6 +203,47 @@ pub fn TaskForm(
                     view! {}.into_any()
                 }}
             </div>
+
+            {move || if editing.get().is_some() {
+                view! {
+                    <button
+                        class="secondary history-toggle"
+                        on:click=move |_| set_show_history.set(!show_history.get())
+                    >
+                        {move || if show_history.get() { "Hide history" } else { "Show history" }}
+                    </button>
+                }
+                .into_any()
+            } else {
+                view! {}.into_any()
+            }}
+
+            {move || if show_history.get() {
+                editing
+                    .get()
+                    .map(|task| {
+                        let title_hlc = task.title.hlc;
+                        let notes_hlc = task.notes.hlc;
+                        let quadrant_hlc = task.quadrant.hlc;
+                        let completed_hlc = task.completed_at.hlc;
+                        let deleted_hlc = task.deleted_at.hlc;
+
+                        view! {
+                            <div class="history">
+                                <h4>"Field history"</h4>
+                                <p><strong>"Title: "</strong>{format_hlc(&title_hlc)}</p>
+                                <p><strong>"Notes: "</strong>{format_hlc(&notes_hlc)}</p>
+                                <p><strong>"Quadrant: "</strong>{format_hlc(&quadrant_hlc)}</p>
+                                <p><strong>"Completed: "</strong>{format_hlc(&completed_hlc)}</p>
+                                <p><strong>"Deleted: "</strong>{format_hlc(&deleted_hlc)}</p>
+                            </div>
+                        }
+                        .into_any()
+                    })
+                    .unwrap_or_else(|| view! {}.into_any())
+            } else {
+                view! {}.into_any()
+            }}
         </div>
     }
 }
