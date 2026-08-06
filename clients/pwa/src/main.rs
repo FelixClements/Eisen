@@ -33,6 +33,7 @@ fn App() -> impl IntoView {
 
     let (store, set_store) = signal(seed_store());
     let (editing, set_editing) = signal(None::<Task>);
+    let (next_id, set_next_id) = signal(7u64);
 
     view! {
         <Html attr:lang="en" attr:dir="ltr" />
@@ -47,8 +48,21 @@ fn App() -> impl IntoView {
             <p>"A local-first, installable PWA for secure task management."</p>
             <InstallPrompt />
             <Vault />
-            <TaskForm store=store set_store=set_store editing=editing set_editing=set_editing />
-            <Matrix store=store set_editing=set_editing />
+            <TaskForm
+                store=store
+                set_store=set_store
+                editing=editing
+                set_editing=set_editing
+                next_id=next_id
+                set_next_id=set_next_id
+            />
+            <Matrix
+                store=store
+                set_store=set_store
+                set_editing=set_editing
+                next_id=next_id
+                set_next_id=set_next_id
+            />
         </main>
     }
 }

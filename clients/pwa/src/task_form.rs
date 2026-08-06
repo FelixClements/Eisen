@@ -9,12 +9,13 @@ pub fn TaskForm(
     set_store: WriteSignal<TaskStore>,
     editing: ReadSignal<Option<Task>>,
     set_editing: WriteSignal<Option<Task>>,
+    next_id: ReadSignal<u64>,
+    set_next_id: WriteSignal<u64>,
 ) -> impl IntoView {
     let (title, set_title) = signal(String::new());
     let (notes, set_notes) = signal(String::new());
     let (quadrant, set_quadrant) = signal(0u8);
     let (error, set_error) = signal(None::<String>);
-    let (next_id, set_next_id) = signal(1u64);
     let device = DeviceId([1u8; 16]);
 
     // Populate form when a task is selected for editing.
@@ -31,27 +32,34 @@ pub fn TaskForm(
         }
     });
 
+    let new_hlc = {
+        let next_id = next_id.clone();
+        let set_next_id = set_next_id.clone();
+        move || {
+            let now = js_sys::Date::now() as u64;
+            let id = next_id.get_untracked();
+            set_next_id.set(id + 1);
+            Hlc {
+                wall: now,
+                counter: id as u32,
+                device_id: device,
+            }
+        }
+    };
+
     let on_submit = {
         let set_title = set_title.clone();
         let set_notes = set_notes.clone();
         let set_quadrant = set_quadrant.clone();
         let set_error = set_error.clone();
         let set_editing = set_editing.clone();
-        let set_next_id = set_next_id.clone();
         move |_| {
             let new_title = title.get();
             let new_notes = notes.get();
             let new_quadrant = quadrant.get();
 
             let mut s = store.get();
-            let now = js_sys::Date::now() as u64;
-            let id_counter = next_id.get();
-            set_next_id.set(id_counter + 1);
-            let hlc = Hlc {
-                wall: now,
-                counter: id_counter as u32,
-                device_id: device,
-            };
+            let hlc = new_hlc();
 
             let result = if let Some(task) = editing.get() {
                 Mutation::Update {
@@ -68,7 +76,9 @@ pub fn TaskForm(
                 }
             } else {
                 let mut id_bytes = [0u8; 16];
-                id_bytes[0..8].copy_from_slice(&id_counter.to_be_bytes());
+                let id = next_id.get_untracked();
+                set_next_id.set(id + 1);
+                id_bytes[0..8].copy_from_slice(&id.to_be_bytes());
                 id_bytes[8..12].copy_from_slice(&1u32.to_be_bytes());
                 Mutation::Create {
                     hlc,

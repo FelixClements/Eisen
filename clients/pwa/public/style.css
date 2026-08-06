@@ -307,3 +307,45 @@ p {
   background: #e2e8f0;
   color: #0f172a;
 }
+
+.task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.task-actions select {
+  padding: 0.25rem;
+  font-size: 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.25rem;
+}
+
+.task-actions button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.task-actions button.complete {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.task-actions button.delete {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.task-actions button.restore {
+  background: #d97706;
+  color: #ffffff;
+}
+
+.task-actions button.edit {
+  background: #e2e8f0;
+  color: #0f172a;
+}
