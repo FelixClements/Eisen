@@ -27,11 +27,12 @@ fn format_hlc(hlc: &Hlc) -> String {
 fn field_evidence<T>(
     field: &Field<T>,
     local: DeviceId,
+    created_at: Hlc,
     label: Option<&str>,
     set_msg: &str,
     clear_msg: Option<&str>,
 ) -> AnyView {
-    if field.hlc.device_id == local {
+    if field.hlc == created_at || field.hlc.device_id == local {
         return view! {}.into_any();
     }
     let outcome = if field.value.is_some() {
@@ -50,12 +51,13 @@ fn field_evidence<T>(
 }
 
 fn has_remote_evidence(task: &Task, local: DeviceId) -> bool {
-    task.title.hlc.device_id != local
-        || task.notes.hlc.device_id != local
-        || task.quadrant.hlc.device_id != local
-        || task.due_date.hlc.device_id != local
-        || task.completed_at.hlc.device_id != local
-        || task.deleted_at.hlc.device_id != local
+    let created_at = task.created_at.hlc;
+    (task.title.hlc.device_id != local && task.title.hlc != created_at)
+        || (task.notes.hlc.device_id != local && task.notes.hlc != created_at)
+        || (task.quadrant.hlc.device_id != local && task.quadrant.hlc != created_at)
+        || (task.due_date.hlc.device_id != local && task.due_date.hlc != created_at)
+        || (task.completed_at.hlc.device_id != local && task.completed_at.hlc != created_at)
+        || (task.deleted_at.hlc.device_id != local && task.deleted_at.hlc != created_at)
 }
 
 #[component]
@@ -206,7 +208,7 @@ pub fn TaskForm(
             />
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.title, device, None, "Updated from another device", None)
+                field_evidence(&task.title, device, task.created_at.hlc, None, "Updated from another device", None)
             } else {
                 view! {}.into_any()
             }}
@@ -224,7 +226,7 @@ pub fn TaskForm(
             />
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.notes, device, None, "Updated from another device", None)
+                field_evidence(&task.notes, device, task.created_at.hlc, None, "Updated from another device", None)
             } else {
                 view! {}.into_any()
             }}
@@ -246,7 +248,7 @@ pub fn TaskForm(
             </select>
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.quadrant, device, None, "Updated from another device", None)
+                field_evidence(&task.quadrant, device, task.created_at.hlc, None, "Updated from another device", None)
             } else {
                 view! {}.into_any()
             }}
@@ -290,12 +292,12 @@ pub fn TaskForm(
                         view! {
                             <div class="history">
                                 <h4>"Merge history"</h4>
-                                {field_evidence(&task.title, device, Some("Title"), "Updated from another device", None)}
-                                {field_evidence(&task.notes, device, Some("Notes"), "Updated from another device", None)}
-                                {field_evidence(&task.quadrant, device, Some("Quadrant"), "Updated from another device", None)}
-                                {field_evidence(&task.due_date, device, Some("Due date"), "Updated from another device", None)}
-                                {field_evidence(&task.completed_at, device, Some("Completed"), "Marked complete from another device", Some("Restored from another device"))}
-                                {field_evidence(&task.deleted_at, device, Some("Deleted"), "Deleted from another device", Some("Restored from another device"))}
+                                {field_evidence(&task.title, device, task.created_at.hlc, Some("Title"), "Updated from another device", None)}
+                                {field_evidence(&task.notes, device, task.created_at.hlc, Some("Notes"), "Updated from another device", None)}
+                                {field_evidence(&task.quadrant, device, task.created_at.hlc, Some("Quadrant"), "Updated from another device", None)}
+                                {field_evidence(&task.due_date, device, task.created_at.hlc, Some("Due date"), "Updated from another device", None)}
+                                {field_evidence(&task.completed_at, device, task.created_at.hlc, Some("Completed"), "Marked complete from another device", Some("Restored from another device"))}
+                                {field_evidence(&task.deleted_at, device, task.created_at.hlc, Some("Deleted"), "Deleted from another device", Some("Restored from another device"))}
                             </div>
                         }
                         .into_any()
