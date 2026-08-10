@@ -84,6 +84,10 @@ fn js_err<E: std::fmt::Display>(e: E) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
 
+fn repair_err<E: std::fmt::Display>(e: E) -> JsValue {
+    JsValue::from_str(&format!("Repair required: {e}"))
+}
+
 async fn open_secure_storage(passphrase: &str) -> Result<OpfsSecureStorage, JsValue> {
     let profile = ArgonProfile::mobile();
     OpfsSecureStorage::new(passphrase.as_bytes(), profile)
@@ -135,12 +139,12 @@ fn open_vault_state<'a>(
     JsValue,
 > {
     let vault_id = load_vault_id(secure)?;
-    let owner = OwnerTrust::load(vault_id, secure).map_err(js_err)?;
+    let owner = OwnerTrust::load(vault_id, secure).map_err(repair_err)?;
     let management_device_id = owner.genesis_manifest.content.owner_management_device_id;
-    let device = DeviceIdentity::load(management_device_id, secure).map_err(js_err)?;
+    let device = DeviceIdentity::load(management_device_id, secure).map_err(repair_err)?;
     let epoch_root = load_epoch_root(secure)?;
-    let epoch_key = epoch_root.derive(0).map_err(js_err)?;
-    let store = LocalStore::open(secure, epoch_key, device.device_id).map_err(js_err)?;
+    let epoch_key = epoch_root.derive(0).map_err(repair_err)?;
+    let store = LocalStore::open(secure, epoch_key, device.device_id).map_err(repair_err)?;
     Ok((owner, device, epoch_root, epoch_key, store))
 }
 

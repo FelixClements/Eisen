@@ -413,19 +413,30 @@ p {
   font-size: 0.95rem;
 }
 
-.locked {
+.locked,
+.repair {
   padding: 0.75rem;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
   border-radius: 0.5rem;
   text-align: left;
 }
 
-.locked p {
+.locked {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.repair {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.locked p,
+.repair p {
   font-size: 0.95rem;
 }
 
-.locked button {
+.locked button,
+.repair button {
   margin-top: 0.5rem;
   padding: 0.5rem 0.75rem;
   border: none;

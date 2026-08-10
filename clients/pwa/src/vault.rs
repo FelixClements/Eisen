@@ -15,6 +15,7 @@ pub enum VaultState {
     Unlocking,
     Working(String),
     Locked { message: String },
+    RepairRequired { message: String },
     Unlocked { vault_id: String },
     Error(String),
 }
@@ -41,6 +42,16 @@ fn read_file(setter: WriteSignal<String>) -> impl Fn(web_sys::Event) {
                 let _ = reader.read_as_array_buffer(&file);
             }
         }
+    }
+}
+
+fn set_error_state(set_state: &WriteSignal<VaultState>, e: String) {
+    if e.starts_with("Repair required") {
+        set_state.set(VaultState::RepairRequired { message: e });
+    } else if e.starts_with("Cannot unlock vault") {
+        set_state.set(VaultState::Locked { message: e });
+    } else {
+        set_state.set(VaultState::Error(e));
     }
 }
 
@@ -118,6 +129,13 @@ pub fn Vault() -> impl IntoView {
                         <button on:click=move |_| set_tab.set(2)>"Restore from recovery"</button>
                     </div>
                 }.into_any(),
+                VaultState::RepairRequired { message } => view! {
+                    <div class="repair">
+                        <p class="error">{message}</p>
+                        <p>"The vault will not be overwritten automatically. You can try to recover from an encrypted export or a recovery package."</p>
+                        <button on:click=move |_| set_tab.set(2)>"Recover from backup"</button>
+                    </div>
+                }.into_any(),
             }}
 
             <div class="panel" class:hidden=move || tab.get() != 0>
@@ -142,7 +160,7 @@ pub fn Vault() -> impl IntoView {
                             "",
                             Box::new(move |res| match res {
                                 Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
@@ -174,7 +192,7 @@ pub fn Vault() -> impl IntoView {
                                 Err(e) if e.starts_with("Cannot unlock vault") => {
                                     set_state.set(VaultState::Locked { message: e })
                                 }
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
@@ -218,7 +236,7 @@ pub fn Vault() -> impl IntoView {
                                     set_state.set(VaultState::Idle);
                                     set_export_b64.set(b64);
                                 }
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
@@ -262,7 +280,7 @@ pub fn Vault() -> impl IntoView {
                             &b64,
                             Box::new(move |res| match res {
                                 Ok(_) => set_state.set(VaultState::Working("Import completed.".into())),
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
@@ -306,7 +324,7 @@ pub fn Vault() -> impl IntoView {
                                     set_state.set(VaultState::Idle);
                                     set_recovery_b64.set(b64);
                                 }
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
@@ -355,7 +373,7 @@ pub fn Vault() -> impl IntoView {
                             &b64,
                             Box::new(move |res| match res {
                                 Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
-                                Err(e) => set_state.set(VaultState::Error(e)),
+                                Err(e) => set_error_state(&set_state, e),
                             }),
                         );
                     } else {
