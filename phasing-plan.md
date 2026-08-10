@@ -147,7 +147,7 @@ The previous native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose
 | P2.04 | Implement bounded task create and edit UI. | project owner | title/notes/quadrant field validation and local mutation submission. |
 | P2.05 | Implement complete, restore, delete, and move UI actions. | project owner | explicit mutations with completed/deleted views and no implicit tombstone clearing. |
 | P2.06 | [x] Implement local conflict/history evidence. | project owner | user-visible indication sufficient to understand a winning concurrent LWW update without exposing secrets. |
-| P2.07 | Implement recovery-package creation and encrypted local export/import UX. | project owner | explicit user-held backup/recovery actions and clear required-secret messaging. |
+| P2.07 | [x] Implement recovery-package creation and encrypted local export/import UX. | project owner | explicit user-held backup/recovery actions and clear required-secret messaging. |
 | P2.08 | Implement corruption and repair UX. | project owner | preserve-local-vault, repair-required path that cannot silently create an empty vault over recoverable data. |
 | P2.09 | Implement lifecycle-safe local persistence. | project owner | browser page show/hide, service worker activation, tab/window close, and mobile browser background paths resume from a consistent transaction boundary. |
 | P2.10 | Apply local privacy controls. | project owner | suppression of task plaintext from browser logs, analytics, crash reports, form autofill, browser extensions, clipboard, and app-switcher/previews where controls permit. |
