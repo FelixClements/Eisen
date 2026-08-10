@@ -76,6 +76,106 @@ pub fn Vault() -> impl IntoView {
     };
     let worker = StoredValue::new_local(worker);
 
+    let (persistence_hint, set_persistence_hint) = signal(None::<String>);
+
+    async fn request_persistent_storage() -> Option<bool> {
+        let window = web_sys::window()?;
+        let storage = window.navigator().storage();
+        let promise = storage.persist().ok()?;
+        let result = wasm_bindgen_futures::JsFuture::from(promise).await.ok()?;
+        result.as_bool()
+    }
+
+    wasm_bindgen_futures::spawn_local(async move {
+        if request_persistent_storage().await == Some(false) {
+            set_persistence_hint.set(Some(
+                "Persistent storage not granted; the browser may evict vault data when resources are low.".into(),
+            ));
+        }
+    });
+
+    let persist = Rc::new({
+        let worker = worker;
+        let state = state;
+        move || {
+            if state.with(|s| matches!(s, VaultState::Unlocked { .. })) {
+                worker.with_value(|w| {
+                    if let Some(w) = w {
+                        w.send("persist", "", "", Box::new(|_| ()));
+                    }
+                });
+            }
+        }
+    });
+
+    let on_visibility = {
+        let persist = persist.clone();
+        Closure::wrap(Box::new(move |_: web_sys::Event| {
+            if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+                if document.hidden() {
+                    persist();
+                }
+            }
+        }) as Box<dyn FnMut(_)>)
+    };
+    if let Some(window) = web_sys::window() {
+        let _ = window.add_event_listener_with_callback(
+            "visibilitychange",
+            on_visibility.as_ref().unchecked_ref(),
+        );
+    }
+    on_visibility.forget();
+
+    let on_pagehide = {
+        let persist = persist.clone();
+        Closure::wrap(Box::new(move |_: web_sys::PageTransitionEvent| {
+            persist();
+        }) as Box<dyn FnMut(_)>)
+    };
+    if let Some(window) = web_sys::window() {
+        let _ = window
+            .add_event_listener_with_callback("pagehide", on_pagehide.as_ref().unchecked_ref());
+    }
+    on_pagehide.forget();
+
+    let on_beforeunload = {
+        let persist = persist.clone();
+        Closure::wrap(Box::new(move |_: web_sys::BeforeUnloadEvent| {
+            persist();
+        }) as Box<dyn FnMut(_)>)
+    };
+    if let Some(window) = web_sys::window() {
+        let _ = window.add_event_listener_with_callback(
+            "beforeunload",
+            on_beforeunload.as_ref().unchecked_ref(),
+        );
+    }
+    on_beforeunload.forget();
+
+    let on_freeze = {
+        let persist = persist.clone();
+        Closure::wrap(Box::new(move |_: web_sys::Event| {
+            persist();
+        }) as Box<dyn FnMut(_)>)
+    };
+    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+        let _ =
+            document.add_event_listener_with_callback("freeze", on_freeze.as_ref().unchecked_ref());
+    }
+    on_freeze.forget();
+
+    let on_resume = {
+        let persist = persist.clone();
+        Closure::wrap(Box::new(move |_: web_sys::Event| {
+            persist();
+        }) as Box<dyn FnMut(_)>)
+    };
+    if let Some(document) = web_sys::window().and_then(|w| w.document()) {
+        let _ =
+            document.add_event_listener_with_callback("resume", on_resume.as_ref().unchecked_ref());
+    }
+    on_resume.forget();
+
     let input = {
         let setter = set_passphrase.clone();
         move |ev: web_sys::Event| {
@@ -136,6 +236,12 @@ pub fn Vault() -> impl IntoView {
                         <button on:click=move |_| set_tab.set(2)>"Recover from backup"</button>
                     </div>
                 }.into_any(),
+            }}
+
+            {move || if let Some(h) = persistence_hint.get() {
+                view! { <p class="hint">{h}</p> }.into_any()
+            } else {
+                view! {}.into_any()
             }}
 
             <div class="panel" class:hidden=move || tab.get() != 0>

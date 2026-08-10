@@ -445,3 +445,8 @@ p {
   color: #ffffff;
   cursor: pointer;
 }
+
+.hint {
+  font-size: 0.9rem;
+  color: #475569;
+}

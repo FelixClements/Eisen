@@ -1,6 +1,7 @@
 import init, {
   worker_create_vault,
   worker_open_vault,
+  worker_persist,
   worker_create_recovery_package,
   worker_restore_recovery_package,
   worker_export_vault,
@@ -37,6 +38,8 @@ async function handle(data) {
       result = await worker_create_vault(passphrase);
     } else if (action === 'open') {
       result = await worker_open_vault(passphrase);
+    } else if (action === 'persist') {
+      result = worker_persist();
     } else if (action === 'recovery') {
       result = await worker_create_recovery_package(passphrase, payload || '');
     } else if (action === 'restore') {

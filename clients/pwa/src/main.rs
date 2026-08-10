@@ -80,6 +80,17 @@ fn App() -> impl IntoView {
 const EPOCH_ROOT_KEY: &str = "epoch:root:0";
 const META_VAULT_ID: &str = "meta:vault_id";
 
+struct WorkerVault {
+    secure: OpfsSecureStorage,
+    owner: OwnerTrust,
+    device: DeviceIdentity,
+    epoch_key: EpochKey,
+}
+
+std::thread_local! {
+    static VAULT: std::cell::RefCell<Option<WorkerVault>> = const { std::cell::RefCell::new(None) };
+}
+
 fn js_err<E: std::fmt::Display>(e: E) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
@@ -126,6 +137,18 @@ fn load_epoch_root(secure: &OpfsSecureStorage) -> Result<EpochRoot, JsValue> {
     Ok(EpochRoot::from_bytes(root))
 }
 
+fn load_vault_components(
+    secure: &OpfsSecureStorage,
+) -> Result<(OwnerTrust, DeviceIdentity, EpochRoot, EpochKey), JsValue> {
+    let vault_id = load_vault_id(secure)?;
+    let owner = OwnerTrust::load(vault_id, secure).map_err(repair_err)?;
+    let management_device_id = owner.genesis_manifest.content.owner_management_device_id;
+    let device = DeviceIdentity::load(management_device_id, secure).map_err(repair_err)?;
+    let epoch_root = load_epoch_root(secure)?;
+    let epoch_key = epoch_root.derive(0).map_err(repair_err)?;
+    Ok((owner, device, epoch_root, epoch_key))
+}
+
 fn open_vault_state<'a>(
     secure: &'a OpfsSecureStorage,
 ) -> Result<
@@ -138,12 +161,7 @@ fn open_vault_state<'a>(
     ),
     JsValue,
 > {
-    let vault_id = load_vault_id(secure)?;
-    let owner = OwnerTrust::load(vault_id, secure).map_err(repair_err)?;
-    let management_device_id = owner.genesis_manifest.content.owner_management_device_id;
-    let device = DeviceIdentity::load(management_device_id, secure).map_err(repair_err)?;
-    let epoch_root = load_epoch_root(secure)?;
-    let epoch_key = epoch_root.derive(0).map_err(repair_err)?;
+    let (owner, device, epoch_root, epoch_key) = load_vault_components(secure)?;
     let store = LocalStore::open(secure, epoch_key, device.device_id).map_err(repair_err)?;
     Ok((owner, device, epoch_root, epoch_key, store))
 }
@@ -161,20 +179,30 @@ pub async fn worker_create_vault(passphrase: String) -> Result<String, JsValue> 
         counter: 0,
         device_id: device.device_id,
     };
-    let (owner, _device) = create_vault(&secure, hlc).map_err(js_err)?;
+    let (owner, mgmt) = create_vault(&secure, hlc).map_err(js_err)?;
 
     let epoch_root = EpochRoot::generate().map_err(js_err)?;
     secure
         .store(EPOCH_ROOT_KEY, epoch_root.as_bytes())
         .map_err(js_err)?;
     let epoch_key = epoch_root.derive(0).map_err(js_err)?;
-    _ = LocalStore::open(&secure, epoch_key, device.device_id).map_err(js_err)?;
+    _ = LocalStore::open(&secure, epoch_key, mgmt.device_id).map_err(js_err)?;
 
     secure
         .store(META_VAULT_ID, &owner.vault_id.0)
         .map_err(js_err)?;
     _clock.save(1, 1).map_err(js_err)?;
-    Ok(owner.vault_id.to_hex())
+
+    let vault_id = owner.vault_id.to_hex();
+    VAULT.with(|v| {
+        *v.borrow_mut() = Some(WorkerVault {
+            secure,
+            owner,
+            device: mgmt,
+            epoch_key,
+        });
+    });
+    Ok(vault_id)
 }
 
 #[wasm_bindgen]
@@ -184,8 +212,19 @@ pub async fn worker_open_vault(passphrase: String) -> Result<String, JsValue> {
     let _clock = OpfsClockStorage::new(passphrase.as_bytes(), profile)
         .await
         .map_err(js_err)?;
-    let (owner, _device, _epoch_root, _epoch_key, _store) = open_vault_state(&secure)?;
-    Ok(owner.vault_id.to_hex())
+    let (owner, device, _epoch_root, epoch_key) = load_vault_components(&secure)?;
+    let _store = LocalStore::open(&secure, epoch_key, device.device_id).map_err(repair_err)?;
+
+    let vault_id = owner.vault_id.to_hex();
+    VAULT.with(|v| {
+        *v.borrow_mut() = Some(WorkerVault {
+            secure,
+            owner,
+            device,
+            epoch_key,
+        });
+    });
+    Ok(vault_id)
 }
 
 #[wasm_bindgen]
@@ -251,7 +290,32 @@ pub async fn worker_restore_recovery_package(
         .map_err(js_err)?;
     _ = LocalStore::open(&secure, epoch_key, state.new_device.device_id).map_err(js_err)?;
 
-    Ok(state.owner_trust.vault_id.to_hex())
+    let vault_id = state.owner_trust.vault_id;
+    VAULT.with(|v| {
+        *v.borrow_mut() = Some(WorkerVault {
+            secure,
+            owner: state.owner_trust,
+            device: state.new_device,
+            epoch_key,
+        });
+    });
+    Ok(vault_id.to_hex())
+}
+
+#[wasm_bindgen]
+pub fn worker_persist() -> Result<String, JsValue> {
+    VAULT.with(|v| {
+        let v = v.borrow();
+        let vault = v
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("vault not open"))?;
+        let mut store = LocalStore::open(&vault.secure, vault.epoch_key, vault.device.device_id)
+            .map_err(js_err)?;
+        let _ = store
+            .create_signed_snapshot(&vault.owner.owner_signing_key, vault.owner.vault_id)
+            .map_err(js_err)?;
+        Ok("persisted".to_string())
+    })
 }
 
 #[wasm_bindgen]
