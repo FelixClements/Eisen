@@ -142,10 +142,10 @@ The previous native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
 | P2.01 | [x] Build the PWA vault create/unlock flow on the encrypted local core. | project owner | Leptos flow with passphrase key derivation, OPFS failure, and locked-vault recovery states. |
-| P2.02 | Build the PWA install / URL fallback flow. | project owner | install prompt when supported, plus a usable URL path for locked-down work laptops where installs are blocked. |
-| P2.03 | Implement the four-quadrant matrix views. | project owner | local materialized tasks rendered by quadrant without adding remote assumptions. |
-| P2.04 | Implement bounded task create and edit UI. | project owner | title/notes/quadrant field validation and local mutation submission. |
-| P2.05 | Implement complete, restore, delete, and move UI actions. | project owner | explicit mutations with completed/deleted views and no implicit tombstone clearing. |
+| P2.02 | [x] Build the PWA install / URL fallback flow. | project owner | install prompt when supported, plus a usable URL path for locked-down work laptops where installs are blocked. |
+| P2.03 | [x] Implement the four-quadrant matrix views. | project owner | local materialized tasks rendered by quadrant without adding remote assumptions. |
+| P2.04 | [x] Implement bounded task create and edit UI. | project owner | title/notes/quadrant field validation and local mutation submission. |
+| P2.05 | [x] Implement complete, restore, delete, and move UI actions. | project owner | explicit mutations with completed/deleted views and no implicit tombstone clearing. |
 | P2.06 | [x] Implement local conflict/history evidence. | project owner | user-visible indication sufficient to understand a winning concurrent LWW update without exposing secrets. |
 | P2.07 | [x] Implement recovery-package creation and encrypted local export/import UX. | project owner | explicit user-held backup/recovery actions and clear required-secret messaging. |
 | P2.08 | Implement corruption and repair UX. | project owner | preserve-local-vault, repair-required path that cannot silently create an empty vault over recoverable data. |
