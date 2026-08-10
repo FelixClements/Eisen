@@ -382,3 +382,33 @@ p {
   background: #e2e8f0;
   color: #0f172a;
 }
+
+.panel h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 1rem;
+  color: #0f766e;
+  text-align: left;
+}
+
+.panel .notice {
+  font-size: 0.9rem;
+  color: #475569;
+  text-align: left;
+}
+
+.panel input[type="file"] {
+  padding: 0.5rem 0;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+}
+
+.download-link {
+  display: inline-block;
+  padding: 0.5rem 0.75rem;
+  background: #0f766e;
+  color: #ffffff;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  font-size: 0.95rem;
+}

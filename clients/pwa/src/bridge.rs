@@ -68,6 +68,7 @@ impl WorkerClient {
         &self,
         action: &str,
         passphrase: &str,
+        payload: &str,
         callback: Box<dyn Fn(Result<String, String>) + Send>,
     ) {
         let id = *self.next_id.borrow();
@@ -78,6 +79,7 @@ impl WorkerClient {
         _ = Reflect::set(&data, &"id".into(), &JsValue::from_f64(id as f64));
         _ = Reflect::set(&data, &"action".into(), &JsValue::from_str(action));
         _ = Reflect::set(&data, &"passphrase".into(), &JsValue::from_str(passphrase));
+        _ = Reflect::set(&data, &"payload".into(), &JsValue::from_str(payload));
 
         if let Err(e) = self.worker.post_message(&data) {
             log::error!("failed to post to worker: {:?}", e);
