@@ -53,6 +53,13 @@ fn App() -> impl IntoView {
         <Meta charset="UTF-8" />
         <Meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <Meta name="theme-color" content="#0f766e" />
+        <Meta name="referrer" content="no-referrer" />
+        <Meta name="apple-mobile-web-app-capable" content="yes" />
+        <Meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+        />
         <Link rel="manifest" href="/manifest.json" />
 
         <main>

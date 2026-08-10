@@ -184,6 +184,10 @@ pub fn TaskForm(
             <input
                 type="text"
                 placeholder="Title"
+                autocomplete="off"
+
+
+                spellcheck="false"
                 prop:value=title
                 on:input=move |ev| {
                     if let Some(el) = ev.target() {
@@ -202,6 +206,10 @@ pub fn TaskForm(
 
             <textarea
                 placeholder="Notes"
+                autocomplete="off"
+
+
+                spellcheck="false"
                 prop:value=notes
                 on:input=move |ev| {
                     if let Some(el) = ev.target() {

@@ -268,8 +268,8 @@ pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> imp
             }}
 
             <div class="panel" class:hidden=move || tab.get() != 0>
-                <input type="password" placeholder="Passphrase" on:input=input />
-                <input type="password" placeholder="Confirm passphrase" on:input=confirm_input />
+                <input type="password" placeholder="Passphrase" autocomplete="off" on:input=input />
+                <input type="password" placeholder="Confirm passphrase" autocomplete="off" on:input=confirm_input />
                 <button on:click=move |_| worker.with_value(|worker| {
                     let p = passphrase.get();
                     let c = confirm.get();
@@ -308,7 +308,7 @@ pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> imp
             </div>
 
             <div class="panel" class:hidden=move || tab.get() != 1>
-                <input type="password" placeholder="Passphrase" on:input=input />
+                <input type="password" placeholder="Passphrase" autocomplete="off" on:input=input />
                 <button on:click=move |_| worker.with_value(|worker| {
                     let p = passphrase.get();
                     if p.is_empty() {
@@ -350,6 +350,9 @@ pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> imp
                 <input
                     type="password"
                     placeholder="Current vault passphrase"
+                    autocomplete="off"
+
+
                     on:input=input
                 />
 
@@ -447,6 +450,10 @@ pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> imp
                 <input
                     type="text"
                     placeholder="Optional locator (e.g. a hint or name)"
+                    autocomplete="off"
+
+
+                    spellcheck="false"
                     prop:value=locator
                     on:input=move |ev| {
                         if let Some(el) = ev.target() {

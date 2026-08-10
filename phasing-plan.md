@@ -150,7 +150,7 @@ The previous native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose
 | P2.07 | [x] Implement recovery-package creation and encrypted local export/import UX. | project owner | explicit user-held backup/recovery actions and clear required-secret messaging. |
 | P2.08 | [x] Implement corruption and repair UX. | project owner | preserve-local-vault, repair-required path that cannot silently create an empty vault over recoverable data. |
 | P2.09 | [x] Implement lifecycle-safe local persistence. | project owner | browser page show/hide, service worker activation, tab/window close, and mobile browser background paths resume from a consistent transaction boundary. |
-| P2.10 | Apply local privacy controls. | project owner | suppression of task plaintext from browser logs, analytics, crash reports, form autofill, browser extensions, clipboard, and app-switcher/previews where controls permit. |
+| P2.10 | [x] Apply local privacy controls. | project owner | suppression of task plaintext from browser logs, analytics, crash reports, form autofill, browser extensions, clipboard, and app-switcher/previews where controls permit. |
 | P2.11 | Implement honest local-only status and failure messaging. | project owner | visible local-only state with no sync-ready claim and recovery limitations stated. |
 | P2.12 | Add PWA acceptance tests. | project owner | Chrome, Firefox, Safari, and Edge offline task, restart, backup/export, recovery, corruption, and lifecycle scenario results. |
 
