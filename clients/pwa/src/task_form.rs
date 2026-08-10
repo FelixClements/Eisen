@@ -1,9 +1,16 @@
-use eisen_core::{DeviceId, Field, Hlc, Mutation, Task, TaskId, TaskStore};
+use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine as _;
+use cbor2;
+use eisen_core::{DeviceId, Field, Hlc, Task};
 use js_sys::Date;
 use leptos::prelude::*;
+use serde_json::json;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlInputElement, HtmlSelectElement, HtmlTextAreaElement};
+
+use crate::bridge::WorkerClient;
 
 fn short_device_label(id: &DeviceId) -> String {
     let prefix =
@@ -50,7 +57,8 @@ fn field_evidence<T>(
     view! { <p class="merge-evidence">{text}</p> }.into_any()
 }
 
-fn has_remote_evidence(task: &Task, local: DeviceId) -> bool {
+fn has_remote_evidence(task: &Task) -> bool {
+    let local = task.created_at.hlc.device_id;
     let created_at = task.created_at.hlc;
     (task.title.hlc.device_id != local && task.title.hlc != created_at)
         || (task.notes.hlc.device_id != local && task.notes.hlc != created_at)
@@ -60,21 +68,24 @@ fn has_remote_evidence(task: &Task, local: DeviceId) -> bool {
         || (task.deleted_at.hlc.device_id != local && task.deleted_at.hlc != created_at)
 }
 
+fn decode_task_list(b64: &str) -> Option<Vec<Task>> {
+    let bytes = B64.decode(b64).ok()?;
+    cbor2::from_slice::<Vec<Task>>(&bytes).ok()
+}
+
 #[component]
 pub fn TaskForm(
-    store: ReadSignal<TaskStore>,
-    set_store: WriteSignal<TaskStore>,
+    worker: Rc<WorkerClient>,
     editing: ReadSignal<Option<Task>>,
     set_editing: WriteSignal<Option<Task>>,
-    next_id: ReadSignal<u64>,
-    set_next_id: WriteSignal<u64>,
+    set_tasks: WriteSignal<Vec<Task>>,
 ) -> impl IntoView {
+    let worker = StoredValue::new_local(Some(worker));
     let (title, set_title) = signal(String::new());
     let (notes, set_notes) = signal(String::new());
     let (quadrant, set_quadrant) = signal(0u8);
     let (error, set_error) = signal(None::<String>);
     let (show_history, set_show_history) = signal(false);
-    let device = DeviceId([1u8; 16]);
 
     // Populate form when a task is selected for editing.
     Effect::new({
@@ -91,21 +102,6 @@ pub fn TaskForm(
         }
     });
 
-    let new_hlc = {
-        let next_id = next_id.clone();
-        let set_next_id = set_next_id.clone();
-        move || {
-            let now = js_sys::Date::now() as u64;
-            let id = next_id.get_untracked();
-            set_next_id.set(id + 1);
-            Hlc {
-                wall: now,
-                counter: id as u32,
-                device_id: device,
-            }
-        }
-    };
-
     let on_submit = {
         let set_title = set_title.clone();
         let set_notes = set_notes.clone();
@@ -117,66 +113,57 @@ pub fn TaskForm(
             let new_notes = notes.get();
             let new_quadrant = quadrant.get();
 
-            let mut s = store.get();
+            if new_title.is_empty() {
+                set_error.set(Some("Title is required.".into()));
+                return;
+            }
 
-            let result = if let Some(task) = editing.get() {
-                Mutation::Update {
-                    hlc: new_hlc(),
-                    id: task.id,
-                    title: Some(new_title),
-                    notes: Some(if new_notes.is_empty() {
-                        None
-                    } else {
-                        Some(new_notes)
-                    }),
-                    quadrant: Some(new_quadrant),
-                    due_date: None,
-                }
+            let (action, payload) = if let Some(task) = editing.get() {
+                let id_b64 = B64.encode(&task.id.0);
+                let payload = serde_json::to_string(&json!({
+                    "id": id_b64,
+                    "title": new_title,
+                    "notes": new_notes,
+                    "quadrant": new_quadrant,
+                }))
+                .unwrap_or_default();
+                ("update_task", payload)
             } else {
-                let now = js_sys::Date::now() as u64;
-                let id = next_id.get_untracked();
-                set_next_id.set(id + 1);
-                let hlc = Hlc {
-                    wall: now,
-                    counter: id as u32,
-                    device_id: device,
-                };
-                let mut id_bytes = [0u8; 16];
-                id_bytes[0..8].copy_from_slice(&id.to_be_bytes());
-                id_bytes[8..12].copy_from_slice(&1u32.to_be_bytes());
-                Mutation::Create {
-                    hlc,
-                    id: TaskId(id_bytes),
-                    title: new_title,
-                    notes: if new_notes.is_empty() {
-                        None
-                    } else {
-                        Some(new_notes)
-                    },
-                    quadrant: new_quadrant,
-                    due_date: None,
-                }
+                let payload = serde_json::to_string(&json!({
+                    "title": new_title,
+                    "notes": new_notes,
+                    "quadrant": new_quadrant,
+                }))
+                .unwrap_or_default();
+                ("create_task", payload)
             };
 
-            match s.apply(result) {
-                Ok(()) => {
-                    set_store.set(s);
-                    set_editing.set(None);
-                    set_title.set(String::new());
-                    set_notes.set(String::new());
-                    set_quadrant.set(0);
-                    set_error.set(None);
+            worker.with_value(|w| {
+                if let Some(w) = w {
+                    w.send(
+                        &action,
+                        "",
+                        &payload,
+                        Box::new(move |res| match res {
+                            Ok(b64) => {
+                                if let Some(list) = decode_task_list(&b64) {
+                                    set_tasks.set(list);
+                                    set_editing.set(None);
+                                    set_title.set(String::new());
+                                    set_notes.set(String::new());
+                                    set_quadrant.set(0);
+                                    set_error.set(None);
+                                }
+                            }
+                            Err(e) => set_error.set(Some(e)),
+                        }),
+                    );
                 }
-                Err(e) => set_error.set(Some(e.to_string())),
-            }
+            });
         }
     };
 
     let on_cancel = {
-        let set_title = set_title.clone();
-        let set_notes = set_notes.clone();
-        let set_quadrant = set_quadrant.clone();
-        let set_error = set_error.clone();
         move |_| {
             set_editing.set(None);
             set_title.set(String::new());
@@ -208,7 +195,7 @@ pub fn TaskForm(
             />
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.title, device, task.created_at.hlc, None, "Updated from another device", None)
+                field_evidence(&task.title, task.created_at.hlc.device_id, task.created_at.hlc, None, "Updated from another device", None)
             } else {
                 view! {}.into_any()
             }}
@@ -226,7 +213,7 @@ pub fn TaskForm(
             />
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.notes, device, task.created_at.hlc, None, "Updated from another device", None)
+                field_evidence(&task.notes, task.created_at.hlc.device_id, task.created_at.hlc, None, "Updated from another device", None)
             } else {
                 view! {}.into_any()
             }}
@@ -236,7 +223,9 @@ pub fn TaskForm(
                 on:change=move |ev| {
                     if let Some(el) = ev.target() {
                         if let Ok(select) = el.dyn_into::<HtmlSelectElement>() {
-                            set_quadrant.set(select.value().parse().unwrap_or(0));
+                            if let Ok(q) = select.value().parse::<u8>() {
+                                set_quadrant.set(q);
+                            }
                         }
                     }
                 }
@@ -248,61 +237,46 @@ pub fn TaskForm(
             </select>
 
             {move || if let Some(task) = editing.get() {
-                field_evidence(&task.quadrant, device, task.created_at.hlc, None, "Updated from another device", None)
+                field_evidence(&task.quadrant, task.created_at.hlc.device_id, task.created_at.hlc, None, "Quadrant changed from another device", None)
             } else {
                 view! {}.into_any()
             }}
 
             <div class="form-actions">
-                <button on:click=on_submit>
-                    {move || if editing.get().is_some() { "Update task" } else { "Create task" }}
-                </button>
+                <button on:click=on_submit>{move || if editing.get().is_some() { "Save" } else { "Add" }}</button>
                 {move || if editing.get().is_some() {
                     view! {
-                        <button class="secondary" on:click=on_cancel>"Cancel"</button>
-                    }
-                    .into_any()
+                        <>
+                            <button on:click=on_cancel class="secondary">"Cancel"</button>
+                            <button on:click=move |_| set_show_history.set(!show_history.get()) class="secondary">
+                                {move || if show_history.get() { "Hide history" } else { "Show history" }}
+                            </button>
+                        </>
+                    }.into_any()
                 } else {
                     view! {}.into_any()
                 }}
             </div>
 
-            {move || if let Some(task) = editing.get() {
-                if has_remote_evidence(&task, device) {
-                    view! {
-                        <button
-                            class="secondary history-toggle"
-                            on:click=move |_| set_show_history.set(!show_history.get())
-                        >
-                            {move || if show_history.get() { "Hide history" } else { "Show history" }}
-                        </button>
+            {move || if show_history.get() {
+                if let Some(task) = editing.get() {
+                    if has_remote_evidence(&task) {
+                        view! {
+                            <div class="history">
+                                <h4>"Field history"</h4>
+                                {field_evidence(&task.title, task.created_at.hlc.device_id, task.created_at.hlc, Some("Title"), "Set to:", Some("Cleared"))}
+                                {field_evidence(&task.notes, task.created_at.hlc.device_id, task.created_at.hlc, Some("Notes"), "Set to:", Some("Cleared"))}
+                                {field_evidence(&task.quadrant, task.created_at.hlc.device_id, task.created_at.hlc, Some("Quadrant"), "Changed", None)}
+                                {field_evidence(&task.completed_at, task.created_at.hlc.device_id, task.created_at.hlc, Some("Completed"), "Completed", None)}
+                                {field_evidence(&task.deleted_at, task.created_at.hlc.device_id, task.created_at.hlc, Some("Deleted"), "Deleted", None)}
+                            </div>
+                        }.into_any()
+                    } else {
+                        view! { <p class="merge-evidence">"No remote changes for this task."</p> }.into_any()
                     }
-                    .into_any()
                 } else {
                     view! {}.into_any()
                 }
-            } else {
-                view! {}.into_any()
-            }}
-
-            {move || if show_history.get() {
-                editing
-                    .get()
-                    .map(|task| {
-                        view! {
-                            <div class="history">
-                                <h4>"Merge history"</h4>
-                                {field_evidence(&task.title, device, task.created_at.hlc, Some("Title"), "Updated from another device", None)}
-                                {field_evidence(&task.notes, device, task.created_at.hlc, Some("Notes"), "Updated from another device", None)}
-                                {field_evidence(&task.quadrant, device, task.created_at.hlc, Some("Quadrant"), "Updated from another device", None)}
-                                {field_evidence(&task.due_date, device, task.created_at.hlc, Some("Due date"), "Updated from another device", None)}
-                                {field_evidence(&task.completed_at, device, task.created_at.hlc, Some("Completed"), "Marked complete from another device", Some("Restored from another device"))}
-                                {field_evidence(&task.deleted_at, device, task.created_at.hlc, Some("Deleted"), "Deleted from another device", Some("Restored from another device"))}
-                            </div>
-                        }
-                        .into_any()
-                    })
-                    .unwrap_or_else(|| view! {}.into_any())
             } else {
                 view! {}.into_any()
             }}

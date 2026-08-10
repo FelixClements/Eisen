@@ -1,6 +1,8 @@
 use crate::bridge::WorkerClient;
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine as _;
+use cbor2;
+use eisen_core::Task;
 use js_sys::{ArrayBuffer, Uint8Array};
 use leptos::prelude::*;
 use std::rc::Rc;
@@ -18,6 +20,21 @@ pub enum VaultState {
     RepairRequired { message: String },
     Unlocked { vault_id: String },
     Error(String),
+}
+
+fn set_error_state(set_state: &WriteSignal<VaultState>, e: String) {
+    if e.starts_with("Repair required") {
+        set_state.set(VaultState::RepairRequired { message: e });
+    } else if e.starts_with("Cannot unlock vault") {
+        set_state.set(VaultState::Locked { message: e });
+    } else {
+        set_state.set(VaultState::Error(e));
+    }
+}
+
+fn decode_task_list(b64: &str) -> Option<Vec<Task>> {
+    let bytes = B64.decode(b64).ok()?;
+    cbor2::from_slice::<Vec<Task>>(&bytes).ok()
 }
 
 fn read_file(setter: WriteSignal<String>) -> impl Fn(web_sys::Event) {
@@ -45,19 +62,18 @@ fn read_file(setter: WriteSignal<String>) -> impl Fn(web_sys::Event) {
     }
 }
 
-fn set_error_state(set_state: &WriteSignal<VaultState>, e: String) {
-    if e.starts_with("Repair required") {
-        set_state.set(VaultState::RepairRequired { message: e });
-    } else if e.starts_with("Cannot unlock vault") {
-        set_state.set(VaultState::Locked { message: e });
-    } else {
-        set_state.set(VaultState::Error(e));
-    }
+async fn request_persistent_storage() -> Option<bool> {
+    let window = web_sys::window()?;
+    let storage = window.navigator().storage();
+    let promise = storage.persist().ok()?;
+    let result = wasm_bindgen_futures::JsFuture::from(promise).await.ok()?;
+    result.as_bool()
 }
 
 #[component]
-pub fn Vault() -> impl IntoView {
+pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> impl IntoView {
     let (state, set_state) = signal(VaultState::Idle);
+    let (last_vault_id, set_last_vault_id) = signal(String::new());
     let (passphrase, set_passphrase) = signal(String::new());
     let (confirm, set_confirm) = signal(String::new());
     let (tab, set_tab) = signal(0u8); // 0 = create, 1 = unlock, 2 = backup
@@ -66,25 +82,32 @@ pub fn Vault() -> impl IntoView {
     let (recovery_b64, set_recovery_b64) = signal(String::new());
     let (import_b64, set_import_b64) = signal(String::new());
     let (restore_b64, set_restore_b64) = signal(String::new());
-
-    let worker = match WorkerClient::new() {
-        Ok(w) => Some(Rc::new(w)),
-        Err(_) => {
-            set_state.set(VaultState::Error("Could not start secure worker.".into()));
-            None
-        }
-    };
-    let worker = StoredValue::new_local(worker);
-
     let (persistence_hint, set_persistence_hint) = signal(None::<String>);
 
-    async fn request_persistent_storage() -> Option<bool> {
-        let window = web_sys::window()?;
-        let storage = window.navigator().storage();
-        let promise = storage.persist().ok()?;
-        let result = wasm_bindgen_futures::JsFuture::from(promise).await.ok()?;
-        result.as_bool()
-    }
+    let worker = StoredValue::new_local(Some(worker));
+
+    let load_tasks = {
+        let set_tasks = set_tasks;
+        move || {
+            worker.with_value(|w| {
+                if let Some(w) = w {
+                    w.send(
+                        "list",
+                        "",
+                        "",
+                        Box::new(move |res| match res {
+                            Ok(b64) => {
+                                if let Some(list) = decode_task_list(&b64) {
+                                    set_tasks.set(list);
+                                }
+                            }
+                            Err(e) => log::error!("failed to load tasks: {e}"),
+                        }),
+                    );
+                }
+            })
+        }
+    };
 
     wasm_bindgen_futures::spawn_local(async move {
         if request_persistent_storage().await == Some(false) {
@@ -260,12 +283,17 @@ pub fn Vault() -> impl IntoView {
                     }
                     if let Some(w) = worker {
                         set_state.set(VaultState::Creating);
+                        let load_tasks = load_tasks.clone();
                         w.send(
                             "create",
                             &p,
                             "",
                             Box::new(move |res| match res {
-                                Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
+                                Ok(id) => {
+                                    set_last_vault_id.set(id.clone());
+                                    set_state.set(VaultState::Unlocked { vault_id: id });
+                                    load_tasks();
+                                }
                                 Err(e) => set_error_state(&set_state, e),
                             }),
                         );
@@ -289,14 +317,16 @@ pub fn Vault() -> impl IntoView {
                     }
                     if let Some(w) = worker {
                         set_state.set(VaultState::Unlocking);
+                        let load_tasks = load_tasks.clone();
                         w.send(
                             "open",
                             &p,
                             "",
                             Box::new(move |res| match res {
-                                Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
-                                Err(e) if e.starts_with("Cannot unlock vault") => {
-                                    set_state.set(VaultState::Locked { message: e })
+                                Ok(id) => {
+                                    set_last_vault_id.set(id.clone());
+                                    set_state.set(VaultState::Unlocked { vault_id: id });
+                                    load_tasks();
                                 }
                                 Err(e) => set_error_state(&set_state, e),
                             }),
@@ -339,7 +369,12 @@ pub fn Vault() -> impl IntoView {
                             "",
                             Box::new(move |res| match res {
                                 Ok(b64) => {
-                                    set_state.set(VaultState::Idle);
+                                    let v = last_vault_id.get_untracked();
+                                    if !v.is_empty() {
+                                        set_state.set(VaultState::Unlocked { vault_id: v });
+                                    } else {
+                                        set_state.set(VaultState::Idle);
+                                    }
                                     set_export_b64.set(b64);
                                 }
                                 Err(e) => set_error_state(&set_state, e),
@@ -380,12 +415,21 @@ pub fn Vault() -> impl IntoView {
                     }
                     if let Some(w) = worker {
                         set_state.set(VaultState::Working("Importing…".into()));
+                        let load_tasks = load_tasks.clone();
                         w.send(
                             "import",
                             &p,
                             &b64,
                             Box::new(move |res| match res {
-                                Ok(_) => set_state.set(VaultState::Working("Import completed.".into())),
+                                Ok(_) => {
+                                    let v = last_vault_id.get_untracked();
+                                    if !v.is_empty() {
+                                        set_state.set(VaultState::Unlocked { vault_id: v });
+                                    } else {
+                                        set_state.set(VaultState::Working("Import completed.".into()));
+                                    }
+                                    load_tasks();
+                                }
                                 Err(e) => set_error_state(&set_state, e),
                             }),
                         );
@@ -427,7 +471,12 @@ pub fn Vault() -> impl IntoView {
                             &loc,
                             Box::new(move |res| match res {
                                 Ok(b64) => {
-                                    set_state.set(VaultState::Idle);
+                                    let v = last_vault_id.get_untracked();
+                                    if !v.is_empty() {
+                                        set_state.set(VaultState::Unlocked { vault_id: v });
+                                    } else {
+                                        set_state.set(VaultState::Idle);
+                                    }
                                     set_recovery_b64.set(b64);
                                 }
                                 Err(e) => set_error_state(&set_state, e),
@@ -473,12 +522,17 @@ pub fn Vault() -> impl IntoView {
                     }
                     if let Some(w) = worker {
                         set_state.set(VaultState::Working("Restoring…".into()));
+                        let load_tasks = load_tasks.clone();
                         w.send(
                             "restore",
                             &p,
                             &b64,
                             Box::new(move |res| match res {
-                                Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
+                                Ok(id) => {
+                                    set_last_vault_id.set(id.clone());
+                                    set_state.set(VaultState::Unlocked { vault_id: id });
+                                    load_tasks();
+                                }
                                 Err(e) => set_error_state(&set_state, e),
                             }),
                         );

@@ -1,7 +1,14 @@
-use eisen_core::{DeviceId, Hlc, Mutation, Task, TaskId, TaskStore};
+use base64::engine::general_purpose::STANDARD as B64;
+use base64::Engine as _;
+use cbor2;
+use eisen_core::Task;
 use leptos::prelude::*;
+use serde_json::json;
+use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use web_sys::HtmlSelectElement;
+
+use crate::bridge::WorkerClient;
 
 const QUADRANT_LABELS: [&str; 4] = [
     "Urgent & Important",
@@ -17,83 +24,48 @@ const QUADRANT_OPTIONS: [(&str, &str); 4] = [
     ("3", "Not Urgent, Not Important"),
 ];
 
-pub fn seed_store() -> TaskStore {
-    let mut store = TaskStore::new();
-    let device = DeviceId([1u8; 16]);
-    let hlc = |wall, counter| Hlc {
-        wall,
-        counter,
-        device_id: device,
-    };
+fn decode_task_list(b64: &str) -> Option<Vec<Task>> {
+    let bytes = B64.decode(b64).ok()?;
+    cbor2::from_slice::<Vec<Task>>(&bytes).ok()
+}
 
-    let samples = [
-        ("Plan release", 0u8),
-        ("Write docs", 1u8),
-        ("Reply to email", 2u8),
-        ("Watch webinar", 3u8),
-        ("Fix build", 0u8),
-        ("Research competitors", 1u8),
-    ];
-
-    for (i, (title, quadrant)) in samples.iter().enumerate() {
-        let mut id = [0u8; 16];
-        id[0] = i as u8 + 1;
-        let _ = store.apply(Mutation::Create {
-            hlc: hlc(1, i as u32),
-            id: TaskId(id),
-            title: (*title).into(),
-            notes: None,
-            quadrant: *quadrant,
-            due_date: None,
-        });
-    }
-
-    store
+fn send_task_action(
+    worker: &WorkerClient,
+    action: &'static str,
+    payload: String,
+    set_tasks: WriteSignal<Vec<Task>>,
+) {
+    worker.send(
+        action,
+        "",
+        &payload,
+        Box::new(move |res| match res {
+            Ok(b64) => {
+                if let Some(list) = decode_task_list(&b64) {
+                    set_tasks.set(list);
+                }
+            }
+            Err(e) => log::error!("{action} failed: {e}"),
+        }),
+    );
 }
 
 #[component]
 pub fn Matrix(
-    store: ReadSignal<TaskStore>,
-    set_store: WriteSignal<TaskStore>,
+    worker: Rc<WorkerClient>,
+    tasks: ReadSignal<Vec<Task>>,
+    set_tasks: WriteSignal<Vec<Task>>,
     set_editing: WriteSignal<Option<Task>>,
-    next_id: ReadSignal<u64>,
-    set_next_id: WriteSignal<u64>,
 ) -> impl IntoView {
-    let device = DeviceId([1u8; 16]);
-
-    let new_hlc = {
-        let next_id = next_id.clone();
-        let set_next_id = set_next_id.clone();
-        move || {
-            let now = js_sys::Date::now() as u64;
-            let id = next_id.get_untracked();
-            set_next_id.set(id + 1);
-            Hlc {
-                wall: now,
-                counter: id as u32,
-                device_id: device,
-            }
-        }
-    };
-
-    let apply = {
-        let store = store.clone();
-        let set_store = set_store.clone();
-        move |mutation: Mutation| {
-            let mut s = store.get();
-            if s.apply(mutation).is_ok() {
-                set_store.set(s);
-            }
-        }
-    };
+    let worker = StoredValue::new_local(Some(worker));
 
     view! {
         <section class="matrix">
             <h2>"Eisenhower Matrix"</h2>
             {move || {
-                let quadrants = store.with(|s| {
+                let quadrants = tasks.with(|t| {
                     let mut qs = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
-                    for task in s.values().filter(|t| !t.is_deleted()) {
+                    for task in t.iter().filter(|t| !t.is_deleted()) {
                         if let Some(q) = task.quadrant.value {
                             if q < 4 {
                                 qs[q as usize].push(task.clone());
@@ -126,7 +98,12 @@ pub fn Matrix(
                                                     class="task-item"
                                                     class:completed=is_completed
                                                 >
-                                                    <span class="task-title">{title}</span>
+                                                    <span
+                                                        class="task-title"
+                                                        on:click=move |_| set_editing.set(Some(task_for_edit.clone()))
+                                                    >
+                                                        {title}
+                                                    </span>
 
                                                     <div class="task-actions">
                                                         <select
@@ -139,14 +116,15 @@ pub fn Matrix(
                                                                 if let Some(el) = ev.target() {
                                                                     if let Ok(select) = el.dyn_into::<HtmlSelectElement>() {
                                                                         if let Ok(q) = select.value().parse::<u8>() {
-                                                                            let hlc = new_hlc();
-                                                                            apply(Mutation::Update {
-                                                                                hlc,
-                                                                                id: task_id,
-                                                                                title: None,
-                                                                                notes: None,
-                                                                                quadrant: Some(q),
-                                                                                due_date: None,
+                                                                            worker.with_value(|w| {
+                                                                                if let Some(w) = w {
+                                                                                    let id_b64 = B64.encode(&task_id.0);
+                                                                                    let payload = serde_json::to_string(&json!({
+                                                                                        "id": id_b64,
+                                                                                        "quadrant": q,
+                                                                                    })).unwrap_or_default();
+                                                                                    send_task_action(&**w, "move_task", payload, set_tasks);
+                                                                                }
                                                                             });
                                                                         }
                                                                     }
@@ -162,8 +140,12 @@ pub fn Matrix(
                                                             <button
                                                                 class="complete"
                                                                 on:click=move |_| {
-                                                                    let hlc = new_hlc();
-                                                                    apply(Mutation::Complete { hlc, id: task_id });
+                                                                    worker.with_value(|w| {
+                                                                        if let Some(w) = w {
+                                                                            let id_b64 = B64.encode(&task_id.0);
+                                                                            send_task_action(&**w, "complete_task", id_b64, set_tasks);
+                                                                        }
+                                                                    });
                                                                 }
                                                             >
                                                                 "Complete"
@@ -173,8 +155,12 @@ pub fn Matrix(
                                                         <button
                                                             class="delete"
                                                             on:click=move |_| {
-                                                                let hlc = new_hlc();
-                                                                apply(Mutation::Delete { hlc, id: task_id });
+                                                                worker.with_value(|w| {
+                                                                    if let Some(w) = w {
+                                                                        let id_b64 = B64.encode(&task_id.0);
+                                                                        send_task_action(&**w, "delete_task", id_b64, set_tasks);
+                                                                    }
+                                                                });
                                                             }
                                                         >
                                                             "Delete"
@@ -184,8 +170,12 @@ pub fn Matrix(
                                                             <button
                                                                 class="restore"
                                                                 on:click=move |_| {
-                                                                    let hlc = new_hlc();
-                                                                    apply(Mutation::Restore { hlc, id: task_id });
+                                                                    worker.with_value(|w| {
+                                                                        if let Some(w) = w {
+                                                                            let id_b64 = B64.encode(&task_id.0);
+                                                                            send_task_action(&**w, "restore_task", id_b64, set_tasks);
+                                                                        }
+                                                                    });
                                                                 }
                                                             >
                                                                 "Restore"
@@ -194,9 +184,7 @@ pub fn Matrix(
 
                                                         <button
                                                             class="edit"
-                                                            on:click=move |_| {
-                                                                set_editing.set(Some(task_for_edit.clone()));
-                                                            }
+                                                            on:click=move |_| set_editing.set(Some(task.clone()))
                                                         >
                                                             "Edit"
                                                         </button>

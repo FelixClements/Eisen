@@ -1,4 +1,5 @@
 mod bridge;
+use bridge::WorkerClient;
 mod install;
 mod matrix;
 mod task_form;
@@ -14,12 +15,13 @@ use eisen_core::manifest::ManifestChain;
 use eisen_core::opfs_storage::{OpfsClockStorage, OpfsSecureStorage};
 use eisen_core::recovery::{ArgonProfile, RecoveryPackage};
 use eisen_core::store::LocalStore;
-use eisen_core::{Hlc, Task};
+use eisen_core::{DeviceId, Hlc, Mutation, Task, TaskId};
 use install::InstallPrompt;
 use leptos::prelude::*;
 use leptos_meta::*;
-use matrix::{seed_store, Matrix};
+use matrix::Matrix;
 use std::collections::BTreeMap;
+use std::rc::Rc;
 use task_form::TaskForm;
 use vault::Vault;
 use wasm_bindgen::prelude::*;
@@ -41,9 +43,9 @@ fn main() {}
 fn App() -> impl IntoView {
     provide_meta_context();
 
-    let (store, set_store) = signal(seed_store());
+    let worker = Rc::new(WorkerClient::new().expect("Could not start secure worker"));
+    let (tasks, set_tasks) = signal(Vec::<Task>::new());
     let (editing, set_editing) = signal(None::<Task>);
-    let (next_id, set_next_id) = signal(7u64);
 
     view! {
         <Html attr:lang="en" attr:dir="ltr" />
@@ -57,21 +59,18 @@ fn App() -> impl IntoView {
             <h1>"Eisen"</h1>
             <p>"A local-first, installable PWA for secure task management."</p>
             <InstallPrompt />
-            <Vault />
+            <Vault worker=worker.clone() set_tasks=set_tasks />
             <TaskForm
-                store=store
-                set_store=set_store
+                worker=worker.clone()
                 editing=editing
                 set_editing=set_editing
-                next_id=next_id
-                set_next_id=set_next_id
+                set_tasks=set_tasks
             />
             <Matrix
-                store=store
-                set_store=set_store
+                worker=worker.clone()
+                tasks=tasks
+                set_tasks=set_tasks
                 set_editing=set_editing
-                next_id=next_id
-                set_next_id=set_next_id
             />
         </main>
     }
@@ -340,4 +339,184 @@ pub async fn worker_import_vault(
     let export = VaultExport::from_bytes(&export_bytes).map_err(js_err)?;
     store.import(&export, &owner).map_err(js_err)?;
     Ok("import completed".to_string())
+}
+
+fn next_hlc(store: &LocalStore, device_id: DeviceId) -> Hlc {
+    let last_wall = store.metadata().last_wall;
+    let last_counter = store.metadata().last_counter;
+    let wall = (js_sys::Date::now() as u64).max(last_wall);
+    let counter = if wall == last_wall {
+        last_counter.saturating_add(1)
+    } else {
+        0
+    };
+    Hlc {
+        wall,
+        counter,
+        device_id,
+    }
+}
+
+fn random_task_id() -> Result<TaskId, JsValue> {
+    let mut bytes = [0u8; 16];
+    getrandom::getrandom(&mut bytes)
+        .map_err(|e| JsValue::from_str(&format!("getrandom failed: {e}")))?;
+    Ok(TaskId(bytes))
+}
+
+fn task_id_from_b64(id_b64: &str) -> Result<TaskId, JsValue> {
+    let bytes = B64
+        .decode(id_b64)
+        .map_err(|_| JsValue::from_str("invalid id"))?;
+    let arr: [u8; 16] = bytes
+        .try_into()
+        .map_err(|_| JsValue::from_str("corrupted id length"))?;
+    Ok(TaskId(arr))
+}
+
+fn apply_local_mutation(
+    store: &mut LocalStore,
+    owner: &OwnerTrust,
+    device: &DeviceIdentity,
+    mutation: Mutation,
+) -> Result<(), JsValue> {
+    let hlc = mutation
+        .hlc()
+        .ok_or_else(|| JsValue::from_str("mutation has no hlc"))?;
+    let envelope = eisen_core::envelope::Envelope::sign(&mutation, hlc, &device.signing_key)
+        .map_err(js_err)?;
+    let seq = store
+        .metadata()
+        .seq
+        .get(&device.device_id)
+        .copied()
+        .unwrap_or(0)
+        .saturating_add(1);
+    store.apply(envelope, owner, seq).map_err(js_err)?;
+    Ok(())
+}
+
+fn list_tasks_base64(store: &LocalStore) -> Result<String, JsValue> {
+    let tasks: Vec<Task> = store.store().values().cloned().collect();
+    let bytes = cbor2::to_canonical_vec(&tasks).map_err(js_err)?;
+    Ok(B64.encode(bytes))
+}
+
+fn with_open_store<T, F: FnOnce(&mut LocalStore, &WorkerVault) -> Result<T, JsValue>>(
+    f: F,
+) -> Result<T, JsValue> {
+    VAULT.with(|v| {
+        let v = v.borrow();
+        let vault = v
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("vault not open"))?;
+        let mut store = LocalStore::open(&vault.secure, vault.epoch_key, vault.device.device_id)
+            .map_err(js_err)?;
+        f(&mut store, vault)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_list_tasks() -> Result<String, JsValue> {
+    with_open_store(|store, _| list_tasks_base64(store))
+}
+
+#[wasm_bindgen]
+pub fn worker_create_task(title: String, notes: String, quadrant: u8) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = random_task_id()?;
+        let notes = if notes.is_empty() { None } else { Some(notes) };
+        let mutation = Mutation::Create {
+            hlc,
+            id,
+            title,
+            notes,
+            quadrant,
+            due_date: None,
+        };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_update_task(
+    id_b64: String,
+    title: String,
+    notes: String,
+    quadrant: u8,
+) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = task_id_from_b64(&id_b64)?;
+        let title = Some(title);
+        let notes = if notes.is_empty() {
+            Some(None)
+        } else {
+            Some(Some(notes))
+        };
+        let quadrant = Some(quadrant);
+        let mutation = Mutation::Update {
+            hlc,
+            id,
+            title,
+            notes,
+            quadrant,
+            due_date: None,
+        };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_complete_task(id_b64: String) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = task_id_from_b64(&id_b64)?;
+        let mutation = Mutation::Complete { hlc, id };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_delete_task(id_b64: String) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = task_id_from_b64(&id_b64)?;
+        let mutation = Mutation::Delete { hlc, id };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_restore_task(id_b64: String) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = task_id_from_b64(&id_b64)?;
+        let mutation = Mutation::Restore { hlc, id };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
+}
+
+#[wasm_bindgen]
+pub fn worker_move_task(id_b64: String, quadrant: u8) -> Result<String, JsValue> {
+    with_open_store(|store, vault| {
+        let hlc = next_hlc(store, vault.device.device_id);
+        let id = task_id_from_b64(&id_b64)?;
+        let mutation = Mutation::Update {
+            hlc,
+            id,
+            title: None,
+            notes: None,
+            quadrant: Some(quadrant),
+            due_date: None,
+        };
+        apply_local_mutation(store, &vault.owner, &vault.device, mutation)?;
+        list_tasks_base64(store)
+    })
 }

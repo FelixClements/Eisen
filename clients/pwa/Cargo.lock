@@ -500,13 +500,16 @@ name = "eisen-pwa"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "cbor2",
  "console_error_panic_hook",
  "console_log",
  "eisen-core",
+ "getrandom 0.2.17",
  "js-sys",
  "leptos",
  "leptos_meta",
  "log",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
