@@ -88,7 +88,15 @@ async fn open_secure_storage(passphrase: &str) -> Result<OpfsSecureStorage, JsVa
     let profile = ArgonProfile::mobile();
     OpfsSecureStorage::new(passphrase.as_bytes(), profile)
         .await
-        .map_err(js_err)
+        .map_err(|e| match e {
+            eisen_core::identity::IdentityError::Storage(msg) => {
+                JsValue::from_str(&format!("Encrypted storage (OPFS) cannot be opened: {msg}"))
+            }
+            eisen_core::identity::IdentityError::Crypto(msg) => {
+                JsValue::from_str(&format!("Cannot unlock vault: {msg}"))
+            }
+            e => js_err(e),
+        })
 }
 
 fn load_vault_id(secure: &OpfsSecureStorage) -> Result<VaultId, JsValue> {

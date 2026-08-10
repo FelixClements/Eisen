@@ -10,10 +10,11 @@ use web_sys::{FileReader, HtmlInputElement};
 
 #[derive(Clone)]
 pub enum VaultState {
-    Locked,
+    Idle,
     Creating,
     Unlocking,
     Working(String),
+    Locked { message: String },
     Unlocked { vault_id: String },
     Error(String),
 }
@@ -45,7 +46,7 @@ fn read_file(setter: WriteSignal<String>) -> impl Fn(web_sys::Event) {
 
 #[component]
 pub fn Vault() -> impl IntoView {
-    let (state, set_state) = signal(VaultState::Locked);
+    let (state, set_state) = signal(VaultState::Idle);
     let (passphrase, set_passphrase) = signal(String::new());
     let (confirm, set_confirm) = signal(String::new());
     let (tab, set_tab) = signal(0u8); // 0 = create, 1 = unlock, 2 = backup
@@ -103,13 +104,20 @@ pub fn Vault() -> impl IntoView {
 
             {move || match state.get() {
                 VaultState::Error(e) => view! { <p class="error">{e}</p> }.into_any(),
+                VaultState::Idle => view! {}.into_any(),
                 VaultState::Creating => view! { <p>"Creating vault…"</p> }.into_any(),
                 VaultState::Unlocking => view! { <p>"Unlocking vault…"</p> }.into_any(),
                 VaultState::Working(msg) => view! { <p>{msg}</p> }.into_any(),
                 VaultState::Unlocked { vault_id } => view! {
                     <p class="success">"Unlocked vault: " {vault_id}</p>
                 }.into_any(),
-                _ => view! {}.into_any(),
+                VaultState::Locked { message } => view! {
+                    <div class="locked">
+                        <p class="error">{message}</p>
+                        <p>"If you have a recovery package, switch to Backup & Recovery to restore access."</p>
+                        <button on:click=move |_| set_tab.set(2)>"Restore from recovery"</button>
+                    </div>
+                }.into_any(),
             }}
 
             <div class="panel" class:hidden=move || tab.get() != 0>
@@ -163,6 +171,9 @@ pub fn Vault() -> impl IntoView {
                             "",
                             Box::new(move |res| match res {
                                 Ok(id) => set_state.set(VaultState::Unlocked { vault_id: id }),
+                                Err(e) if e.starts_with("Cannot unlock vault") => {
+                                    set_state.set(VaultState::Locked { message: e })
+                                }
                                 Err(e) => set_state.set(VaultState::Error(e)),
                             }),
                         );
@@ -204,7 +215,7 @@ pub fn Vault() -> impl IntoView {
                             "",
                             Box::new(move |res| match res {
                                 Ok(b64) => {
-                                    set_state.set(VaultState::Locked);
+                                    set_state.set(VaultState::Idle);
                                     set_export_b64.set(b64);
                                 }
                                 Err(e) => set_state.set(VaultState::Error(e)),
@@ -292,7 +303,7 @@ pub fn Vault() -> impl IntoView {
                             &loc,
                             Box::new(move |res| match res {
                                 Ok(b64) => {
-                                    set_state.set(VaultState::Locked);
+                                    set_state.set(VaultState::Idle);
                                     set_recovery_b64.set(b64);
                                 }
                                 Err(e) => set_state.set(VaultState::Error(e)),
