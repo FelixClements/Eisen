@@ -141,7 +141,7 @@ The previous native Windows (C# / WinUI 3) and Android (Kotlin / Jetpack Compose
 
 | ID | Task | Owner | Deliverable |
 |---|---|---|---|
-| P2.01 | Build the PWA vault create/unlock flow on the encrypted local core. | project owner | Leptos flow with passphrase key derivation, OPFS failure, and locked-vault recovery states. |
+| P2.01 | [x] Build the PWA vault create/unlock flow on the encrypted local core. | project owner | Leptos flow with passphrase key derivation, OPFS failure, and locked-vault recovery states. |
 | P2.02 | Build the PWA install / URL fallback flow. | project owner | install prompt when supported, plus a usable URL path for locked-down work laptops where installs are blocked. |
 | P2.03 | Implement the four-quadrant matrix views. | project owner | local materialized tasks rendered by quadrant without adding remote assumptions. |
 | P2.04 | Implement bounded task create and edit UI. | project owner | title/notes/quadrant field validation and local mutation submission. |
