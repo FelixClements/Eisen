@@ -80,6 +80,17 @@ fn App() -> impl IntoView {
                 set_editing=set_editing
             />
         </main>
+
+        <footer class="status">
+            <p class="local-only">
+                "Local-only: your vault and tasks live on this device. "
+                "There is no cloud sync or cross-device backup yet."
+            </p>
+            <p class="limitation">
+                "Backups and recovery packages are local, encrypted files. "
+                "If you lose the file, the passphrase, or this device, the vault cannot be recovered unless you have a separate copy."
+            </p>
+        </footer>
     }
 }
 

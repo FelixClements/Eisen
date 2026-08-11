@@ -396,6 +396,27 @@ p {
   text-align: left;
 }
 
+.panel .limitation {
+  font-size: 0.85rem;
+  color: #475569;
+  text-align: left;
+  margin-top: 0.25rem;
+}
+
+.status {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-top: 1px solid #cbd5e1;
+  text-align: center;
+}
+
+.status .local-only,
+.status .limitation {
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 0.25rem 0;
+}
+
 .panel input[type="file"] {
   padding: 0.5rem 0;
   border: none;

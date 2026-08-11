@@ -346,6 +346,11 @@ pub fn Vault(worker: Rc<WorkerClient>, set_tasks: WriteSignal<Vec<Task>>) -> imp
                     "Backups and recovery require the current vault passphrase. "
                     "The vault passphrase is never sent off this device."
                 </p>
+                <p class="limitation">
+                    "Exports and recovery packages are local, encrypted files on this device only. "
+                    "They do not sync to the cloud or other devices. "
+                    "If you lose the file, your passphrase, or this device, the vault cannot be recovered unless you have a separate copy."
+                </p>
 
                 <input
                     type="password"
