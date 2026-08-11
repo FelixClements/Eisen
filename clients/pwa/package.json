@@ -1,0 +1,13 @@
+{
+  "name": "eisen-pwa-e2e",
+  "private": true,
+  "description": "End-to-end acceptance tests for the Eisen PWA",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.46.0"
+  }
+}
