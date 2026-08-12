@@ -1056,7 +1056,41 @@ export async function sync(masterKey: CryptoKey, fetch = globalThis.fetch): Prom
 
 ---
 
-## D1/KV Schema Changes
+## Proposed Changes (continued)
+
+### 7. Store Encrypted Recovery Backups on R2
+
+**Problem:** The recovery package is currently a user-held file. If the user loses the file, there is no cloud backup. Storing an encrypted backup on R2 allows recovery from any device as long as the user has the `ownerId` and password.
+
+**Design:**
+- The client already encrypts the recovery package with the account password (see Proposed Change 3).
+- The client uploads the encrypted package to a new SvelteKit API route `/api/backup`.
+- The server stores the opaque encrypted blob in Cloudflare R2 (using the existing or a new `BACKUPS` binding) under `backups/{ownerId}/{packageId}`.
+- The server keeps only the locator (`ownerId`, `packageId`, `createdAt`) in D1; it cannot decrypt the backup.
+- On a new device, the user enters `ownerId` and password; the client calls `/api/backup/restore` to list and download the latest backup, then decrypts it locally.
+- Backups are immutable. A new write creates a new object and updates the D1 pointer. Old objects can be expired via lifecycle rules or deleted by the client.
+
+**New API routes:**
+- `POST /api/backup` — accept `{ ownerId, deviceId, encryptedBlob, packageId }`, verify the device is enrolled, store in R2, write D1 record.
+- `GET  /api/backup?ownerId=...&deviceId=...` — list available backups (packageId, createdAt) for the account.
+- `GET  /api/backup/:packageId?ownerId=...&deviceId=...` — download the encrypted blob.
+
+**Wrangler config update:**
+```toml
+# Existing R2 bucket is ATTACHMENTS; either reuse it or add:
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "eisen-backups"
+```
+
+**Security notes:**
+- The backup is encrypted with the user's password. The server cannot read it.
+- Device enrollment check prevents arbitrary downloads.
+- `ownerId` can be public (it is already sent in sync requests). The password is never sent to the server.
+
+---
+
+## D1/KV/R2 Schema Changes
 
 ### New Migration: `migrations/0002_add_accounts_and_devices.sql`
 
@@ -1082,6 +1116,17 @@ CREATE TABLE IF NOT EXISTS devices (
 
 CREATE INDEX IF NOT EXISTS idx_devices_owner ON devices(owner_id);
 
+-- Backups table (records R2 object keys for encrypted backups)
+CREATE TABLE IF NOT EXISTS backups (
+  package_id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  r2_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  FOREIGN KEY (owner_id) REFERENCES accounts(owner_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_backups_owner ON backups(owner_id);
+
 -- Update vault_records to reference accounts
 -- (existing table already has owner_id, just add FK constraint)
 -- Note: SQLite doesn't support ALTER TABLE ADD CONSTRAINT with FK
@@ -1099,6 +1144,14 @@ CREATE INDEX IF NOT EXISTS idx_devices_owner ON devices(owner_id);
 - Key: `session:{token}`
 - Value: JSON string with session metadata
 - TTL: 900 seconds (15 minutes)
+
+### R2 Usage
+
+**Encrypted recovery backups:**
+- Key: `backups/{ownerId}/{packageId}`
+- Value: Opaque encrypted Blob (the recovery package ciphertext)
+- Metadata: ownerId, packageId, createdAt stored in D1 `backups` table
+- Lifecycle: versions can be kept for a retention period; server cannot decrypt
 
 ---
 
