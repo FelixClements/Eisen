@@ -49,10 +49,12 @@
 		/>
 	{/if}
 	{#if $masterKey}
-		<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync">
-			{syncing ? '⟳' : '🔄'}
-		</button>
-		<button class="icon-button" onclick={() => ($masterKey ? lock() : null)} aria-label="Lock">🔒</button>
+		<div class="header-actions">
+			<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync">
+				{syncing ? '⟳' : '🔄'}
+			</button>
+			<button class="icon-button" onclick={() => ($masterKey ? lock() : null)} aria-label="Lock">🔒</button>
+		</div>
 	{/if}
 </header>
 
