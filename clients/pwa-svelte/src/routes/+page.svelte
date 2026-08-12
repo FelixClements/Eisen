@@ -14,6 +14,7 @@
 		type EisenhowerCategory
 	} from '$lib/db';
 	import { search, syncMessage } from '$lib/stores';
+	import { Plus, Pin, PinOff, Trash2 } from '@lucide/svelte';
 
 	let password = $state('');
 	let message = $state('');
@@ -134,10 +135,25 @@
 							{/if}
 						</div>
 						<div class="row-actions">
-							<button class="icon-button" onclick={async () => await togglePin(task.id)} aria-label="Pin">
-								{task.isPinned ? '📌' : 'Pin'}
+							<button
+								class="icon-button"
+								onclick={async () => await togglePin(task.id)}
+								aria-pressed={task.isPinned}
+								aria-label={task.isPinned ? 'Unpin' : 'Pin'}
+							>
+								{#if task.isPinned}
+									<PinOff size={20} />
+								{:else}
+									<Pin size={20} />
+								{/if}
 							</button>
-							<button class="icon-button" onclick={async () => await archiveTask(task.id)} aria-label="Archive">🗑</button>
+							<button
+								class="icon-button"
+								onclick={async () => await archiveTask(task.id)}
+								aria-label="Archive"
+							>
+								<Trash2 size={20} />
+							</button>
 						</div>
 					</div>
 				</div>
@@ -145,5 +161,8 @@
 		{/if}
 	{/each}
 
-	<a class="fab primary" href="/new-task">+ Add</a>
+	<a class="fab" href="/new-task" aria-label="+ Add">
+		<Plus size={20} />
+		<span>Add</span>
+	</a>
 {/if}

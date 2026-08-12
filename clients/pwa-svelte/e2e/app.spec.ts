@@ -80,7 +80,7 @@ test.describe('home ledger', () => {
 	test('pins a task', async ({ page }) => {
 		await addTask(page, 'Pin me');
 		await page.locator('.card', { hasText: 'Pin me' }).getByRole('button', { name: 'Pin' }).click();
-		await page.locator('.card', { hasText: 'Pin me' }).getByText('📌').waitFor();
+		await page.locator('.card', { hasText: 'Pin me' }).getByRole('button', { name: 'Unpin' }).waitFor();
 	});
 
 	test('searches tasks by title', async ({ page }) => {
@@ -130,14 +130,14 @@ test.describe('task detail', () => {
 	test('edits the title', async ({ page }) => {
 		const input = page.locator('input[placeholder="Title"]');
 		await input.fill('Edited title');
-		await page.getByRole('button', { name: '←' }).click();
+		await page.getByRole('button', { name: 'Go back' }).click();
 		await page.waitForURL(/\/$/);
 		await expect(page.locator('.card', { hasText: 'Edited title' })).toBeVisible();
 	});
 
 	test('changes quadrant', async ({ page }) => {
 		await page.getByRole('button', { name: /^Schedule/ }).click();
-		await page.getByRole('button', { name: '←' }).click();
+		await page.getByRole('button', { name: 'Go back' }).click();
 		await page.waitForURL(/\/$/);
 		await expect(page.locator('.schedule ~ .card', { hasText: 'Edit me' }).first()).toBeVisible();
 	});
@@ -145,7 +145,7 @@ test.describe('task detail', () => {
 	test('marks complete from detail', async ({ page }) => {
 		await page.getByRole('button', { name: 'Mark complete' }).click();
 		await page.getByRole('button', { name: 'Mark active' }).waitFor();
-		await page.getByRole('button', { name: '←' }).click();
+		await page.getByRole('button', { name: 'Go back' }).click();
 		await page.waitForURL(/\/$/);
 		await expect(page.locator('.card', { hasText: 'Edit me' })).not.toBeVisible();
 		await page.getByRole('button', { name: 'Open menu' }).click();

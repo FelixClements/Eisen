@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { masterKey } from '$lib/vault';
+	import { ArrowLeft } from '@lucide/svelte';
 	import {
 		getTask,
 		updateTask,
@@ -113,7 +114,9 @@
 	<p>Task not found.</p>
 {:else}
 	<div class="composer-header">
-		<button class="icon-button" onclick={() => goto('/')}>←</button>
+		<button class="icon-button" onclick={() => goto('/')} aria-label="Go back">
+			<ArrowLeft size={24} />
+		</button>
 		<h2>{title || 'Task detail'}</h2>
 	</div>
 

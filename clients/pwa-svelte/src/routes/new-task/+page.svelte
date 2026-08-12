@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { masterKey } from '$lib/vault';
 	import { addTask, categoryOrder, type EisenhowerCategory } from '$lib/db';
+	import { ArrowLeft } from '@lucide/svelte';
 
 	const categoryInfo: Record<
 		EisenhowerCategory,
@@ -68,7 +69,9 @@
 {:else}
 	<form onsubmit={handleSubmit}>
 		<div class="composer-header">
-			<button type="button" class="icon-button" onclick={handleBack}>←</button>
+			<button type="button" class="icon-button" onclick={handleBack} aria-label="Discard and go back">
+				<ArrowLeft size={24} />
+			</button>
 			<h2>New task</h2>
 			<button class="primary" type="submit">Save</button>
 		</div>
@@ -77,7 +80,7 @@
 			<p class="error">{error}</p>
 		{/if}
 
-		<input type="text" placeholder="Title" bind:value={title} autofocus />
+		<input type="text" placeholder="Title" bind:value={title} />
 
 		<div class="category-grid">
 			{#each categoryOrder as cat (cat)}

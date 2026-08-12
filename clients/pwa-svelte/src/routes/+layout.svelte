@@ -4,6 +4,7 @@
 	import { masterKey, lock } from '$lib/vault';
 	import { sync } from '$lib/sync';
 	import { search, syncMessage } from '$lib/stores';
+	import { Menu, RefreshCw, Loader, Lock } from '@lucide/svelte';
 
 	let { children } = $props();
 	let drawerOpen = $state(false);
@@ -37,7 +38,7 @@
 <header class="app-header">
 	{#if $masterKey}
 		<button class="icon-button" onclick={() => (drawerOpen = !drawerOpen)} aria-label="Open menu">
-			☰
+			<Menu size={24} />
 		</button>
 	{/if}
 	<h1>Eisen</h1>
@@ -52,29 +53,34 @@
 	{/if}
 	{#if $masterKey}
 		<div class="header-actions">
-			<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync">
-				{syncing ? '⟳' : '🔄'}
+			<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync now">
+				{#if syncing}
+					<Loader size={24} />
+				{:else}
+					<RefreshCw size={24} />
+				{/if}
 			</button>
-			<button class="icon-button" onclick={() => ($masterKey ? lock() : null)} aria-label="Lock">🔒</button>
+			<button class="icon-button" onclick={() => ($masterKey ? lock() : null)} aria-label="Lock">
+				<Lock size={24} />
+			</button>
 		</div>
 	{/if}
 </header>
 
 {#if drawerOpen}
-	<nav
+	<div
 		class="drawer"
-		aria-label="Main navigation"
 		onclick={(e) => {
 			if (e.target === e.currentTarget) closeDrawer();
 		}}
 	>
-		<div class="drawer-panel">
+		<nav class="drawer-panel" aria-label="Main navigation">
 			<a class="drawer-item" href="/" onclick={closeDrawer}>Home</a>
 			<a class="drawer-item" href="/history" onclick={closeDrawer}>History</a>
 			<a class="drawer-item" href="/settings" onclick={closeDrawer}>Settings</a>
 			<a class="drawer-item" href="/keyboard-shortcuts" onclick={closeDrawer}>Keyboard shortcuts</a>
-		</div>
-	</nav>
+		</nav>
+	</div>
 {/if}
 
 <main class="content">
