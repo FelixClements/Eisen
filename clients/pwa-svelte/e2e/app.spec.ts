@@ -12,7 +12,7 @@ test.describe('vault', () => {
 	test('requires a passphrase to enter', async ({ page }) => {
 		await page.goto('/');
 		await expect(page.getByPlaceholder('Passphrase')).toBeVisible();
-		await expect(page.getByRole('button', { name: 'Unlock' })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Create account|Unlock/ })).toBeVisible();
 	});
 
 	test('unlocks with a passphrase', async ({ page }) => {

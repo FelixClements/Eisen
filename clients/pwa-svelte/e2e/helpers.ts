@@ -5,7 +5,7 @@ export const PASSPHRASE = 'correct horse battery staple';
 export async function unlock(page: Page) {
 	await page.goto('/');
 	await page.getByPlaceholder('Passphrase').fill(PASSPHRASE);
-	await page.getByRole('button', { name: 'Unlock' }).click();
+	await page.getByRole('button', { name: /Create account|Unlock/ }).click();
 	await page.getByRole('link', { name: '+ Add' }).waitFor({ timeout: 10000 });
 }
 

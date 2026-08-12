@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { liveQuery } from 'dexie';
-	import { masterKey, unlock } from '$lib/vault';
+	import { masterKey, unlock, createAccount, accountExists } from '$lib/vault';
 	import {
 		liveActiveTasks,
 		searchTasks,
@@ -16,10 +17,25 @@
 
 	let password = $state('');
 	let message = $state('');
+	let hasAccount = $state(false);
 	let search = $state('');
 	let searchActive = $state(false);
 	let tasks = $state<Task[]>([]);
 	let syncing = $state(false);
+
+	let isCreate = $derived(hasAccount === false);
+	let modeLabel = $derived(isCreate ? 'Create account' : 'Unlock');
+	let modeText = $derived(
+		isCreate
+			? 'No account found. Choose a passphrase to create one.'
+			: 'Enter your passphrase to unlock your local tasks.'
+	);
+
+	if (browser) {
+		accountExists().then((exists) => {
+			hasAccount = exists;
+		});
+	}
 
 	$effect(() => {
 		if (!$masterKey) return;
@@ -34,10 +50,15 @@
 		event.preventDefault();
 		message = '';
 		try {
-			await unlock(password);
+			if (isCreate) {
+				await createAccount(password);
+				message = 'Account created.';
+			} else {
+				await unlock(password);
+			}
 			password = '';
 		} catch (e) {
-			message = 'Could not unlock. Check your passphrase.';
+			message = e instanceof Error ? e.message : 'Could not unlock. Check your passphrase.';
 		}
 	}
 
@@ -77,10 +98,10 @@
 {#if !$masterKey}
 	<div class="unlock-screen">
 		<h1>Eisen</h1>
-		<p>Enter your passphrase to unlock your local tasks.</p>
+		<p>{modeText}</p>
 		<form onsubmit={handleUnlock}>
 			<input type="password" bind:value={password} placeholder="Passphrase" />
-			<button class="primary" type="submit">Unlock</button>
+			<button class="primary" type="submit">{modeLabel}</button>
 		</form>
 		{#if message}
 			<p class="error">{message}</p>

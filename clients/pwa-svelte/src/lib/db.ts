@@ -33,14 +33,32 @@ export interface Task {
 	encrypted_blob?: string;
 }
 
+export interface Account {
+	ownerId: string;
+	vaultId: string;
+	deviceSalt: string;
+	validationValue: string;
+	createdAt: number;
+}
+
+export interface DeviceState {
+	deviceId: string;
+	ownerId: string;
+	lastSyncAt: number | null;
+}
+
 export class EisenDB extends Dexie {
 	tasks!: Table<Task, string>;
+	accounts!: Table<Account, string>;
+	deviceState!: Table<DeviceState, string>;
 
 	constructor() {
 		super('eisen-pwa');
-		this.version(1).stores({
+		this.version(2).stores({
 			tasks:
-				'id, isCompleted, isArchived, isPinned, dueDate, updatedAt, createdAt, deleted, sync_version'
+				'id, isCompleted, isArchived, isPinned, dueDate, updatedAt, createdAt, deleted, sync_version',
+			accounts: 'ownerId',
+			deviceState: 'deviceId, ownerId'
 		});
 	}
 }
@@ -185,4 +203,32 @@ export async function deleteTask(id: string) {
 
 export async function getTask(id: string): Promise<Task | undefined> {
 	return db.tasks.get(id);
+}
+
+export async function getAccount(): Promise<Account | undefined> {
+	return db.accounts.toCollection().first();
+}
+
+export async function createAccountRecord(
+	validationValue: string,
+	deviceSalt: Uint8Array
+): Promise<Account> {
+	const existing = await getAccount();
+	if (existing) {
+		throw new Error('An account already exists on this device.');
+	}
+	const account: Account = {
+		ownerId: crypto.randomUUID(),
+		vaultId: crypto.randomUUID(),
+		deviceSalt: btoa(String.fromCharCode(...deviceSalt)),
+		validationValue,
+		createdAt: Date.now()
+	};
+	await db.accounts.add(account);
+	await db.deviceState.add({
+		deviceId: crypto.randomUUID(),
+		ownerId: account.ownerId,
+		lastSyncAt: null
+	});
+	return account;
 }

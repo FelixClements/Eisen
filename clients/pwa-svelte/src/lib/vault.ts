@@ -1,34 +1,58 @@
 import { browser } from '$app/environment';
 import { writable } from 'svelte/store';
 import type { Writable } from 'svelte/store';
-import { deriveMasterKey } from './crypto';
+import { deriveMasterKey, encrypt, decrypt } from './crypto';
+import { db, getAccount, createAccountRecord } from './db';
 
-const SALT_KEY = 'eisen-salt';
+const VALIDATION_VALUE = 'eisen-validation-value';
 
 export const masterKey: Writable<CryptoKey | null> = writable(null);
 
-function getSalt(): Uint8Array {
-	if (!browser) throw new Error('Salt can only be managed in the browser.');
-	const stored = localStorage.getItem(SALT_KEY);
-	if (stored) {
-		const bytes = new Uint8Array(16);
-		const parsed = atob(stored);
-		for (let i = 0; i < parsed.length; i++) {
-			bytes[i] = parsed.charCodeAt(i);
-		}
-		return bytes;
+export async function accountExists(): Promise<boolean> {
+	if (!browser) return false;
+	const account = await getAccount();
+	return !!account;
+}
+
+export async function createAccount(password: string): Promise<void> {
+	if (!browser) throw new Error('Accounts can only be created in the browser.');
+	const existing = await getAccount();
+	if (existing) {
+		throw new Error('An account already exists on this device.');
 	}
+
 	const salt = new Uint8Array(crypto.getRandomValues(new Uint8Array(16)));
-	const b64 = btoa(String.fromCharCode(...salt));
-	localStorage.setItem(SALT_KEY, b64);
-	return salt;
+	const key = await deriveMasterKey(password, salt);
+	const encryptedValidation = await encrypt(VALIDATION_VALUE, key);
+
+	const account = await createAccountRecord(encryptedValidation, salt);
+	if (!account) throw new Error('Failed to create account.');
+
+	masterKey.set(key);
 }
 
 export async function unlock(password: string): Promise<void> {
-	const salt = getSalt();
-	masterKey.set(await deriveMasterKey(password, salt));
+	if (!browser) throw new Error('Can only unlock in the browser.');
+	const account = await getAccount();
+	if (!account) {
+		throw new Error('No account found. Create one first.');
+	}
+
+	const salt = Uint8Array.from(atob(account.deviceSalt), (c) => c.charCodeAt(0));
+	const key = await deriveMasterKey(password, salt);
+
+	try {
+		const decrypted = await decrypt(account.validationValue, key);
+		if (decrypted !== VALIDATION_VALUE) {
+			throw new Error('Incorrect passphrase');
+		}
+	} catch {
+		throw new Error('Incorrect passphrase');
+	}
+
+	masterKey.set(key);
 }
 
-export function lock(): void {
+export async function lock(): Promise<void> {
 	masterKey.set(null);
 }

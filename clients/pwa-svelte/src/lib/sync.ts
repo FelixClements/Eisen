@@ -1,16 +1,18 @@
-import { db, type Task } from './db';
+import { db, getAccount, type Task } from './db';
 import { encrypt, decrypt } from './crypto';
 
-const OWNER_ID_KEY = 'eisen-owner-id';
 const LAST_SYNC_KEY = 'eisen-last-version';
 
-export function getOwnerId(): string {
-	let id = localStorage.getItem(OWNER_ID_KEY);
-	if (!id) {
-		id = crypto.randomUUID();
-		localStorage.setItem(OWNER_ID_KEY, id);
-	}
-	return id;
+export async function getOwnerId(): Promise<string> {
+	const account = await getAccount();
+	if (!account) throw new Error('No account found. Create or unlock an account first.');
+	return account.ownerId;
+}
+
+export async function getDeviceId(): Promise<string> {
+	const state = await db.deviceState.toCollection().first();
+	if (!state) throw new Error('No device state found.');
+	return state.deviceId;
 }
 
 export function getLastSyncVersion(): number {
@@ -36,7 +38,8 @@ type EncryptedTask = Omit<
 >;
 
 export async function sync(masterKey: CryptoKey, fetch = globalThis.fetch): Promise<void> {
-	const ownerId = getOwnerId();
+	const ownerId = await getOwnerId();
+	const deviceId = await getDeviceId();
 	const lastVersion = getLastSyncVersion();
 	const tasks = await db.tasks.toArray();
 

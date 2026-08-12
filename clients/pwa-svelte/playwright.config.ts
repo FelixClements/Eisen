@@ -11,7 +11,8 @@ export default defineConfig({
 	use: {
 		baseURL: 'http://localhost:8788',
 		trace: 'on-first-retry',
-		ignoreHTTPSErrors: true
+		ignoreHTTPSErrors: true,
+		serviceWorkers: 'block'
 	},
 	projects: [
 		{ name: 'chromium', use: { ...devices['Desktop Chrome'] } },

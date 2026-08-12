@@ -10,7 +10,7 @@ export type CipherString = string;
 const PBKDF2_ITERATIONS = 600_000;
 const KEY_LENGTH = 256;
 
-function toBase64(bytes: Uint8Array): string {
+export function toBase64(bytes: Uint8Array): string {
 	const chunk = 8192;
 	let result = '';
 	for (let i = 0; i < bytes.length; i += chunk) {
@@ -20,7 +20,7 @@ function toBase64(bytes: Uint8Array): string {
 	return btoa(result);
 }
 
-function fromBase64(s: string): Uint8Array {
+export function fromBase64(s: string): Uint8Array {
 	const binary = atob(s);
 	const bytes = new Uint8Array(binary.length);
 	for (let i = 0; i < binary.length; i++) {
