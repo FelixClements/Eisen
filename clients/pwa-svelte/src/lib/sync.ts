@@ -1,4 +1,4 @@
-import { db, type Todo } from './db';
+import { db, type Task } from './db';
 import { encrypt, decrypt } from './crypto';
 
 const OWNER_ID_KEY = 'eisen-owner-id';
@@ -30,24 +30,36 @@ export type SyncRecord = {
 	deleted: number;
 };
 
+type EncryptedTask = Omit<
+	Task,
+	'id' | 'updatedAt' | 'sync_version' | 'deleted' | 'encrypted_blob'
+>;
+
 export async function sync(masterKey: CryptoKey, fetch = globalThis.fetch): Promise<void> {
 	const ownerId = getOwnerId();
 	const lastVersion = getLastSyncVersion();
-	const todos = await db.todos.toArray();
+	const tasks = await db.tasks.toArray();
 
 	const changes: SyncRecord[] = await Promise.all(
-		todos.map(async (todo) => {
-			const payload = JSON.stringify({
-				title: todo.title,
-				notes: todo.notes,
-				completed: todo.completed,
-				quadrant: todo.quadrant
-			});
+		tasks.map(async (task) => {
+			const payload: EncryptedTask = {
+				title: task.title,
+				description: task.description,
+				isImportant: task.isImportant,
+				isUrgent: task.isUrgent,
+				dueDate: task.dueDate,
+				reminderAt: task.reminderAt,
+				isCompleted: task.isCompleted,
+				isArchived: task.isArchived,
+				isPinned: task.isPinned,
+				category: task.category,
+				createdAt: task.createdAt
+			};
 			return {
-				recordId: todo.id,
-				encryptedBlob: await encrypt(payload, masterKey),
-				modifiedAt: todo.local_updated_at,
-				deleted: todo.deleted
+				recordId: task.id,
+				encryptedBlob: await encrypt(JSON.stringify(payload), masterKey),
+				modifiedAt: task.updatedAt,
+				deleted: task.deleted
 			};
 		})
 	);
@@ -72,19 +84,14 @@ export async function sync(masterKey: CryptoKey, fetch = globalThis.fetch): Prom
 		if (syncVersion === 0) continue;
 
 		const plaintext = await decrypt(record.encryptedBlob, masterKey);
-		const content = JSON.parse(plaintext) as {
-			title: string;
-			notes: string;
-			completed: boolean;
-			quadrant: Todo['quadrant'];
-		};
-		const existing = await db.todos.get(record.recordId);
+		const content = JSON.parse(plaintext) as EncryptedTask;
+		const existing = await db.tasks.get(record.recordId);
 
 		if (!existing || (existing.sync_version ?? 0) < syncVersion) {
-			await db.todos.put({
+			await db.tasks.put({
 				id: record.recordId,
 				...content,
-				local_updated_at: record.modifiedAt,
+				updatedAt: record.modifiedAt,
 				sync_version: syncVersion,
 				deleted: record.deleted,
 				encrypted_blob: record.encryptedBlob

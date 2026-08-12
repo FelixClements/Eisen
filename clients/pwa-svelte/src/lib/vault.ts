@@ -1,7 +1,11 @@
 import { browser } from '$app/environment';
+import { writable } from 'svelte/store';
+import type { Writable } from 'svelte/store';
 import { deriveMasterKey } from './crypto';
 
 const SALT_KEY = 'eisen-salt';
+
+export const masterKey: Writable<CryptoKey | null> = writable(null);
 
 function getSalt(): Uint8Array {
 	if (!browser) throw new Error('Salt can only be managed in the browser.');
@@ -20,7 +24,11 @@ function getSalt(): Uint8Array {
 	return salt;
 }
 
-export async function unlock(password: string): Promise<CryptoKey> {
+export async function unlock(password: string): Promise<void> {
 	const salt = getSalt();
-	return deriveMasterKey(password, salt);
+	masterKey.set(await deriveMasterKey(password, salt));
+}
+
+export function lock(): void {
+	masterKey.set(null);
 }

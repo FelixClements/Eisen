@@ -1,115 +1,152 @@
 <script lang="ts">
 	import { liveQuery } from 'dexie';
-	import { browser } from '$app/environment';
-	import { db, addTodo, toggleTodo, deleteTodo, type Quadrant, type Todo } from '$lib/db';
-	import { unlock } from '$lib/vault';
+	import { masterKey, unlock } from '$lib/vault';
+	import {
+		liveActiveTasks,
+		searchTasks,
+		eisenhowerCategory,
+		categoryOrder,
+		toggleCompleted,
+		archiveTask,
+		togglePin,
+		type Task,
+		type EisenhowerCategory
+	} from '$lib/db';
 	import { sync } from '$lib/sync';
 
-	let newTitle = $state('');
-	let newNotes = $state('');
-	let newQuadrant = $state<Quadrant>('ui');
-
 	let password = $state('');
-	let masterKey = $state<CryptoKey | null>(null);
-	let error = $state<string | null>(null);
+	let message = $state('');
+	let search = $state('');
+	let searchActive = $state(false);
+	let tasks = $state<Task[]>([]);
 	let syncing = $state(false);
 
-	let todos = $state<Todo[]>([]);
-
 	$effect(() => {
-		if (!browser) return;
-		const query = liveQuery(() =>
-			db.todos
-				.where('deleted')
-				.notEqual(1)
-				.toArray()
-				.then((list) => list.sort((a, b) => b.local_updated_at - a.local_updated_at))
-		);
-		const sub = query.subscribe((list) => {
-			todos = list;
+		if (!$masterKey) return;
+		const source = searchActive && search.trim() ? searchTasks(search.trim()) : liveActiveTasks();
+		const sub = source.subscribe((list) => {
+			tasks = list;
 		});
 		return () => sub.unsubscribe();
 	});
 
 	async function handleUnlock(event: Event) {
 		event.preventDefault();
+		message = '';
 		try {
-			masterKey = await unlock(password);
-			error = null;
+			await unlock(password);
+			password = '';
 		} catch (e) {
-			error = 'Failed to unlock. Password may be incorrect.';
+			message = 'Could not unlock. Check your passphrase.';
 		}
 	}
 
-	async function handleSubmit(event: Event) {
-		event.preventDefault();
-		if (!newTitle.trim()) return;
-		await addTodo(newTitle.trim(), newNotes.trim(), newQuadrant);
-		newTitle = '';
-		newNotes = '';
-	}
-
 	async function handleSync() {
-		if (!masterKey) return;
+		if (!$masterKey) return;
 		syncing = true;
+		message = '';
 		try {
-			await sync(masterKey);
+			await sync($masterKey);
 		} catch (e) {
-			error = e instanceof Error ? e.message : 'Sync failed';
+			message = e instanceof Error ? e.message : 'Sync failed';
 		} finally {
 			syncing = false;
 		}
 	}
 
-	const quadrantLabels: Record<Quadrant, string> = {
-		ui: 'Urgent & Important',
-		un: 'Urgent, Not Important',
-		in: 'Important, Not Urgent',
-		nn: 'Not Urgent, Not Important'
+	const categoryLabels: Record<
+		EisenhowerCategory,
+		{ title: string; desc: string; cls: string; shortcut: string }
+	> = {
+		do_now: { title: 'Do Now', desc: 'Important & urgent', cls: 'do-now', shortcut: 'Q' },
+		schedule: { title: 'Schedule', desc: 'Important, not urgent', cls: 'schedule', shortcut: 'W' },
+		delegate: { title: 'Delegate / Waiting', desc: 'Urgent, not important', cls: 'delegate', shortcut: 'E' },
+		eliminate: { title: 'Eliminate / Later', desc: 'Not important, not urgent', cls: 'eliminate', shortcut: 'R' }
 	};
+
+	function tasksByCategory(cat: EisenhowerCategory) {
+		return tasks.filter((t) => eisenhowerCategory(t) === cat);
+	}
+
+	function formatDueDate(date: number | null): string {
+		if (!date) return '';
+		return new Date(date).toLocaleDateString();
+	}
 </script>
 
-<main>
-	<h1>Eisen</h1>
-	<p>A local-first, end-to-end encrypted PWA.</p>
-
-	{#if !masterKey}
+{#if !$masterKey}
+	<div class="unlock-screen">
+		<h1>Eisen</h1>
+		<p>Enter your passphrase to unlock your local tasks.</p>
 		<form onsubmit={handleUnlock}>
-			<input type="password" placeholder="Passphrase" bind:value={password} />
+			<input type="password" bind:value={password} placeholder="Passphrase" />
 			<button class="primary" type="submit">Unlock</button>
 		</form>
+		{#if message}
+			<p class="error">{message}</p>
+		{/if}
+	</div>
+{:else}
+	<div class="home-actions">
+		{#if searchActive}
+			<div class="search-bar">
+				<input type="text" bind:value={search} placeholder="Search tasks…" autofocus />
+				<button class="icon-button" onclick={() => (searchActive = false)}>×</button>
+			</div>
+		{:else}
+			<div class="home-actions-row">
+				<button class="icon-button" onclick={() => (searchActive = true)} aria-label="Search">🔍</button>
+				<button onclick={handleSync} disabled={syncing}>{syncing ? 'Syncing…' : 'Sync'}</button>
+			</div>
+		{/if}
+	</div>
+
+	{#if message}
+		<p class="error">{message}</p>
+	{/if}
+
+	{#if tasks.length === 0}
+		<div class="empty-state">No active tasks. Add one to get started.</div>
 	{:else}
-		<form onsubmit={handleSubmit}>
-			<input type="text" placeholder="Title" bind:value={newTitle} />
-			<textarea placeholder="Notes" bind:value={newNotes}></textarea>
-			<select bind:value={newQuadrant}>
-				{#each Object.entries(quadrantLabels) as [value, label]}
-					<option {value}>{label}</option>
-				{/each}
-			</select>
-			<button class="primary" type="submit">Add todo</button>
-		</form>
-
-		<button onclick={handleSync} disabled={syncing}>{syncing ? 'Syncing...' : 'Sync now'}</button>
-
-		<ul>
-			{#each todos as todo (todo.id)}
-				<li class:completed={todo.completed}>
-					<strong>{todo.title}</strong>
-					<span>{quadrantLabels[todo.quadrant]}</span>
-					<p>{todo.notes}</p>
-					<div class="actions">
-						<button onclick={() => toggleTodo(todo.id)}>
-							{todo.completed ? 'Restore' : 'Complete'}
-						</button>
-						<button onclick={() => deleteTodo(todo.id)}>Delete</button>
+		{#each categoryOrder as cat (cat)}
+			{@const list = tasksByCategory(cat)}
+			{@const info = categoryLabels[cat]}
+			<div class="section-header {info.cls}">
+				<span>{info.title}</span>
+				<span class="badge">{list.length}</span>
+			</div>
+			{#if list.length === 0}
+				<div class="empty-state">{info.desc}</div>
+			{:else}
+				{#each list as task (task.id)}
+					<div class="card">
+						<div class="card-row">
+							<input
+								type="checkbox"
+								checked={task.isCompleted}
+								onchange={() => toggleCompleted(task.id)}
+								aria-label="Mark {task.title} complete"
+							/>
+							<div class="grow">
+								<a class="task-title" href="/task/{task.id}">{task.title}</a>
+								{#if task.dueDate || task.category}
+									<p class="task-meta">
+										{formatDueDate(task.dueDate)}{task.dueDate && task.category ? ' · ' : ''}{task.category}
+									</p>
+								{/if}
+							</div>
+							<div class="row-actions">
+								<button class="icon-button" onclick={() => togglePin(task.id)} aria-label="Pin">
+									{task.isPinned ? '📌' : 'Pin'}
+								</button>
+								<button class="icon-button" onclick={() => archiveTask(task.id)} aria-label="Archive">🗑</button>
+							</div>
+						</div>
 					</div>
-				</li>
-			{/each}
-		</ul>
+				{/each}
+			{/if}
+		{/each}
 	{/if}
 
-	{#if error}
-		<p class="error">{error}</p>
-	{/if}
-</main>
+	<a class="fab primary" href="/new-task">+ Add</a>
+{/if}
