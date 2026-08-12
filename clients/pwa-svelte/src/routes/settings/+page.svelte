@@ -4,6 +4,18 @@
 	import { exportRecoveryPackage, importRecoveryPackage } from '$lib/recovery';
 	import { initiatePairing, claimPairingCode } from '$lib/pairing';
 	import { backupToCloud, listCloudBackups } from '$lib/backup';
+	import {
+		Lock,
+		Download,
+		Upload,
+		Smartphone,
+		Cloud,
+		CloudUpload,
+		Bell,
+		Shield,
+		Loader,
+		FileJson
+	} from '@lucide/svelte';
 
 	let notifications = $state(false);
 	let importFile = $state<File | null>(null);
@@ -121,77 +133,126 @@
 			message = e instanceof Error ? e.message : 'Import failed.';
 		}
 	}
+
+	function importLabel() {
+		if (importFile) return importFile.name;
+		return 'Choose recovery package…';
+	}
 </script>
 
-<h2>Settings</h2>
+<h2 class="page-title">Settings</h2>
 
-<div class="card">
-	<h3>Vault</h3>
+<section class="settings-section">
+	<h3 class="section-title"><Lock size={20} /> Vault</h3>
 	{#if $masterKey}
-		<button onclick={lock}>Lock and clear key</button>
-	{:else}
-		<p>Locked. Unlock from the home screen.</p>
-	{/if}
-</div>
-
-<div class="card">
-	<h3>Backup & Recovery</h3>
-	<button onclick={handleExport} disabled={!$masterKey}>Export recovery package</button>
-	<div class="import-row">
-		<label for="import-file">Import recovery package:</label>
-		<input id="import-file" type="file" accept=".json" onchange={(e) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)} />
-		<button onclick={handleImport} disabled={!importFile}>Import</button>
-	</div>
-</div>
-
-<div class="card">
-	<h3>Multi-Device Pairing</h3>
-	<button onclick={handleInitiatePairing} disabled={!$masterKey || isPairing}>
-		{isPairing ? 'Generating…' : 'Generate pairing code'}
-	</button>
-	{#if pairingCode}
-		<p class="pairing-code">{pairingCode}</p>
-		{#if pairingExpires}
-			<p>Expires at {new Date(pairingExpires).toLocaleTimeString()}</p>
-		{/if}
-	{/if}
-	<button onclick={handleClaimPairing} disabled={isPairing}>
-		{isPairing ? 'Claiming…' : 'Claim pairing code'}
-	</button>
-</div>
-
-<div class="card">
-	<h3>Cloud Backup</h3>
-	<button onclick={handleCloudBackup} disabled={!$masterKey || isBackingUp}>
-		{isBackingUp ? 'Backing up…' : 'Back up to cloud'}
-	</button>
-	<button onclick={handleListCloudBackups}>List cloud backups</button>
-	{#if cloudBackups.length > 0}
-		<ul>
-			{#each cloudBackups as backup (backup.packageId)}
-				<li>{backup.packageId} — {new Date(backup.createdAt).toLocaleString()}</li>
-			{/each}
-		</ul>
-	{/if}
-</div>
-
-<div class="card">
-	<h3>Notifications</h3>
-	{#if 'Notification' in window}
-		<p>Permission: {notifications ? 'granted' : 'not granted'}</p>
-		<button onclick={requestNotifications} disabled={notifications}>
-			{notifications ? 'Already granted' : 'Request notifications'}
+		<button class="outlined" onclick={lock}>
+			<Lock size={18} />
+			<span>Lock and clear key</span>
 		</button>
 	{:else}
-		<p>Notifications are not supported in this browser.</p>
+		<p class="setting-description">Locked. Unlock from the home screen.</p>
 	{/if}
-</div>
+</section>
 
-<div class="card">
-	<h3>Privacy</h3>
-	<p>All task data is stored locally on this device. Sync uses end-to-end encryption. No one, including the server, can read your tasks.</p>
-</div>
+<section class="settings-section">
+	<h3 class="section-title"><Download size={20} /> Backup & Recovery</h3>
+	<p class="setting-description">Export or import an encrypted recovery package.</p>
+	<div class="setting-actions">
+		<button class="outlined" onclick={handleExport} disabled={!$masterKey}>
+			<Download size={18} />
+			<span>Export recovery package</span>
+		</button>
+		<div class="file-row">
+			<label class="file-picker" for="import-file">
+				<FileJson size={18} />
+				<span>{importLabel()}</span>
+			</label>
+			<input id="import-file" type="file" accept=".json" class="sr-only" onchange={(e) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)} />
+			<button class="outlined" onclick={handleImport} disabled={!importFile}>
+				<Upload size={18} />
+				<span>Import</span>
+			</button>
+		</div>
+	</div>
+</section>
+
+<section class="settings-section">
+	<h3 class="section-title"><Smartphone size={20} /> Multi-Device Pairing</h3>
+	<p class="setting-description">Pair another device to sync your encrypted task data.</p>
+	<div class="setting-actions">
+		<button class="outlined" onclick={handleInitiatePairing} disabled={!$masterKey || isPairing}>
+			{#if isPairing}
+				<Loader size={18} />
+			{:else}
+				<Smartphone size={18} />
+			{/if}
+			<span>{isPairing ? 'Generating…' : 'Generate pairing code'}</span>
+		</button>
+		{#if pairingCode}
+			<p class="pairing-code" aria-live="polite">{pairingCode}</p>
+			{#if pairingExpires}
+				<p class="setting-description">Expires at {new Date(pairingExpires).toLocaleTimeString()}</p>
+			{/if}
+		{/if}
+		<button class="outlined" onclick={handleClaimPairing} disabled={isPairing}>
+			{#if isPairing}
+				<Loader size={18} />
+			{:else}
+				<Smartphone size={18} />
+			{/if}
+			<span>{isPairing ? 'Claiming…' : 'Claim pairing code'}</span>
+		</button>
+	</div>
+</section>
+
+<section class="settings-section">
+	<h3 class="section-title"><Cloud size={20} /> Cloud Backup</h3>
+	<p class="setting-description">Back up encrypted packages to the cloud and list existing backups.</p>
+	<div class="setting-actions">
+		<button class="outlined" onclick={handleCloudBackup} disabled={!$masterKey || isBackingUp}>
+			{#if isBackingUp}
+				<Loader size={18} />
+			{:else}
+				<CloudUpload size={18} />
+			{/if}
+			<span>{isBackingUp ? 'Backing up…' : 'Back up to cloud'}</span>
+		</button>
+		<button class="outlined" onclick={handleListCloudBackups}>
+			<Cloud size={18} />
+			<span>List cloud backups</span>
+		</button>
+		{#if cloudBackups.length > 0}
+			<ul class="backup-list">
+				{#each cloudBackups as backup (backup.packageId)}
+					<li>{backup.packageId} — {new Date(backup.createdAt).toLocaleString()}</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+</section>
+
+<section class="settings-section">
+	<h3 class="section-title"><Bell size={20} /> Notifications</h3>
+	{#if 'Notification' in window}
+		<p class="setting-description">Permission: {notifications ? 'granted' : 'not granted'}</p>
+		<button class="outlined" onclick={requestNotifications} disabled={notifications}>
+			<Bell size={18} />
+			<span>{notifications ? 'Already granted' : 'Request notifications'}</span>
+		</button>
+	{:else}
+		<p class="setting-description">Notifications are not supported in this browser.</p>
+	{/if}
+</section>
+
+<section class="settings-section">
+	<h3 class="section-title"><Shield size={20} /> Privacy</h3>
+	<p class="setting-description">
+		All task data is stored locally on this device. Sync uses end-to-end encryption. No one, including the server, can read your tasks.
+	</p>
+</section>
 
 {#if message}
-	<p class="error">{message}</p>
+	<p class="message" class:error={message.toLowerCase().includes('failed') || message.toLowerCase().includes('unlock the vault')}>
+		{message}
+	</p>
 {/if}
