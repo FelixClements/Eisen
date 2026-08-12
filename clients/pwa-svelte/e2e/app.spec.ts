@@ -73,7 +73,7 @@ test.describe('home ledger', () => {
 		await page.getByRole('button', { name: 'Open menu' }).click();
 		await page.getByRole('link', { name: 'History' }).click();
 		await page.waitForURL(/\/history/);
-		await page.getByRole('button', { name: 'Archived' }).click();
+		await page.getByRole('tab', { name: 'Archived' }).click();
 		await expect(page.locator('.card', { hasText: 'Archive me' }).first()).toBeVisible();
 	});
 

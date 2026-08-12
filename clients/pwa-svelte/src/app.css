@@ -702,3 +702,61 @@ textarea::placeholder {
 	background: var(--md-sys-color-error-container);
 	color: var(--md-sys-color-on-error-container);
 }
+
+.page-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.history-tabs {
+	display: flex;
+	gap: var(--space-2);
+	margin-bottom: var(--space-4);
+}
+
+.tab {
+	cursor: pointer;
+	padding: 0.625rem 1.25rem;
+	border: 1px solid var(--md-sys-color-outline);
+	border-radius: var(--radius-full);
+	background: var(--md-sys-color-surface-container-highest);
+	color: var(--md-sys-color-on-surface-variant);
+	font: inherit;
+	font-weight: 500;
+	min-height: 2.5rem;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	transition: background 0.15s, color 0.15s;
+}
+
+.tab:hover {
+	background: var(--md-sys-color-surface-variant);
+}
+
+.tab-active {
+	background: var(--md-sys-color-primary);
+	color: var(--md-sys-color-on-primary);
+	border-color: var(--md-sys-color-primary);
+}
+
+.history-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-4);
+	color: var(--md-sys-color-on-surface-variant);
+	padding: var(--space-8) var(--space-4);
+	text-align: center;
+}
+
+.empty-state p {
+	font-size: var(--text-label);
+}
