@@ -26,8 +26,14 @@
 </header>
 
 {#if drawerOpen}
-	<nav class="drawer" aria-label="Main navigation" onclick={closeDrawer}>
-		<div class="drawer-panel" onclick={(e) => e.stopPropagation()}>
+	<nav
+		class="drawer"
+		aria-label="Main navigation"
+		onclick={(e) => {
+			if (e.target === e.currentTarget) closeDrawer();
+		}}
+	>
+		<div class="drawer-panel">
 			<a class="drawer-item" href="/" onclick={closeDrawer}>Home</a>
 			<a class="drawer-item" href="/history" onclick={closeDrawer}>History</a>
 			<a class="drawer-item" href="/settings" onclick={closeDrawer}>Settings</a>

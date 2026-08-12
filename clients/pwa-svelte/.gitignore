@@ -5,3 +5,5 @@ node_modules
 .env.*
 worker-configuration.d.ts
 vite.config.ts.timestamp-*
+test-results
+playwright-report

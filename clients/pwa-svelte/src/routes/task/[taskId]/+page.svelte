@@ -77,16 +77,19 @@
 		updateTask(taskId, flagsFromCategory(cat));
 	}
 
-	function updateTitle() {
-		updateTask(taskId, { title });
+	function updateTitle(value: string) {
+		title = value;
+		updateTask(taskId, { title: value });
 	}
 
-	function updateDescription() {
-		updateTask(taskId, { description });
+	function updateDescription(value: string) {
+		description = value;
+		updateTask(taskId, { description: value });
 	}
 
-	function updateCategoryTag() {
-		updateTask(taskId, { category: categoryTag });
+	function updateCategoryTag(value: string) {
+		categoryTag = value;
+		updateTask(taskId, { category: value });
 	}
 
 	function updateDue() {
@@ -118,7 +121,12 @@
 		<p class="error">{error}</p>
 	{/if}
 
-	<input type="text" bind:value={title} oninput={updateTitle} placeholder="Title" />
+	<input
+		type="text"
+		value={title}
+		oninput={(e) => updateTitle(e.currentTarget.value)}
+		placeholder="Title"
+	/>
 
 	<div class="category-grid">
 		{#each categoryOrder as cat (cat)}
@@ -135,9 +143,19 @@
 		{/each}
 	</div>
 
-	<textarea bind:value={description} oninput={updateDescription} placeholder="Notes" rows="4"></textarea>
+	<textarea
+		value={description}
+		oninput={(e) => updateDescription(e.currentTarget.value)}
+		placeholder="Notes"
+		rows="4"
+	></textarea>
 
-	<input type="text" bind:value={categoryTag} oninput={updateCategoryTag} placeholder="Category tag" />
+	<input
+		type="text"
+		value={categoryTag}
+		oninput={(e) => updateCategoryTag(e.currentTarget.value)}
+		placeholder="Category tag"
+	/>
 
 	<div class="metadata-row">
 		<label>
@@ -155,16 +173,16 @@
 
 	<div class="row-actions">
 		<button
-			onclick={() => {
-				toggleCompleted(taskId);
+			onclick={async () => {
+				await toggleCompleted(taskId);
 				isCompleted = !isCompleted;
 			}}
 		>
 			{isCompleted ? 'Mark active' : 'Mark complete'}
 		</button>
 		<button
-			onclick={() => {
-				togglePin(taskId);
+			onclick={async () => {
+				await togglePin(taskId);
 				isPinned = !isPinned;
 			}}
 		>
@@ -172,15 +190,15 @@
 		</button>
 		{#if isArchived}
 			<button
-				onclick={() => {
-					restoreTask(taskId);
+				onclick={async () => {
+					await restoreTask(taskId);
 					isArchived = false;
 				}}>Restore</button
 			>
 		{:else}
 			<button
-				onclick={() => {
-					archiveTask(taskId);
+				onclick={async () => {
+					await archiveTask(taskId);
 					isArchived = true;
 				}}>Archive</button
 			>

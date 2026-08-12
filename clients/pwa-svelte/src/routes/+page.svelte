@@ -107,46 +107,46 @@
 
 	{#if tasks.length === 0}
 		<div class="empty-state">No active tasks. Add one to get started.</div>
-	{:else}
-		{#each categoryOrder as cat (cat)}
-			{@const list = tasksByCategory(cat)}
-			{@const info = categoryLabels[cat]}
-			<div class="section-header {info.cls}">
-				<span>{info.title}</span>
-				<span class="badge">{list.length}</span>
-			</div>
-			{#if list.length === 0}
-				<div class="empty-state">{info.desc}</div>
-			{:else}
-				{#each list as task (task.id)}
-					<div class="card">
-						<div class="card-row">
-							<input
-								type="checkbox"
-								checked={task.isCompleted}
-								onchange={() => toggleCompleted(task.id)}
-								aria-label="Mark {task.title} complete"
-							/>
-							<div class="grow">
-								<a class="task-title" href="/task/{task.id}">{task.title}</a>
-								{#if task.dueDate || task.category}
-									<p class="task-meta">
-										{formatDueDate(task.dueDate)}{task.dueDate && task.category ? ' · ' : ''}{task.category}
-									</p>
-								{/if}
-							</div>
-							<div class="row-actions">
-								<button class="icon-button" onclick={() => togglePin(task.id)} aria-label="Pin">
-									{task.isPinned ? '📌' : 'Pin'}
-								</button>
-								<button class="icon-button" onclick={() => archiveTask(task.id)} aria-label="Archive">🗑</button>
-							</div>
+	{/if}
+
+	{#each categoryOrder as cat (cat)}
+		{@const list = tasksByCategory(cat)}
+		{@const info = categoryLabels[cat]}
+		<div class="section-header {info.cls}">
+			<span>{info.title}</span>
+			<span class="badge">{list.length}</span>
+		</div>
+		{#if list.length === 0}
+			<div class="empty-state">{info.desc}</div>
+		{:else}
+			{#each list as task (task.id)}
+				<div class="card">
+					<div class="card-row">
+						<input
+							type="checkbox"
+							checked={task.isCompleted}
+							onchange={async () => await toggleCompleted(task.id)}
+							aria-label="Mark {task.title} complete"
+						/>
+						<div class="grow">
+							<a class="task-title" href="/task/{task.id}">{task.title}</a>
+							{#if task.dueDate || task.category}
+								<p class="task-meta">
+									{formatDueDate(task.dueDate)}{task.dueDate && task.category ? ' · ' : ''}{task.category}
+								</p>
+							{/if}
+						</div>
+						<div class="row-actions">
+							<button class="icon-button" onclick={async () => await togglePin(task.id)} aria-label="Pin">
+								{task.isPinned ? '📌' : 'Pin'}
+							</button>
+							<button class="icon-button" onclick={async () => await archiveTask(task.id)} aria-label="Archive">🗑</button>
 						</div>
 					</div>
-				{/each}
-			{/if}
-		{/each}
-	{/if}
+				</div>
+			{/each}
+		{/if}
+	{/each}
 
 	<a class="fab primary" href="/new-task">+ Add</a>
 {/if}

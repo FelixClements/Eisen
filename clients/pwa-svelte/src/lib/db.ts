@@ -64,11 +64,10 @@ function activeFilter(t: Task) {
 export function liveActiveTasks() {
 	return liveQuery(() =>
 		db.tasks
-			.where('isArchived')
+			.where('deleted')
 			.equals(0)
-			.and((t) => activeFilter(t))
 			.toArray()
-			.then(sortTasks)
+			.then((list) => sortTasks(list.filter((t) => !t.isArchived && !t.isCompleted)))
 	);
 }
 
@@ -76,19 +75,21 @@ export function searchTasks(query: string) {
 	const q = query.trim().toLowerCase();
 	return liveQuery(() =>
 		db.tasks
-			.where('isArchived')
+			.where('deleted')
 			.equals(0)
-			.and((t) => activeFilter(t))
 			.toArray()
 			.then((list) =>
 				sortTasks(
-					list.filter(
-						(t) =>
-							t.title.toLowerCase().includes(q) ||
-							t.description.toLowerCase().includes(q) ||
-							t.category.toLowerCase().includes(q)
+					list
+						.filter(
+							(t) =>
+								!t.isArchived &&
+								!t.isCompleted &&
+								(t.title.toLowerCase().includes(q) ||
+									t.description.toLowerCase().includes(q) ||
+									t.category.toLowerCase().includes(q))
 					)
-				)
+			)
 			)
 	);
 }
@@ -96,18 +97,28 @@ export function searchTasks(query: string) {
 export function liveCompletedTasks() {
 	return liveQuery(() =>
 		db.tasks
-			.where({ isCompleted: 1, isArchived: 0, deleted: 0 })
+			.where('deleted')
+			.equals(0)
 			.toArray()
-			.then((list) => list.sort((a, b) => b.updatedAt - a.updatedAt))
+			.then((list) =>
+				list
+					.filter((t) => t.isCompleted && !t.isArchived)
+					.sort((a, b) => b.updatedAt - a.updatedAt)
+			)
 	);
 }
 
 export function liveArchivedTasks() {
 	return liveQuery(() =>
 		db.tasks
-			.where({ isArchived: 1, deleted: 0 })
+			.where('deleted')
+			.equals(0)
 			.toArray()
-			.then((list) => list.sort((a, b) => b.updatedAt - a.updatedAt))
+			.then((list) =>
+				list
+					.filter((t) => t.isArchived)
+					.sort((a, b) => b.updatedAt - a.updatedAt)
+			)
 	);
 }
 

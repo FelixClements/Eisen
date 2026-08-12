@@ -8,9 +8,12 @@
     "preview": "wrangler pages dev .svelte-kit/cloudflare",
     "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "test": "playwright test",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@sveltejs/adapter-cloudflare": "^4.0.0",
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
