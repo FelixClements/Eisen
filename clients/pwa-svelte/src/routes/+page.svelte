@@ -13,16 +13,13 @@
 		type Task,
 		type EisenhowerCategory
 	} from '$lib/db';
-	import { sync } from '$lib/sync';
+	import { search, syncMessage } from '$lib/stores';
 
 	let password = $state('');
 	let message = $state('');
 	let busy = $state(false);
 	let hasAccount = $state(false);
-	let search = $state('');
-	let searchActive = $state(false);
 	let tasks = $state<Task[]>([]);
-	let syncing = $state(false);
 
 	let isCreate = $derived(hasAccount === false);
 	let modeLabel = $derived(isCreate ? 'Create account' : 'Unlock');
@@ -40,7 +37,8 @@
 
 	$effect(() => {
 		if (!$masterKey) return;
-		const source = searchActive && search.trim() ? searchTasks(search.trim()) : liveActiveTasks();
+		const query = $search.trim();
+		const source = query ? searchTasks(query) : liveActiveTasks();
 		const sub = source.subscribe((list) => {
 			tasks = list;
 		});
@@ -64,19 +62,6 @@
 			message = e instanceof Error ? e.message : 'Could not unlock. Check your passphrase.';
 		} finally {
 			busy = false;
-		}
-	}
-
-	async function handleSync() {
-		if (!$masterKey) return;
-		syncing = true;
-		message = '';
-		try {
-			await sync($masterKey);
-		} catch (e) {
-			message = e instanceof Error ? e.message : 'Sync failed';
-		} finally {
-			syncing = false;
 		}
 	}
 
@@ -113,22 +98,8 @@
 		{/if}
 	</div>
 {:else}
-	<div class="home-actions">
-		{#if searchActive}
-			<div class="search-bar">
-				<input type="text" bind:value={search} placeholder="Search tasks…" autofocus />
-				<button class="icon-button" onclick={() => (searchActive = false)}>×</button>
-			</div>
-		{:else}
-			<div class="home-actions-row">
-				<button class="icon-button" onclick={() => (searchActive = true)} aria-label="Search">🔍</button>
-				<button onclick={handleSync} disabled={syncing}>{syncing ? 'Syncing…' : 'Sync'}</button>
-			</div>
-		{/if}
-	</div>
-
-	{#if message}
-		<p class="error">{message}</p>
+	{#if $syncMessage}
+		<p class="error">{$syncMessage}</p>
 	{/if}
 
 	{#if tasks.length === 0}

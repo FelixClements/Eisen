@@ -85,7 +85,6 @@ test.describe('home ledger', () => {
 
 	test('searches tasks by title', async ({ page }) => {
 		await addTask(page, 'Search target');
-		await page.getByRole('button', { name: 'Search' }).click();
 		await page.getByPlaceholder('Search tasks…').fill('Search target');
 		await expect(page.locator('.card', { hasText: 'Search target' })).toBeVisible();
 		await expect(page.locator('.card', { hasText: 'Pin me' })).not.toBeVisible();

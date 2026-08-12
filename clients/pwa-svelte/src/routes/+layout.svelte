@@ -1,12 +1,31 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/stores';
 	import { masterKey, lock } from '$lib/vault';
+	import { sync } from '$lib/sync';
+	import { search, syncMessage } from '$lib/stores';
 
 	let { children } = $props();
 	let drawerOpen = $state(false);
+	let syncing = $state(false);
+
+	let isHome = $derived($page.url.pathname === '/');
 
 	function closeDrawer() {
 		drawerOpen = false;
+	}
+
+	async function handleSync() {
+		if (!$masterKey) return;
+		syncing = true;
+		syncMessage.set('');
+		try {
+			await sync($masterKey);
+		} catch (e) {
+			syncMessage.set(e instanceof Error ? e.message : 'Sync failed');
+		} finally {
+			syncing = false;
+		}
 	}
 </script>
 
@@ -20,7 +39,19 @@
 		☰
 	</button>
 	<h1>Eisen</h1>
+	{#if isHome && $masterKey}
+		<input
+			type="text"
+			class="header-search"
+			value={$search}
+			oninput={(e) => search.set(e.currentTarget.value)}
+			placeholder="Search tasks…"
+		/>
+	{/if}
 	{#if $masterKey}
+		<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync">
+			{syncing ? '⟳' : '🔄'}
+		</button>
 		<button class="icon-button" onclick={() => ($masterKey ? lock() : null)} aria-label="Lock">🔒</button>
 	{/if}
 </header>
