@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { exportRecoveryPackage, importRecoveryPackage } from '$lib/recovery';
 	import { initiatePairing, claimPairingCode } from '$lib/pairing';
+	import { backupToCloud, listCloudBackups } from '$lib/backup';
 
 	let notifications = $state(false);
 	let importFile = $state<File | null>(null);
@@ -44,6 +45,8 @@
 	let pairingCode = $state('');
 	let pairingExpires = $state<number | null>(null);
 	let isPairing = $state(false);
+	let cloudBackups = $state<{ packageId: string; createdAt: number }[]>([]);
+	let isBackingUp = $state(false);
 
 	async function handleInitiatePairing() {
 		if (!$masterKey) {
@@ -73,6 +76,32 @@
 			message = e instanceof Error ? e.message : 'Failed to claim pairing.';
 		} finally {
 			isPairing = false;
+		}
+	}
+
+	async function handleCloudBackup() {
+		if (!$masterKey) {
+			message = 'Unlock the vault first.';
+			return;
+		}
+		const password = prompt('Enter your passphrase to encrypt the cloud backup:');
+		if (!password) return;
+		try {
+			isBackingUp = true;
+			const packageId = await backupToCloud(password);
+			message = `Cloud backup created: ${packageId}`;
+		} catch (e) {
+			message = e instanceof Error ? e.message : 'Cloud backup failed.';
+		} finally {
+			isBackingUp = false;
+		}
+	}
+
+	async function handleListCloudBackups() {
+		try {
+			cloudBackups = await listCloudBackups();
+		} catch (e) {
+			message = e instanceof Error ? e.message : 'Failed to list cloud backups.';
 		}
 	}
 
@@ -129,6 +158,21 @@
 	<button onclick={handleClaimPairing} disabled={isPairing}>
 		{isPairing ? 'Claiming…' : 'Claim pairing code'}
 	</button>
+</div>
+
+<div class="card">
+	<h3>Cloud Backup</h3>
+	<button onclick={handleCloudBackup} disabled={!$masterKey || isBackingUp}>
+		{isBackingUp ? 'Backing up…' : 'Back up to cloud'}
+	</button>
+	<button onclick={handleListCloudBackups}>List cloud backups</button>
+	{#if cloudBackups.length > 0}
+		<ul>
+			{#each cloudBackups as backup (backup.packageId)}
+				<li>{backup.packageId} — {new Date(backup.createdAt).toLocaleString()}</li>
+			{/each}
+		</ul>
+	{/if}
 </div>
 
 <div class="card">

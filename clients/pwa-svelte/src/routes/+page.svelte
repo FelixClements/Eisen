@@ -17,6 +17,7 @@
 
 	let password = $state('');
 	let message = $state('');
+	let busy = $state(false);
 	let hasAccount = $state(false);
 	let search = $state('');
 	let searchActive = $state(false);
@@ -48,7 +49,9 @@
 
 	async function handleUnlock(event: Event) {
 		event.preventDefault();
+		if (busy) return;
 		message = '';
+		busy = true;
 		try {
 			if (isCreate) {
 				await createAccount(password);
@@ -59,6 +62,8 @@
 			password = '';
 		} catch (e) {
 			message = e instanceof Error ? e.message : 'Could not unlock. Check your passphrase.';
+		} finally {
+			busy = false;
 		}
 	}
 
@@ -100,8 +105,8 @@
 		<h1>Eisen</h1>
 		<p>{modeText}</p>
 		<form onsubmit={handleUnlock}>
-			<input type="password" bind:value={password} placeholder="Passphrase" />
-			<button class="primary" type="submit">{modeLabel}</button>
+			<input type="password" bind:value={password} placeholder="Passphrase" disabled={busy} />
+			<button class="primary" type="submit" disabled={busy}>{busy ? 'Working…' : modeLabel}</button>
 		</form>
 		{#if message}
 			<p class="error">{message}</p>
