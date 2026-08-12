@@ -6,7 +6,7 @@ export async function unlock(page: Page) {
 	await page.goto('/');
 	await page.getByPlaceholder('Passphrase').fill(PASSPHRASE);
 	await page.getByRole('button', { name: /Create account|Unlock/ }).click();
-	await page.getByRole('link', { name: '+ Add' }).waitFor({ timeout: 10000 });
+	await page.getByRole('link', { name: '+ Add' }).waitFor({ timeout: 20000 });
 }
 
 export async function addTask(

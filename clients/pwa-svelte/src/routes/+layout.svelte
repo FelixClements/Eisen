@@ -70,8 +70,17 @@
 {#if drawerOpen}
 	<div
 		class="drawer"
+		role="button"
+		tabindex="-1"
+		aria-label="Close menu"
 		onclick={(e) => {
 			if (e.target === e.currentTarget) closeDrawer();
+		}}
+		onkeydown={(e) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				closeDrawer();
+			}
 		}}
 	>
 		<nav class="drawer-panel" aria-label="Main navigation">

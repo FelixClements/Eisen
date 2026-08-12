@@ -52,11 +52,13 @@
 		message = '';
 		busy = true;
 		try {
-			if (isCreate) {
+			const exists = await accountExists();
+			hasAccount = exists;
+			if (exists) {
+				await unlock(password);
+			} else {
 				await createAccount(password);
 				message = 'Account created.';
-			} else {
-				await unlock(password);
 			}
 			password = '';
 		} catch (e) {
