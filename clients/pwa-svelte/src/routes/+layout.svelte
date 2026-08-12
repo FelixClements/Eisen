@@ -35,9 +35,11 @@
 </svelte:head>
 
 <header class="app-header">
-	<button class="icon-button" onclick={() => (drawerOpen = !drawerOpen)} aria-label="Open menu">
-		☰
-	</button>
+	{#if $masterKey}
+		<button class="icon-button" onclick={() => (drawerOpen = !drawerOpen)} aria-label="Open menu">
+			☰
+		</button>
+	{/if}
 	<h1>Eisen</h1>
 	{#if isHome && $masterKey}
 		<input
