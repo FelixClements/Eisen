@@ -1,0 +1,23 @@
+# Cloudflare Pages configuration
+"$schema" = "./node_modules/wrangler/config-schema.json"
+name = "eisen-svelte-pwa"
+compatibility_date = "2025-07-18"
+compatibility_flags = ["nodejs_als"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "00000000-0000-0000-0000-000000000000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "eisen-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "eisen-attachments"
+
+[vars]
+APP_NAME = "Eisen"
+RECORD_SCHEMA_VERSION = "1"
