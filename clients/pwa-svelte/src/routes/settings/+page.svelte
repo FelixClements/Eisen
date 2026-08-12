@@ -2,6 +2,7 @@
 	import { masterKey, lock, unlock } from '$lib/vault';
 	import { browser } from '$app/environment';
 	import { exportRecoveryPackage, importRecoveryPackage } from '$lib/recovery';
+	import { initiatePairing, claimPairingCode } from '$lib/pairing';
 
 	let notifications = $state(false);
 	let importFile = $state<File | null>(null);
@@ -37,6 +38,41 @@
 			message = 'Recovery package exported.';
 		} catch (e) {
 			message = e instanceof Error ? e.message : 'Export failed.';
+		}
+	}
+
+	let pairingCode = $state('');
+	let pairingExpires = $state<number | null>(null);
+	let isPairing = $state(false);
+
+	async function handleInitiatePairing() {
+		if (!$masterKey) {
+			message = 'Unlock the vault first.';
+			return;
+		}
+		try {
+			isPairing = true;
+			const result = await initiatePairing();
+			pairingCode = result.code;
+			pairingExpires = result.expiresAt;
+		} catch (e) {
+			message = e instanceof Error ? e.message : 'Failed to start pairing.';
+		} finally {
+			isPairing = false;
+		}
+	}
+
+	async function handleClaimPairing() {
+		const code = prompt('Enter the 6-character pairing code from your other device:');
+		if (!code) return;
+		try {
+			isPairing = true;
+			await claimPairingCode(code);
+			message = 'This device is now paired. Unlock to continue.';
+		} catch (e) {
+			message = e instanceof Error ? e.message : 'Failed to claim pairing.';
+		} finally {
+			isPairing = false;
 		}
 	}
 
@@ -77,6 +113,22 @@
 		<input id="import-file" type="file" accept=".json" onchange={(e) => (importFile = (e.target as HTMLInputElement).files?.[0] ?? null)} />
 		<button onclick={handleImport} disabled={!importFile}>Import</button>
 	</div>
+</div>
+
+<div class="card">
+	<h3>Multi-Device Pairing</h3>
+	<button onclick={handleInitiatePairing} disabled={!$masterKey || isPairing}>
+		{isPairing ? 'Generating…' : 'Generate pairing code'}
+	</button>
+	{#if pairingCode}
+		<p class="pairing-code">{pairingCode}</p>
+		{#if pairingExpires}
+			<p>Expires at {new Date(pairingExpires).toLocaleTimeString()}</p>
+		{/if}
+	{/if}
+	<button onclick={handleClaimPairing} disabled={isPairing}>
+		{isPairing ? 'Claiming…' : 'Claim pairing code'}
+	</button>
 </div>
 
 <div class="card">

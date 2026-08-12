@@ -70,7 +70,7 @@ export async function sync(masterKey: CryptoKey, fetch = globalThis.fetch): Prom
 	const response = await fetch('/api/sync', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ ownerId, lastVersion, changes })
+		body: JSON.stringify({ ownerId, deviceId, lastVersion, changes })
 	});
 
 	if (!response.ok) {

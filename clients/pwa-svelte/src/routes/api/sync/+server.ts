@@ -10,6 +10,7 @@ type ClientRecord = {
 
 type SyncPayload = {
 	ownerId: string;
+	deviceId: string;
 	lastVersion: number;
 	changes: ClientRecord[];
 };
@@ -20,7 +21,20 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	}
 	const d1 = platform.env.DB;
 
-	const { ownerId, lastVersion, changes } = (await request.json()) as SyncPayload;
+	const { ownerId, deviceId, lastVersion, changes } = (await request.json()) as SyncPayload;
+
+	if (!ownerId || !deviceId) {
+		throw error(400, 'Missing owner or device id.');
+	}
+
+	const device = await d1
+		.prepare('SELECT device_id FROM devices WHERE owner_id = ? AND device_id = ? AND revoked_at IS NULL')
+		.bind(ownerId, deviceId)
+		.first();
+
+	if (!device) {
+		throw error(403, 'Device is not enrolled for this account.');
+	}
 
 	for (const change of changes) {
 		const row = await d1
@@ -45,6 +59,11 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			.bind(change.recordId, ownerId, change.encryptedBlob, change.modifiedAt, nextVersion, change.deleted)
 			.run();
 	}
+
+	await d1
+		.prepare('UPDATE devices SET last_seen_at = ? WHERE device_id = ?')
+		.bind(Date.now(), deviceId)
+		.run();
 
 	const { results } = await d1
 		.prepare(
