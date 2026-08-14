@@ -1,6 +1,7 @@
 # Cloudflare Pages configuration
 "$schema" = "./node_modules/wrangler/config-schema.json"
 name = "eisen-svelte-pwa"
+account_id = "0e4c1612619b742ab11971110550e319"
 compatibility_date = "2025-07-18"
 compatibility_flags = ["nodejs_als"]
 pages_build_output_dir = ".svelte-kit/cloudflare"

@@ -76,10 +76,12 @@ Goal: prepare the production database, build the PWA, and deploy.
 
 These are not required for the first deployment, but are the natural next steps.
 
-| # | Step | Why | Notes |
-|---|------|-----|-------|
-| 1 | Add a `preview` branch deploy workflow. | Let every feature branch get its own staging URL. | Use `npx wrangler pages deploy .svelte-kit/cloudflare --branch=<branch-name>` in GitHub Actions. |
-| 2 | Add a GitHub Actions CI/CD pipeline. | Build, test, and deploy on push. | Use the existing `.github/workflows/ci.yml` as a base and add a Pages deploy job. |
+**Status:** Items 1–2 are in progress. A `pwa-check` job and a `pwa-deploy` job have been added to `.github/workflows/ci.yml`. The `pwa-deploy` job requires a `CLOUDFLARE_API_TOKEN` secret in the repository.
+
+| # | Step | Status | Why | Notes |
+|---|------|--------|-----|-------|
+| 1 | Add a `preview` branch deploy workflow. | Not started | Let every feature branch get its own staging URL. | Use `npx wrangler pages deploy .svelte-kit/cloudflare --branch=<branch-name>` in GitHub Actions. |
+| 2 | Add a GitHub Actions CI/CD pipeline. | In progress | Build, test, and deploy on push. | `pwa-check` runs `npm run check` and `npm run build`. `pwa-deploy` deploys the artifact to `eisen-svelte-pwa` on push to `main` using `CLOUDFLARE_API_TOKEN`. |
 | 3 | Add a custom domain. | Replace `eisen-svelte-pwa.pages.dev` with your own domain. | Configure in the Pages dashboard under `eisen-svelte-pwa > Custom domains`. |
 | 4 | Protect preview deployments with Cloudflare Access. | Prevent public preview URLs. | https://developers.cloudflare.com/pages/configuration/preview-deployments/ |
 | 5 | Set up a secret if needed. | Any API keys the Worker needs. | `npx wrangler pages secret put API_KEY`. |
@@ -111,6 +113,13 @@ If a deployment breaks the site:
 | `Incorrect passphrase` after pairing | `claimPairingCode` overwrote the local account with empty salt/validation. | Clear site data and create a new account, or import a recovery package. |
 
 ---
+
+## Required GitHub Secrets (for CI/CD deploy)
+
+If you want GitHub Actions to deploy automatically, add these secrets at `https://github.com/FelixClements/Eisen/settings/secrets/actions`:
+
+- `CLOUDFLARE_API_TOKEN` — create at https://dash.cloudflare.com/profile/api-tokens with the **Cloudflare Pages** and **Cloudflare Workers** templates.
+- `CLOUDFLARE_ACCOUNT_ID` — `0e4c1612619b742ab11971110550e319`
 
 ## Verification Commands
 
