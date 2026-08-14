@@ -7,12 +7,13 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "00000000-0000-0000-0000-000000000000"
+id = "70281fa565714be7b7c26af569556071"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "eisen-db"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "7cf88082-4cb8-4ba8-ad03-c26db5f710c4"
+preview_database_id = "local-eisen-db"
 
 [[r2_buckets]]
 binding = "ATTACHMENTS"
