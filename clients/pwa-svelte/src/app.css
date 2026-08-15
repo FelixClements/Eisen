@@ -282,18 +282,10 @@ textarea::placeholder {
 	z-index: 100;
 }
 
-.app-header h1 {
-	font-size: var(--text-title);
-	flex: 0;
-	color: var(--md-sys-color-on-surface);
-	font-weight: 600;
-}
-
-.header-search {
-	flex: 1;
-	min-width: 0;
-	max-width: calc(40rem - 2 * var(--space-4));
-	margin: 0 auto;
+.home-search {
+	display: block;
+	width: 100%;
+	margin-bottom: var(--space-4);
 	padding: var(--space-2) var(--space-3);
 	border-radius: var(--radius-full);
 	background: var(--md-sys-color-surface-container-highest);
@@ -301,7 +293,7 @@ textarea::placeholder {
 	color: var(--md-sys-color-on-surface);
 }
 
-.header-search::placeholder {
+.home-search::placeholder {
 	color: var(--md-sys-color-on-surface-variant);
 }
 

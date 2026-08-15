@@ -141,6 +141,14 @@
 		<p class="error">{$syncMessage}</p>
 	{/if}
 
+	<input
+		type="text"
+		class="home-search"
+		value={$search}
+		oninput={(e) => search.set(e.currentTarget.value)}
+		placeholder="Search tasks…"
+	/>
+
 	{#if tasks.length === 0}
 		<div class="empty-state">No active tasks. Add one to get started.</div>
 	{/if}

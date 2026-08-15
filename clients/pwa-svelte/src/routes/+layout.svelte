@@ -1,16 +1,13 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
 	import { masterKey, lock } from '$lib/vault';
 	import { sync } from '$lib/sync';
-	import { search, syncMessage } from '$lib/stores';
+	import { syncMessage } from '$lib/stores';
 	import { Menu, RefreshCw, Loader, Lock } from '@lucide/svelte';
 
 	let { children } = $props();
 	let drawerOpen = $state(false);
 	let syncing = $state(false);
-
-	let isHome = $derived($page.url.pathname === '/');
 
 	function closeDrawer() {
 		drawerOpen = false;
@@ -40,17 +37,6 @@
 		<button class="icon-button" onclick={() => (drawerOpen = !drawerOpen)} aria-label="Open menu">
 			<Menu size={24} />
 		</button>
-	{/if}
-	{#if isHome && $masterKey}
-		<input
-			type="text"
-			class="header-search"
-			value={$search}
-			oninput={(e) => search.set(e.currentTarget.value)}
-			placeholder="Search tasks…"
-		/>
-	{/if}
-	{#if $masterKey}
 		<div class="header-actions">
 			<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync now">
 				{#if syncing}
