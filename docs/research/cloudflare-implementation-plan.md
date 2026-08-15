@@ -116,10 +116,11 @@ If a deployment breaks the site:
 
 ## Required GitHub Secrets (for CI/CD deploy)
 
-If you want GitHub Actions to deploy automatically, add these secrets at `https://github.com/FelixClements/Eisen/settings/secrets/actions`:
+If you want GitHub Actions to deploy automatically, add this secret at `https://github.com/FelixClements/Eisen/settings/secrets/actions`:
 
 - `CLOUDFLARE_API_TOKEN` — create at https://dash.cloudflare.com/profile/api-tokens with the **Cloudflare Pages** and **Cloudflare Workers** templates.
-- `CLOUDFLARE_ACCOUNT_ID` — `0e4c1612619b742ab11971110550e319`
+
+`wrangler.toml` already contains `name = "eisen-svelte-pwa"`, so Wrangler will find the project using the token.
 
 ## Verification Commands
 

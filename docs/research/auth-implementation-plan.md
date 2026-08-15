@@ -382,11 +382,11 @@ Begin with **Phase 0**.1 through **Phase 0.4**. Those stop the data corruption a
 
 | Phase | # | Done | Deployed | Notes |
 |-------|---|------|----------|-------|
-| 0.1 | Prevent same-device claim wipe | [ ] | [ ] | Critical |
-| 0.2 | `POST /api/devices/enroll` endpoint | [ ] | [ ] | Critical |
-| 0.3 | Auto-enroll on `createAccount` | [ ] | [ ] | Critical |
-| 0.4 | “Reset this device” button | [ ] | [ ] | Critical |
-| 0.5 | Rename pairing buttons | [ ] | [ ] | Quick win |
+| 0.1 | Prevent same-device claim wipe | [x] | [x] | Critical |
+| 0.2 | `POST /api/devices/enroll` endpoint | [x] | [x] | Critical |
+| 0.3 | Auto-enroll on `createAccount` | [x] | [x] | Critical |
+| 0.4 | “Reset this device” button | [x] | [x] | Critical |
+| 0.5 | Rename pairing buttons | [x] | [x] | Quick win |
 | 1.1 | Recovery key generation | [ ] | [ ] | P1 |
 | 1.2 | `/recover` page | [ ] | [ ] | P1 |
 | 1.3 | Rekey with new passphrase | [ ] | [ ] | P1 |
