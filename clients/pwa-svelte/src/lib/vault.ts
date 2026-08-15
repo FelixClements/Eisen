@@ -1,8 +1,10 @@
 import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
 import { writable } from 'svelte/store';
 import type { Writable } from 'svelte/store';
 import { deriveMasterKey, encrypt, decrypt } from './crypto';
 import { db, getAccount, createAccountRecord } from './db';
+import { enrollDevice } from './enrollment';
 
 const VALIDATION_VALUE = 'eisen-validation-value';
 
@@ -29,6 +31,10 @@ export async function createAccount(password: string): Promise<void> {
 	if (!account) throw new Error('Failed to create account.');
 
 	masterKey.set(key);
+
+	enrollDevice(account).catch((err) => {
+		console.warn('First-device cloud enrollment failed; falling back to offline-only.', err);
+	});
 }
 
 export async function unlock(password: string): Promise<void> {
@@ -55,4 +61,7 @@ export async function unlock(password: string): Promise<void> {
 
 export async function lock(): Promise<void> {
 	masterKey.set(null);
+	if (browser) {
+		await goto('/', { replaceState: true });
+	}
 }

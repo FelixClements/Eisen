@@ -209,6 +209,13 @@ export async function getAccount(): Promise<Account | undefined> {
 	return db.accounts.toCollection().first();
 }
 
+export async function clearAllData(): Promise<void> {
+	await db.delete();
+	if (typeof localStorage !== 'undefined') {
+		localStorage.clear();
+	}
+}
+
 export async function createAccountRecord(
 	validationValue: string,
 	deviceSalt: Uint8Array

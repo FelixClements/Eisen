@@ -10,6 +10,7 @@
 		toggleCompleted,
 		archiveTask,
 		togglePin,
+		clearAllData,
 		type Task,
 		type EisenhowerCategory
 	} from '$lib/db';
@@ -21,6 +22,8 @@
 	let busy = $state(false);
 	let hasAccount = $state(false);
 	let tasks = $state<Task[]>([]);
+	let showReset = $state(false);
+	let resetConfirm = $state('');
 
 	let isCreate = $derived(hasAccount === false);
 	let modeLabel = $derived(isCreate ? 'Create account' : 'Unlock');
@@ -68,6 +71,18 @@
 		}
 	}
 
+	async function handleReset() {
+		if (resetConfirm !== 'DELETE') return;
+		busy = true;
+		try {
+			await clearAllData();
+			window.location.reload();
+		} catch (e) {
+			message = e instanceof Error ? e.message : 'Reset failed.';
+			busy = false;
+		}
+	}
+
 	const categoryLabels: Record<
 		EisenhowerCategory,
 		{ title: string; desc: string; cls: string; shortcut: string }
@@ -96,6 +111,27 @@
 			<input type="password" bind:value={password} placeholder="Passphrase" disabled={busy} />
 			<button class="primary" type="submit" disabled={busy}>{busy ? 'Working…' : modeLabel}</button>
 		</form>
+		{#if hasAccount && !showReset}
+			<button class="text-button" type="button" onclick={() => (showReset = true)}>
+				Reset this device
+			</button>
+		{/if}
+		{#if showReset}
+			<div class="reset-confirm">
+				<p class="warning">
+					This will delete all local data. Cloud data can only be recovered if you have an export.
+				</p>
+				<input bind:value={resetConfirm} placeholder="Type DELETE to confirm" disabled={busy} />
+				<div class="row">
+					<button class="danger" type="button" disabled={busy || resetConfirm !== 'DELETE'} onclick={handleReset}>
+						Delete everything
+					</button>
+					<button class="secondary" type="button" disabled={busy} onclick={() => { showReset = false; resetConfirm = ''; }}>
+						Cancel
+					</button>
+				</div>
+			</div>
+		{/if}
 		{#if message}
 			<p class="error">{message}</p>
 		{/if}

@@ -52,6 +52,13 @@ export async function initiatePairing(): Promise<PairingCode> {
 export async function claimPairingCode(code: string): Promise<{ ownerId: string; vaultId: string }> {
 	if (!browser) throw new Error('Pairing is browser-only.');
 
+	const existingAccount = await getAccount();
+	if (existingAccount) {
+		throw new Error(
+			'This device already has an account. Use "Reset this device" to clear it, or enter the code on a new device.'
+		);
+	}
+
 	const deviceId = crypto.randomUUID();
 	const res = await fetch('/api/pairing/claim', {
 		method: 'POST',

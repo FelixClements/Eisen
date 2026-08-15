@@ -178,7 +178,7 @@
 
 <section class="settings-section">
 	<h3 class="section-title"><Smartphone size={20} /> Multi-Device Pairing</h3>
-	<p class="setting-description">Pair another device to sync your encrypted task data.</p>
+	<p class="setting-description">Add this device to cloud sync, or join from a new device.</p>
 	<div class="setting-actions">
 		<button class="outlined" onclick={handleInitiatePairing} disabled={!$masterKey || isPairing}>
 			{#if isPairing}
@@ -186,7 +186,7 @@
 			{:else}
 				<Smartphone size={18} />
 			{/if}
-			<span>{isPairing ? 'Generating…' : 'Generate pairing code'}</span>
+			<span>{isPairing ? 'Enrolling…' : 'Add this device'}</span>
 		</button>
 		{#if pairingCode}
 			<p class="pairing-code" aria-live="polite">{pairingCode}</p>
@@ -200,7 +200,7 @@
 			{:else}
 				<Smartphone size={18} />
 			{/if}
-			<span>{isPairing ? 'Claiming…' : 'Claim pairing code'}</span>
+			<span>{isPairing ? 'Joining…' : 'Join from another device'}</span>
 		</button>
 	</div>
 </section>
