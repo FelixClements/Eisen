@@ -83,7 +83,7 @@
 		try {
 			isPairing = true;
 			await claimPairingCode(code);
-			message = 'This device is now paired. Unlock to continue.';
+			message = 'Paired. To unlock this device, import the recovery package from the original device (Backup & Recovery → Export), then unlock with the same passphrase.';
 		} catch (e) {
 			message = e instanceof Error ? e.message : 'Failed to claim pairing.';
 		} finally {

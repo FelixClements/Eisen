@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import { db, type Account, type Task } from './db';
 import { deriveMasterKey, encrypt, decrypt, toBase64, fromBase64 } from './crypto';
+import { enrollDevice } from './enrollment';
 
 export interface RecoveryPackage {
 	version: number;
@@ -69,10 +70,13 @@ export async function importRecoveryPackage(file: File, password: string): Promi
 		await db.tasks.bulkAdd(tasks);
 	});
 
+	const existingState = await db.deviceState.toCollection().first();
+	const deviceId = existingState?.deviceId ?? crypto.randomUUID();
 	await db.deviceState.clear();
 	await db.deviceState.add({
-		deviceId: crypto.randomUUID(),
+		deviceId,
 		ownerId: account.ownerId,
 		lastSyncAt: null
 	});
+	await enrollDevice(account);
 }

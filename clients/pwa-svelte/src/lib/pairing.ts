@@ -43,7 +43,8 @@ export async function initiatePairing(): Promise<PairingCode> {
 	});
 
 	if (!res.ok) {
-		throw new Error('Failed to initiate pairing.');
+		const body = await res.text();
+		throw new Error(body || `Failed to initiate pairing (${res.status}).`);
 	}
 
 	return { code, expiresAt };
@@ -67,7 +68,8 @@ export async function claimPairingCode(code: string): Promise<{ ownerId: string;
 	});
 
 	if (!res.ok) {
-		throw new Error('Invalid or expired pairing code.');
+		const body = await res.text();
+		throw new Error(body || `Invalid or expired pairing code (${res.status}).`);
 	}
 
 	const { ownerId, vaultId } = (await res.json()) as { ownerId: string; vaultId: string };
