@@ -41,7 +41,6 @@
 			<Menu size={24} />
 		</button>
 	{/if}
-	<h1>Eisen</h1>
 	{#if isHome && $masterKey}
 		<input
 			type="text"

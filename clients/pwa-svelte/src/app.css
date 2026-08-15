@@ -292,6 +292,8 @@ textarea::placeholder {
 .header-search {
 	flex: 1;
 	min-width: 0;
+	max-width: calc(40rem - 2 * var(--space-4));
+	margin: 0 auto;
 	padding: var(--space-2) var(--space-3);
 	border-radius: var(--radius-full);
 	background: var(--md-sys-color-surface-container-highest);
