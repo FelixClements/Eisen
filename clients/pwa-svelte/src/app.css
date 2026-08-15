@@ -145,6 +145,7 @@ body {
 	background: var(--color-surface);
 	color: var(--color-on-surface);
 	-webkit-tap-highlight-color: transparent;
+	overscroll-behavior-y: none;
 }
 
 h1,
