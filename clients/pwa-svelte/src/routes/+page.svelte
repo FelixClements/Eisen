@@ -14,7 +14,7 @@
 		type Task,
 		type EisenhowerCategory
 	} from '$lib/db';
-	import { search, syncMessage } from '$lib/stores';
+	import { search, showSearch, syncMessage } from '$lib/stores';
 	import { Plus, Pin, PinOff, Trash2 } from '@lucide/svelte';
 
 	let password = $state('');
@@ -141,13 +141,15 @@
 		<p class="error">{$syncMessage}</p>
 	{/if}
 
-	<input
-		type="text"
-		class="home-search"
-		value={$search}
-		oninput={(e) => search.set(e.currentTarget.value)}
-		placeholder="Search tasks…"
-	/>
+	{#if $showSearch}
+		<input
+			type="text"
+			class="home-search"
+			value={$search}
+			oninput={(e) => search.set(e.currentTarget.value)}
+			placeholder="Search tasks…"
+		/>
+	{/if}
 
 	{#if tasks.length === 0}
 		<div class="empty-state">No active tasks. Add one to get started.</div>

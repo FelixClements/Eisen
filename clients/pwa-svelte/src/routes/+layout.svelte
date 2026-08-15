@@ -1,16 +1,23 @@
 <script lang="ts">
 	import '../app.css';
+	import { page } from '$app/stores';
 	import { masterKey, lock } from '$lib/vault';
 	import { sync } from '$lib/sync';
-	import { syncMessage } from '$lib/stores';
-	import { Menu, RefreshCw, Loader, Lock } from '@lucide/svelte';
+	import { showSearch, syncMessage } from '$lib/stores';
+	import { Menu, RefreshCw, Loader, Lock, Search } from '@lucide/svelte';
 
 	let { children } = $props();
 	let drawerOpen = $state(false);
 	let syncing = $state(false);
 
+	let isHome = $derived($page.url.pathname === '/');
+
 	function closeDrawer() {
 		drawerOpen = false;
+	}
+
+	function toggleSearch() {
+		showSearch.update((v) => !v);
 	}
 
 	async function handleSync() {
@@ -38,6 +45,11 @@
 			<Menu size={24} />
 		</button>
 		<div class="header-actions">
+			{#if isHome}
+				<button class="icon-button" onclick={toggleSearch} aria-pressed={$showSearch} aria-label="Search">
+					<Search size={24} />
+				</button>
+			{/if}
 			<button class="icon-button" onclick={handleSync} disabled={syncing} aria-label="Sync now">
 				{#if syncing}
 					<Loader size={24} />
