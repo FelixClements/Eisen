@@ -147,10 +147,10 @@
 	{#if $masterKey}
 		<button class="outlined" onclick={lock}>
 			<Lock size={18} />
-			<span>Lock and clear key</span>
+			<span>Sign out</span>
 		</button>
 	{:else}
-		<p class="setting-description">Locked. Unlock from the home screen.</p>
+		<p class="setting-description">Signed out. Unlock from the home screen.</p>
 	{/if}
 </section>
 

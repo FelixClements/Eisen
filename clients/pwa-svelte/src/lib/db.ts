@@ -47,18 +47,26 @@ export interface DeviceState {
 	lastSyncAt: number | null;
 }
 
+export interface Session {
+	id: 'current';
+	key: CryptoKey;
+	createdAt: number;
+}
+
 export class EisenDB extends Dexie {
 	tasks!: Table<Task, string>;
 	accounts!: Table<Account, string>;
 	deviceState!: Table<DeviceState, string>;
+	sessions!: Table<Session, 'current'>;
 
 	constructor() {
 		super('eisen-pwa');
-		this.version(2).stores({
+		this.version(3).stores({
 			tasks:
 				'id, isCompleted, isArchived, isPinned, dueDate, updatedAt, createdAt, deleted, sync_version',
 			accounts: 'ownerId',
-			deviceState: 'deviceId, ownerId'
+			deviceState: 'deviceId, ownerId',
+			sessions: 'id, createdAt'
 		});
 	}
 }

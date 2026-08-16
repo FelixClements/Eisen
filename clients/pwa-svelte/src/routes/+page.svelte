@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { liveQuery } from 'dexie';
-	import { masterKey, unlock, createAccount, accountExists } from '$lib/vault';
+	import { masterKey, unlock, createAccount, accountExists, tryAutoUnlock } from '$lib/vault';
 	import {
 		liveActiveTasks,
 		searchTasks,
@@ -21,6 +21,7 @@
 	let message = $state('');
 	let busy = $state(false);
 	let hasAccount = $state(false);
+	let keepSignedIn = $state(false);
 	let tasks = $state<Task[]>([]);
 	let showReset = $state(false);
 	let resetConfirm = $state('');
@@ -34,6 +35,7 @@
 	);
 
 	if (browser) {
+		tryAutoUnlock();
 		accountExists().then((exists) => {
 			hasAccount = exists;
 		});
@@ -58,9 +60,9 @@
 			const exists = await accountExists();
 			hasAccount = exists;
 			if (exists) {
-				await unlock(password);
+				await unlock(password, keepSignedIn);
 			} else {
-				await createAccount(password);
+				await createAccount(password, keepSignedIn);
 				message = 'Account created.';
 			}
 			password = '';
@@ -109,6 +111,10 @@
 		<p>{modeText}</p>
 		<form onsubmit={handleUnlock}>
 			<input type="password" bind:value={password} placeholder="Passphrase" disabled={busy} />
+			<label class="keep-signed-in">
+				<input type="checkbox" bind:checked={keepSignedIn} disabled={busy} />
+				Keep me signed in
+			</label>
 			<button class="primary" type="submit" disabled={busy}>{busy ? 'Working…' : modeLabel}</button>
 		</form>
 		{#if hasAccount && !showReset}
