@@ -9,20 +9,29 @@ export default defineConfig({
 		sveltekit(),
 		SvelteKitPWA({
 			srcDir: 'src',
-			mode: 'development',
+			scope: '/',
+			base: '/',
 			strategies: 'injectManifest',
 			filename: 'service-worker.ts',
+			injectRegister: false,
 			manifest: {
 				name: 'Eisen',
 				short_name: 'Eisen',
+				description: 'Eisenhower matrix task manager with encrypted sync',
 				start_url: '/',
+				scope: '/',
 				display: 'standalone',
 				background_color: '#ffffff',
 				theme_color: '#0f766e',
 				icons: [
 					{ src: '/icon.svg', sizes: 'any', type: 'image/svg+xml' },
 					{ src: '/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-					{ src: '/icon-512x512.png', sizes: '512x512', type: 'image/png' }
+					{
+						src: '/icon-512x512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any maskable'
+					}
 				]
 			},
 			injectManifest: {

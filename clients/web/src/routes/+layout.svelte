@@ -13,6 +13,13 @@
 	import { db } from '$lib/db';
 	import { scheduleNextWake } from '$lib/notifications';
 	import { initTheme, resolvedTheme } from '$lib/theme';
+	import { useRegisterSW } from 'virtual:pwa-register/svelte';
+
+	useRegisterSW({
+		onRegisterError(error) {
+			console.error('Service worker registration failed:', error);
+		}
+	});
 
 	let { children, data } = $props();
 
@@ -70,6 +77,10 @@
 		}
 	}
 </script>
+
+<svelte:head>
+	<link rel="manifest" href="/manifest.webmanifest" />
+</svelte:head>
 
 <App theme={$resolvedTheme} safeAreas materialTouchRipple={$resolvedTheme === 'material'}>
 	{#if user && !isPublic}
