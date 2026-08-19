@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    image: eisen-web:local
+    ports:
+      - '8788:8788'
+    environment:
+      BETTER_AUTH_SECRET: dev-secret-change-in-production-min-32-chars!!
+      BETTER_AUTH_URL: http://localhost:8788
+    volumes:
+      - eisen-d1:/app/.wrangler
+
+volumes:
+  eisen-d1:

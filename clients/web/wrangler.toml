@@ -1,0 +1,21 @@
+"$schema" = "./node_modules/wrangler/config-schema.json"
+name = "eisen-web"
+compatibility_date = "2025-07-18"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "eisen-web-db"
+database_id = "d040364f-290f-4223-b35f-9a4dd2803523"
+preview_database_id = "d040364f-290f-4223-b35f-9a4dd2803523"
+
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "eisen-attachments"
+
+[vars]
+APP_NAME = "Eisen"
+RECORD_SCHEMA_VERSION = "1"
+
+# Set in production: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, BETTER_AUTH_SECRET, BETTER_AUTH_URL

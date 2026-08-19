@@ -1,0 +1,9 @@
+node_modules
+.svelte-kit
+.wrangler
+.git
+.DS_Store
+*.md
+.env
+.env.*
+!.env.example
