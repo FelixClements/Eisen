@@ -60,7 +60,7 @@
 				<ListInput label="Confirm passphrase" type="password" bind:value={confirm} />
 				<ListItem title="Keep vault unlocked on this device">
 					{#snippet after()}
-						<Toggle component="div" bind:checked={keepSignedIn} />
+						<Toggle bind:checked={keepSignedIn} />
 					{/snippet}
 				</ListItem>
 			</List>

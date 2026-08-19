@@ -165,7 +165,6 @@
 			<ListItem title="Completed">
 				{#snippet after()}
 					<Toggle
-						component="div"
 						checked={isCompleted}
 						onChange={async () => {
 							await toggleCompleted(taskId);
@@ -177,7 +176,6 @@
 			<ListItem title="Pinned">
 				{#snippet after()}
 					<Toggle
-						component="div"
 						checked={isPinned}
 						onChange={async () => {
 							await togglePin(taskId);

@@ -215,7 +215,7 @@
 					<ListInput label="Vault passphrase" type="password" bind:value={passphrase} />
 					<ListItem title="Keep unlocked on this device">
 						{#snippet after()}
-							<Toggle component="div" bind:checked={keepSignedIn} />
+							<Toggle bind:checked={keepSignedIn} />
 						{/snippet}
 					</ListItem>
 				</List>

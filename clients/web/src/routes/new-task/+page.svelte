@@ -64,10 +64,13 @@
 		{#if error}
 			<p class="text-red-600">{error}</p>
 		{/if}
-		<List strongIos outlineIos>
-			<ListInput label="Title" type="text" placeholder="What needs doing?" bind:value={title} />
-		</List>
+	</Block>
 
+	<List strongIos outlineIos>
+		<ListInput label="Title" type="text" placeholder="What needs doing?" bind:value={title} />
+	</List>
+
+	<Block strong inset>
 		<div class="grid grid-cols-2 gap-2">
 			{#each categoryOrder as cat (cat)}
 				{@const info = categoryLabels[cat]}
@@ -83,12 +86,12 @@
 				</button>
 			{/each}
 		</div>
-
-		<List strongIos outlineIos>
-			<ListInput label="Notes" type="textarea" placeholder="Details…" bind:value={description} />
-			<ListInput label="Category tag" type="text" bind:value={categoryTag} />
-			<ListInput label="Due date" type="date" bind:value={dueDate} />
-			<ListInput label="Reminder" type="datetime-local" bind:value={reminderAt} />
-		</List>
 	</Block>
+
+	<List strongIos outlineIos>
+		<ListInput label="Notes" type="textarea" placeholder="Details…" bind:value={description} />
+		<ListInput label="Category tag" type="text" bind:value={categoryTag} />
+		<ListInput label="Due date" type="date" bind:value={dueDate} />
+		<ListInput label="Reminder" type="datetime-local" bind:value={reminderAt} />
+	</List>
 </Page>
