@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Page, Navbar, Block, List, ListInput, Button } from 'konsta/svelte';
-	import { authClient } from '$lib/auth-client';
+	import { authenticateWithVault } from '$lib/workspace/authenticate';
+	import { EisenErrorException } from '$lib/workspace/types';
 
 	let name = $state('');
 	let email = $state('');
@@ -14,11 +15,16 @@
 		busy = true;
 		error = '';
 		try {
-			const { error: err } = await authClient.signUp.email({ email, password, name: name || email.split('@')[0] });
-			if (err) throw new Error(err.message ?? 'Sign up failed');
-			goto('/vault-setup');
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Sign up failed';
+			await authenticateWithVault({ mode: 'sign-up', email, password, name });
+			password = '';
+			goto('/');
+		} catch (err) {
+			if (err instanceof EisenErrorException) {
+				error =
+					err.error.code === 'weak-passphrase' ? err.error.reason : 'Could not create your account.';
+			} else {
+				error = err instanceof Error ? err.message : 'Sign up failed';
+			}
 		} finally {
 			busy = false;
 		}
@@ -28,7 +34,10 @@
 <Page>
 	<Navbar title="Create account" />
 	<Block strong inset class="space-y-4">
-		<p>Create your Eisen account. Next you will set a vault passphrase that encrypts your tasks.</p>
+		<p>
+			Create your Eisen account. Your password signs you in and encrypts your tasks. We cannot read
+			them, and a password reset cannot recover them.
+		</p>
 		{#if error}
 			<p class="text-red-600">{error}</p>
 		{/if}

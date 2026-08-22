@@ -12,84 +12,71 @@
 		Button,
 		Toggle
 	} from 'konsta/svelte';
-	import { masterKey } from '$lib/vault';
+	import { currentOpen } from '$lib/workspace/current.svelte';
 	import {
-		getTask,
-		updateTask,
-		toggleCompleted,
-		togglePin,
-		archiveTask,
-		restoreTask,
-		eisenhowerCategory,
-		categoryOrder,
-		categoryLabels,
-		type EisenhowerCategory
-	} from '$lib/db';
-	import { scheduleNextWake } from '$lib/notifications';
+		QUADRANT_ORDER,
+		QUADRANT_META,
+		flagsFromQuadrant,
+		type Quadrant
+	} from '$lib/workspace';
+	import { EisenErrorException } from '$lib/workspace/types';
 
-	let { data } = $props();
-	const userId = $derived(data.user?.id ?? '');
+	const open = $derived(currentOpen());
+	const task = $derived(open?.get($page.params.taskId ?? ''));
 
-	let taskId = $state('');
 	let title = $state('');
-	let description = $state('');
-	let categoryTag = $state('');
-	let selected = $state<EisenhowerCategory>('do_now');
-	let isCompleted = $state(false);
-	let isArchived = $state(false);
-	let isPinned = $state(false);
+	let notes = $state('');
+	let tag = $state('');
+	let selected = $state<Quadrant>('do-now');
 	let due = $state('');
 	let reminder = $state('');
 	let error = $state('');
-	let found = $state(true);
+	let loadedId = $state('');
 
 	$effect(() => {
-		if (!$masterKey) return;
-		const id = $page.params.taskId ?? '';
-		if (!id) {
-			goto('/');
-			return;
-		}
-		taskId = id;
-		getTask(id).then((t) => {
-			if (!t || t.userId !== userId) {
-				found = false;
-				goto('/');
-				return;
-			}
-			found = true;
-			title = t.title;
-			description = t.description;
-			categoryTag = t.category;
-			selected = eisenhowerCategory(t);
-			isCompleted = t.isCompleted;
-			isArchived = t.isArchived;
-			isPinned = t.isPinned;
-			due = t.dueDate ? new Date(t.dueDate).toISOString().slice(0, 10) : '';
-			reminder = t.reminderAt ? new Date(t.reminderAt).toISOString().slice(0, 16) : '';
-		});
+		if (!task || task.id === loadedId) return;
+		loadedId = task.id;
+		title = task.title;
+		notes = task.notes;
+		tag = task.tag;
+		selected = task.quadrant;
+		due = task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : '';
+		reminder = task.remindAt ? new Date(task.remindAt).toISOString().slice(0, 16) : '';
 	});
 
-	function flagsFromCategory(cat: EisenhowerCategory) {
-		return {
-			isImportant: cat === 'do_now' || cat === 'schedule',
-			isUrgent: cat === 'do_now' || cat === 'delegate'
-		};
+	async function patch(p: Parameters<typeof applyPatch>[0]) {
+		await applyPatch(p);
 	}
 
-	async function setCategory(cat: EisenhowerCategory) {
-		selected = cat;
-		await updateTask(taskId, flagsFromCategory(cat));
-	}
-
-	async function saveAndSchedule() {
-		if (userId) await scheduleNextWake(userId);
+	async function applyPatch(
+		p: Partial<{
+			title: string;
+			notes: string;
+			tag: string;
+			important: boolean;
+			urgent: boolean;
+			dueAt: number | null;
+			remindAt: number | null;
+			pinned: boolean;
+		}>
+	) {
+		if (!open || !task) return;
+		try {
+			await open.apply({ kind: 'update', id: task.id, patch: p });
+			error = '';
+		} catch (err) {
+			if (err instanceof EisenErrorException && err.error.code === 'invalid-task') {
+				error = err.error.reason;
+			} else {
+				error = err instanceof Error ? err.message : 'Save failed';
+			}
+		}
 	}
 </script>
 
-{#if $masterKey && found}
+{#if open && task}
 	<Page>
-		<Navbar title={title || 'Task'}>
+		<Navbar title={task.title || 'Task'}>
 			{#snippet left()}
 				<NavbarBackLink onclick={() => goto('/')} />
 			{/snippet}
@@ -104,24 +91,25 @@
 				label="Title"
 				type="text"
 				bind:value={title}
-				onBlur={async () => {
-					await updateTask(taskId, { title });
-					await saveAndSchedule();
-				}}
+				onBlur={() => patch({ title })}
 			/>
 		</List>
 
 		<Block strong inset>
 			<div class="grid grid-cols-2 gap-2">
-				{#each categoryOrder as cat (cat)}
-					{@const info = categoryLabels[cat]}
+				{#each QUADRANT_ORDER as cat (cat)}
+					{@const info = QUADRANT_META[cat]}
 					<button
 						type="button"
 						class="rounded-xl border p-2 text-left text-sm {info.cls}"
 						class:ring-2={selected === cat}
-						onclick={() => setCategory(cat)}
+						onclick={() => {
+							selected = cat;
+							const flags = flagsFromQuadrant(cat);
+							patch(flags);
+						}}
 					>
-						{info.title}
+						{info.label}
 					</button>
 				{/each}
 			</div>
@@ -131,83 +119,54 @@
 			<ListInput
 				label="Notes"
 				type="textarea"
-				bind:value={description}
-				onBlur={async () => updateTask(taskId, { description })}
+				bind:value={notes}
+				onBlur={() => patch({ notes })}
 			/>
-			<ListInput
-				label="Category"
-				type="text"
-				bind:value={categoryTag}
-				onBlur={async () => updateTask(taskId, { category: categoryTag })}
-			/>
+			<ListInput label="Category" type="text" bind:value={tag} onBlur={() => patch({ tag })} />
 			<ListInput
 				label="Due date"
 				type="date"
 				bind:value={due}
-				onChange={async () =>
-					updateTask(taskId, { dueDate: due ? new Date(due).getTime() : null })}
+				onChange={() => patch({ dueAt: due ? new Date(due).getTime() : null })}
 			/>
 			<ListInput
 				label="Reminder"
 				type="datetime-local"
 				bind:value={reminder}
-				onChange={async () => {
-					const time = reminder ? new Date(reminder).getTime() : null;
-					if (time && time < Date.now()) {
-						error = 'Reminder is in the past';
-						return;
-					}
-					error = '';
-					await updateTask(taskId, { reminderAt: time });
-					await saveAndSchedule();
-				}}
+				onChange={() => patch({ remindAt: reminder ? new Date(reminder).getTime() : null })}
 			/>
 			<ListItem title="Completed">
 				{#snippet after()}
 					<Toggle
-						checked={isCompleted}
-						onChange={async () => {
-							await toggleCompleted(taskId);
-							isCompleted = !isCompleted;
-						}}
+						checked={task.completed}
+						onChange={() => open.apply({ kind: 'complete', id: task.id, done: !task.completed })}
 					/>
 				{/snippet}
 			</ListItem>
 			<ListItem title="Pinned">
 				{#snippet after()}
 					<Toggle
-						checked={isPinned}
-						onChange={async () => {
-							await togglePin(taskId);
-							isPinned = !isPinned;
-						}}
+						checked={task.pinned}
+						onChange={() => patch({ pinned: !task.pinned })}
 					/>
 				{/snippet}
 			</ListItem>
 		</List>
 
 		<Block strong inset class="flex gap-2">
-			{#if isArchived}
-				<Button
-					outline
-					onclick={async () => {
-						await restoreTask(taskId);
-						isArchived = false;
-					}}>Restore</Button
+			{#if task.archived}
+				<Button outline onclick={() => open.apply({ kind: 'archive', id: task.id, archived: false })}
+					>Restore</Button
 				>
 			{:else}
-				<Button
-					outline
-					onclick={async () => {
-						await archiveTask(taskId);
-						isArchived = true;
-					}}>Archive</Button
+				<Button outline onclick={() => open.apply({ kind: 'archive', id: task.id, archived: true })}
+					>Archive</Button
 				>
 			{/if}
 		</Block>
 	</Page>
 {:else}
 	<Page>
-		<Block strong inset><p>Unlock your vault to view this task.</p></Block>
+		<Block strong inset><p>Task not found.</p></Block>
 	</Page>
 {/if}

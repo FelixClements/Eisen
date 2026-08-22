@@ -1,4 +1,5 @@
 /// <reference types="@sveltejs/kit" />
+/// <reference types="vite-plugin-pwa/client" />
 
 import type { Session, User } from 'better-auth/types';
 

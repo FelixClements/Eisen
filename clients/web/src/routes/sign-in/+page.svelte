@@ -1,24 +1,43 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Page, Navbar, Block, List, ListInput, Button, BlockTitle } from 'konsta/svelte';
+	import { Page, Navbar, Block, List, ListInput, Button } from 'konsta/svelte';
+	import { authenticateWithVault } from '$lib/workspace/authenticate';
+	import { EisenErrorException } from '$lib/workspace/types';
+	import { unwrapVaultKey } from '$lib/workspace/vault-key';
 	import { authClient } from '$lib/auth-client';
+	import { browser } from '$app/environment';
 
 	let email = $state('');
 	let password = $state('');
-	let name = $state('');
 	let error = $state('');
 	let busy = $state(false);
+
+	$effect(() => {
+		if (!browser) return;
+		(async () => {
+			const session = await authClient.getSession();
+			const user = session.data?.user;
+			if (!user) return;
+			const key = await unwrapVaultKey({ accountId: user.id });
+			if (key) goto('/');
+		})();
+	});
 
 	async function handleSignIn(e: Event) {
 		e.preventDefault();
 		busy = true;
 		error = '';
 		try {
-			const { error: err } = await authClient.signIn.email({ email, password });
-			if (err) throw new Error(err.message ?? 'Sign in failed');
+			await authenticateWithVault({ mode: 'sign-in', email, password });
+			password = '';
 			goto('/');
-		} catch (e) {
-			error = e instanceof Error ? e.message : 'Sign in failed';
+		} catch (err) {
+			if (err instanceof EisenErrorException) {
+				error =
+					err.error.code === 'weak-passphrase' ? err.error.reason : 'Could not open your tasks.';
+			} else {
+				error = err instanceof Error ? err.message : 'Sign in failed';
+			}
 		} finally {
 			busy = false;
 		}
@@ -28,7 +47,7 @@
 <Page>
 	<Navbar title="Sign in" />
 	<Block strong inset class="space-y-4">
-		<p>Sign in to Eisen. Your tasks are encrypted with a separate vault passphrase.</p>
+		<p>Sign in with your email and password. The same password encrypts your tasks on this device.</p>
 		{#if error}
 			<p class="text-red-600">{error}</p>
 		{/if}

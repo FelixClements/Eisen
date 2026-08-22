@@ -11,9 +11,5 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		redirect(303, '/sign-in');
 	}
 
-	if (user && publicPaths.has(path)) {
-		redirect(303, '/');
-	}
-
 	return { user };
 };

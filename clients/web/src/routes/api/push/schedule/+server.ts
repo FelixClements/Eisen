@@ -1,28 +1,17 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/require-user';
+import { mirrorFromEvent } from '$lib/server/mirror-from-event';
 
 export const POST: RequestHandler = async (event) => {
 	const user = requireUser(event);
-	const d1 = event.platform?.env?.DB;
-	if (!d1) throw error(500, 'D1 binding not configured');
-
+	const mirror = mirrorFromEvent(event);
 	const { deviceId, wakeAt, nonce } = (await event.request.json()) as {
 		deviceId: string;
 		wakeAt: number;
 		nonce: string;
 	};
-
 	if (!deviceId || !wakeAt || !nonce) throw error(400, 'Missing schedule fields.');
-
-	const id = crypto.randomUUID();
-	await d1
-		.prepare(
-			`INSERT INTO wake_schedules (id, user_id, device_id, wake_at, nonce, sent)
-			 VALUES (?, ?, ?, ?, ?, 0)`
-		)
-		.bind(id, user.id, deviceId, wakeAt, nonce)
-		.run();
-
-	return json({ success: true, id });
+	const result = await mirror.scheduleWake(user.id, { deviceId, wakeAt, nonce });
+	return json({ success: true, id: result.scheduleId });
 };

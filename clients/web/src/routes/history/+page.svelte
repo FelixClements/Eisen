@@ -1,27 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Page, Navbar, NavbarBackLink, Block, List, ListItem, Segmented, SegmentedButton } from 'konsta/svelte';
-	import { masterKey } from '$lib/vault';
-	import { liveCompletedTasks, liveArchivedTasks, restoreTask, type Task } from '$lib/db';
+	import { currentOpen } from '$lib/workspace/current.svelte';
 
-	let { data } = $props();
-	const userId = $derived(data.user?.id ?? '');
-
+	const open = $derived(currentOpen());
 	let tab = $state<'completed' | 'archived'>('completed');
-	let completed = $state<Task[]>([]);
-	let archived = $state<Task[]>([]);
-
-	$effect(() => {
-		if (!$masterKey || !userId) return;
-		const c = liveCompletedTasks(userId).subscribe((l) => (completed = l));
-		const a = liveArchivedTasks(userId).subscribe((l) => (archived = l));
-		return () => {
-			c.unsubscribe();
-			a.unsubscribe();
-		};
-	});
-
-	const list = $derived(tab === 'completed' ? completed : archived);
+	const list = $derived(open ? (tab === 'completed' ? open.history.completed : open.history.archived) : []);
 </script>
 
 <Page>
@@ -41,20 +25,20 @@
 		{/snippet}
 	</Navbar>
 
-	{#if !$masterKey}
-		<Block strong inset><p>Unlock your vault to view history.</p></Block>
+	{#if !open}
+		<Block strong inset><p>Loading…</p></Block>
 	{:else}
 		<List strong outline>
 			{#each list as task (task.id)}
-				<ListItem link title={task.title} subtitle={task.description} href="/task/{task.id}">
+				<ListItem link title={task.title} subtitle={task.notes} href="/task/{task.id}">
 					{#snippet after()}
 						{#if tab === 'archived'}
 							<button
 								type="button"
 								class="text-primary text-sm"
-								onclick={async (e) => {
+								onclick={(e) => {
 									e.preventDefault();
-									await restoreTask(task.id);
+									open.apply({ kind: 'archive', id: task.id, archived: false });
 								}}>Restore</button
 							>
 						{/if}

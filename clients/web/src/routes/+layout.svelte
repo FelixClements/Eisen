@@ -3,20 +3,19 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { get } from 'svelte/store';
-	import { App, Page, Navbar, Panel, List, ListItem, Link, Toast } from 'konsta/svelte';
+	import { App, Page, Navbar, Panel, List, ListItem, Link } from 'konsta/svelte';
 	import { authClient } from '$lib/auth-client';
-	import { masterKey, vaultUserId, lockVault, tryAutoUnlock } from '$lib/vault';
-	import { sync } from '$lib/sync';
-	import { syncMessage } from '$lib/stores';
-	import { drawerOpen } from '$lib/drawer';
-	import { db } from '$lib/db';
-	import { scheduleNextWake } from '$lib/notifications';
 	import { initTheme, resolvedTheme } from '$lib/theme';
+	import { drawerOpen } from '$lib/drawer';
+	import { openWorkspace } from '$lib/workspace';
+	import { unwrapVaultKey, clearWrappedKey } from '$lib/workspace/vault-key';
+	import { httpCloud } from '$lib/workspace/http-cloud';
+	import { browserReminders } from '$lib/workspace/browser-reminders';
+	import { bindWorkspace, currentOpen } from '$lib/workspace/current.svelte';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 
 	useRegisterSW({
-		onRegisterError(error) {
+		onRegisterError(error: Error) {
 			console.error('Service worker registration failed:', error);
 		}
 	});
@@ -25,56 +24,67 @@
 
 	if (browser) initTheme();
 
-	let toastOpen = $state(false);
-	let toastText = $state('');
-	let syncing = $state(false);
+	let bootFailed = $state(false);
 
 	const session = authClient.useSession();
 	const user = $derived($session.data?.user ?? data.user);
 	const isPublic = $derived(
 		$page.url.pathname === '/sign-in' || $page.url.pathname === '/sign-up'
 	);
+	const open = $derived(currentOpen());
 
 	$effect(() => {
-		if (!browser || !user?.id) return;
-		tryAutoUnlock(user.id);
+		if (!browser) return;
+		if (open?.sync.lastError?.code === 'session-expired') {
+			goto('/sign-in');
+		}
+	});
+
+	$effect(() => {
+		if (!browser) return;
+		if (!user?.id) {
+			bindWorkspace(null);
+			return;
+		}
+		if (isPublic) return;
+		let cancelled = false;
+		(async () => {
+			const key = await unwrapVaultKey({ accountId: user.id });
+			if (cancelled) return;
+			if (!key) {
+				bootFailed = true;
+				await goto('/sign-in');
+				return;
+			}
+			bootFailed = false;
+			const ws = openWorkspace({
+				account: { id: user.id },
+				vaultKey: key,
+				adapters: {
+					cloud: httpCloud(),
+					reminders: browserReminders(),
+					onSignOut: async () => {
+						await clearWrappedKey({ accountId: user.id });
+						await authClient.signOut();
+					}
+				}
+			});
+			bindWorkspace(ws);
+			await ws.ready;
+		})();
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	if (browser) {
 		navigator.serviceWorker?.addEventListener('message', async (event) => {
 			if (event.data?.type !== 'GET_DUE_REMINDERS') return;
 			const port = event.ports[0];
-			const uid = get(vaultUserId);
-			if (!port || !uid) {
-				port?.postMessage([]);
-				return;
-			}
-			const now = Date.now();
-			const tasks = await db.tasks.where('userId').equals(uid).toArray();
-			const due = tasks
-				.filter((t) => !t.deleted && !t.isCompleted && !t.isArchived && t.reminderAt && t.reminderAt <= now)
-				.map((t) => ({ id: t.id, title: t.title }));
-			port.postMessage(due);
+			const state = currentOpen();
+			if (!port) return;
+			port.postMessage(state ? state.dueReminders() : []);
 		});
-	}
-
-	export async function runSync() {
-		if (!$masterKey || !user?.id) return;
-		syncing = true;
-		syncMessage.set('');
-		try {
-			await sync(user.id, $masterKey);
-			toastText = 'Synced';
-			toastOpen = true;
-			await scheduleNextWake(user.id);
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : 'Sync failed';
-			syncMessage.set(msg);
-			toastText = msg;
-			toastOpen = true;
-		} finally {
-			syncing = false;
-		}
 	}
 </script>
 
@@ -83,7 +93,7 @@
 </svelte:head>
 
 <App theme={$resolvedTheme} safeAreas materialTouchRipple={$resolvedTheme === 'material'}>
-	{#if user && !isPublic}
+	{#if user && !isPublic && open}
 		<Panel side="left" opened={$drawerOpen} onBackdropClick={() => drawerOpen.set(false)}>
 			<Page>
 				<Navbar title="Eisen">
@@ -106,9 +116,18 @@
 		</Panel>
 	{/if}
 
-	{@render children()}
-
-	<Toast opened={toastOpen} position="center">
-		<div class="px-4 py-2">{toastText}</div>
-	</Toast>
+	{#if isPublic}
+		{@render children()}
+	{:else if !user}
+		<Page><Navbar title="Eisen" /></Page>
+	{:else if bootFailed}
+		<Page><Navbar title="Eisen" /></Page>
+	{:else if !open}
+		<Page>
+			<Navbar title="Eisen" />
+			<p class="p-4">Loading…</p>
+		</Page>
+	{:else}
+		{@render children()}
+	{/if}
 </App>
