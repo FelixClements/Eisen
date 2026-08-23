@@ -1,45 +1,37 @@
-# CI and Local Checks
+# CI and local checks
 
-This document describes the continuous-integration pipeline and local commands used to verify the Eisen project.
+The pipeline lives in `.github/workflows/ci.yml` and runs on every push and pull request to `main`.
 
-## Pipeline
-
-The CI pipeline is defined in `.github/workflows/ci.yml` and runs on every push and pull request to `main`.
+## Jobs
 
 | Job | Purpose | Blocking |
-|---|---|---|
-| `structure` | Verify repository boundaries from P0.01 | yes |
+|-----|---------|----------|
+| `structure` | Root has `src/`, `package.json`, `wrangler.toml`, `CONTEXT.md`, ADR-013 | yes |
 | `markdown-lint` | Lint Markdown files | yes |
-| `secret-scan` | Scan for committed secrets with TruffleHog | yes |
-| `license-check` | Verify `LICENSE` is present | yes |
-| `android-lint` | Run Android lint on `clients/android` | yes |
-| `android-unit-tests` | Run Android unit tests | yes |
-| `dependency-scan` | Run OSV scanner on supported lockfiles | yes (when lockfiles exist) |
-| `sbom` | Generate an SPDX SBOM artifact | yes (generation must succeed) |
-| `protocol-stubs` | Verify `protocol/`, `tests/`, and `core/` boundaries | yes (will run vector runner in P1) |
+| `secret-scan` | TruffleHog secret scan | yes |
+| `license-check` | `LICENSE` exists | yes |
+| `web-check` | `npm ci && npm run check` | yes |
+| `web-test` | `npm run test` | yes |
+| `web-build` | `npm run build` | yes |
+| `web-deploy` | Deploy to Cloudflare Pages `eisen-web` on `main` push | yes when secrets exist |
+| `dependency-scan` | OSV scanner on lockfiles | yes when lockfiles exist |
+| `sbom` | SPDX SBOM artifact | yes |
 
 ## Local commands
 
-Run all local checks:
+Run all checks:
 
 ```bash
 ./ops/run-local-checks.sh
 ```
 
-Run checks individually:
+Run individually:
 
 ```bash
 ./tools/verify-structure.sh
-./tools/verify-protocol-stubs.sh
-(cd clients/android && ./gradlew lint)
-(cd clients/android && ./gradlew testDebugUnitTest)
+npm ci && npm run check
+npm run test
+npm run build
 ```
 
-## Pending additions
-
-The following checks depend on P0.03 stack decisions and P1 core/protocol implementation:
-
-- **Schema compatibility**: add `tools/verify-schema.sh` once canonical schemas are frozen in P0.
-- **Protocol vectors**: replace `tools/verify-protocol-stubs.sh` with the P1.18 vector runner.
-- **Reference-model tests**: replace the stub with property/convergence tests once `core/` and `tests/` are populated.
-- **SBOM/dependency enforcement**: the `dependency-scan` job is currently skipped until lockfiles (e.g. `gradle.lockfile`) are present. Once lockfiles are committed, OSV scanning will run automatically.
+Deploy requires `CLOUDFLARE_API_TOKEN` and a Pages project named `eisen-web` (see `wrangler.toml`).

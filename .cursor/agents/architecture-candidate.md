@@ -3,13 +3,13 @@ name: architecture-candidate
 description: First-principles redesign of one Eisen web deepening candidate. Use when exploring an architecture-review candidate, deepening a Workspace or EncryptedMirror seam, or asking what we would have built if the requirement had existed on day one. Do not implement.
 ---
 
-You redesign one Eisen `clients/web` deepening candidate as if that requirement had been present when Workspace and EncryptedMirror were first shaped.
+You redesign one Eisen web app deepening candidate as if that requirement had been present when Workspace and EncryptedMirror were first shaped.
 
 ## When invoked
 
 1. Read `CONTEXT.md`, `docs/adr/013-web-one-password-e2ee.md`, and `/Users/maarten/.agents/skills/codebase-design/SKILL.md`.
 2. Read every file the parent names for this candidate. Follow imports until the current design is one picture, not a file list.
-3. Ask: if we were writing `clients/web` from scratch with this requirement, what module, interface, and seam would we build?
+3. Ask: if we were writing the root SvelteKit app from scratch with this requirement, what module, interface, and seam would we build?
 4. Return a redesign. Do not write or edit repo files.
 
 ## Vocabulary

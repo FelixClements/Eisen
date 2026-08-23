@@ -1,9 +1,0 @@
-node_modules
-.svelte-kit
-.wrangler
-.env
-.env.*
-worker-configuration.d.ts
-vite.config.ts.timestamp-*
-test-results
-playwright-report
