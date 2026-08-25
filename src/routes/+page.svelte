@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Pin, PinOff, Archive } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 	import { Page, Navbar, Block, Fab, Link } from 'konsta/svelte';
 	import { currentOpen } from '$lib/workspace/current.svelte';
@@ -69,11 +70,16 @@
 									<button
 										type="button"
 										class="icon-button"
+										class:icon-button-active={task.pinned}
 										aria-label={task.pinned ? 'Unpin' : 'Pin'}
 										aria-pressed={task.pinned}
 										onclick={() => open.apply({ kind: 'update', id: task.id, patch: { pinned: !task.pinned } })}
 									>
-										Pin
+										{#if task.pinned}
+											<PinOff size={18} strokeWidth={2} aria-hidden="true" />
+										{:else}
+											<Pin size={18} strokeWidth={2} aria-hidden="true" />
+										{/if}
 									</button>
 									<button
 										type="button"
@@ -81,7 +87,7 @@
 										aria-label="Archive"
 										onclick={() => open.apply({ kind: 'archive', id: task.id, archived: true })}
 									>
-										Archive
+										<Archive size={18} strokeWidth={2} aria-hidden="true" />
 									</button>
 								</div>
 							</div>
