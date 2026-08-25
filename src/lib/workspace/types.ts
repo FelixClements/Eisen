@@ -94,6 +94,7 @@ export type SyncRecord = {
 	recordId: string;
 	encryptedBlob: string;
 	modifiedAt: number;
+	deviceId: string;
 	syncVersion?: number;
 	deleted: number;
 };

@@ -2,6 +2,7 @@ import type { BackupRef, SyncRecord } from '$lib/workspace/types';
 export { VaultParamsExistError } from '$lib/workspace/types';
 import { VaultParamsExistError } from '$lib/workspace/types';
 import type { SyncPullBatch, SyncPushBatch, VaultParams } from '$lib/workspace/ports';
+import { applyRecordLww } from '$lib/sync/record-lww';
 
 export type PushSubscriptionRow = {
 	endpoint: string;
@@ -19,6 +20,7 @@ export type VaultRecordRow = {
 	recordId: string;
 	encryptedBlob: string;
 	modifiedAt: number;
+	deviceId: string;
 	syncVersion: number;
 	deleted: number;
 };
@@ -41,6 +43,7 @@ export interface MirrorDatabasePort {
 	getVaultParams(accountId: string): Promise<VaultParams | null>;
 	insertVaultParams(accountId: string, params: VaultParams): Promise<'ok' | 'exists'>;
 	nextSyncVersion(accountId: string): Promise<number>;
+	getRecord(accountId: string, recordId: string): Promise<VaultRecordRow | null>;
 	upsertRecord(accountId: string, record: VaultRecordRow): Promise<void>;
 	recordsAfter(accountId: string, lastVersion: number): Promise<VaultRecordRow[]>;
 	maxSyncVersion(accountId: string): Promise<number>;
@@ -98,11 +101,18 @@ export function createEncryptedMirror(ports: EncryptedMirrorPorts): EncryptedMir
 
 		async exchangeSync(accountId, batch) {
 			for (const change of batch.changes) {
+				const existing = await ports.database.getRecord(accountId, change.recordId);
+				const decision = applyRecordLww(
+					existing ? { modifiedAt: existing.modifiedAt, deviceId: existing.deviceId } : null,
+					{ modifiedAt: change.modifiedAt, deviceId: change.deviceId }
+				);
+				if (decision === 'reject') continue;
 				const nextVersion = await ports.database.nextSyncVersion(accountId);
 				await ports.database.upsertRecord(accountId, {
 					recordId: change.recordId,
 					encryptedBlob: change.encryptedBlob,
 					modifiedAt: change.modifiedAt,
+					deviceId: change.deviceId,
 					syncVersion: nextVersion,
 					deleted: change.deleted
 				});
@@ -113,6 +123,7 @@ export function createEncryptedMirror(ports: EncryptedMirrorPorts): EncryptedMir
 				recordId: row.recordId,
 				encryptedBlob: row.encryptedBlob,
 				modifiedAt: row.modifiedAt,
+				deviceId: row.deviceId,
 				syncVersion: row.syncVersion,
 				deleted: row.deleted
 			}));

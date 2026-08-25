@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Page, Navbar, Block, List, ListInput, Button } from 'konsta/svelte';
-	import { authenticateWithVault } from '$lib/workspace/authenticate';
+	import { vaultSession } from '$lib/workspace/authenticate';
 	import { EisenErrorException } from '$lib/workspace/types';
 
 	let name = $state('');
@@ -15,7 +15,7 @@
 		busy = true;
 		error = '';
 		try {
-			await authenticateWithVault({ mode: 'sign-up', email, password, name });
+			await vaultSession.unlock({ mode: 'sign-up', email, password, name });
 			password = '';
 			goto('/');
 		} catch (err) {

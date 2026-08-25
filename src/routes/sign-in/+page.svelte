@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { Page, Navbar, Block, List, ListInput, Button } from 'konsta/svelte';
-	import { authenticateWithVault } from '$lib/workspace/authenticate';
+	import { vaultSession } from '$lib/workspace/authenticate';
 	import { EisenErrorException } from '$lib/workspace/types';
-	import { unwrapVaultKey } from '$lib/workspace/vault-key';
 	import { authClient } from '$lib/auth-client';
 	import { browser } from '$app/environment';
 
@@ -18,7 +17,7 @@
 			const session = await authClient.getSession();
 			const user = session.data?.user;
 			if (!user) return;
-			const key = await unwrapVaultKey({ accountId: user.id });
+			const key = await vaultSession.resume(user.id);
 			if (key) goto('/');
 		})();
 	});
@@ -28,7 +27,7 @@
 		busy = true;
 		error = '';
 		try {
-			await authenticateWithVault({ mode: 'sign-in', email, password });
+			await vaultSession.unlock({ mode: 'sign-in', email, password });
 			password = '';
 			goto('/');
 		} catch (err) {

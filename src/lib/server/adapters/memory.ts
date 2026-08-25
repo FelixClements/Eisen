@@ -47,6 +47,9 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 		async upsertRecord(accountId, record) {
 			accountRecords(accountId).set(record.recordId, record);
 		},
+		async getRecord(accountId, recordId) {
+			return accountRecords(accountId).get(recordId) ?? null;
+		},
 		async recordsAfter(accountId, lastVersion) {
 			return [...accountRecords(accountId).values()]
 				.filter((r) => r.syncVersion > lastVersion)

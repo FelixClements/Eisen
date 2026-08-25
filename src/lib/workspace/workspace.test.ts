@@ -10,7 +10,6 @@ import {
 import { cloudPortFor } from './memory-cloud';
 import { openWorkspace, requireOpen } from './workspace';
 import { vaultKeyFromPassword } from './vault-key';
-import { remoteWins } from './merge';
 import type { SyncPushBatch } from './ports';
 
 const ITER = 1;
@@ -39,17 +38,6 @@ function clock(start = 1_000) {
 		}
 	};
 }
-
-describe('remoteWins', () => {
-	it('keeps the newer updatedAt', () => {
-		expect(remoteWins({ updatedAt: 200, deviceId: 'a' }, { updatedAt: 100, deviceId: 'z' })).toBe(false);
-		expect(remoteWins({ updatedAt: 100, deviceId: 'z' }, { updatedAt: 200, deviceId: 'a' })).toBe(true);
-	});
-
-	it('breaks ties with greater deviceId', () => {
-		expect(remoteWins({ updatedAt: 1, deviceId: 'aaa' }, { updatedAt: 1, deviceId: 'bbb' })).toBe(true);
-	});
-});
 
 describe('Workspace', () => {
 	it('creates a task into Do Now after sign-in derives a vault key', async () => {

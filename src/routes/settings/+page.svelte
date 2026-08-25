@@ -13,9 +13,11 @@
 
 	async function handleExport() {
 		if (!open) return;
-		const password = prompt('Enter your account password to encrypt the recovery package:');
-		if (!password) return;
-		const result = await open.recovery.export(password);
+		const recoveryPassphrase = prompt(
+			'Choose a recovery passphrase (at least 8 characters). This is not your account password:'
+		);
+		if (!recoveryPassphrase) return;
+		const result = await open.recovery.export(recoveryPassphrase);
 		if (!result.ok) {
 			message = result.error.code;
 			return;
@@ -31,20 +33,22 @@
 
 	async function handleImport() {
 		if (!importFile || !open) return;
-		const password = prompt('Enter the password used when this package was exported:');
-		if (!password) return;
-		const result = await open.recovery.import(importFile, password);
+		const recoveryPassphrase = prompt('Enter the recovery passphrase used when this package was exported:');
+		if (!recoveryPassphrase) return;
+		const result = await open.recovery.import(importFile, recoveryPassphrase);
 		message = result.ok ? 'Recovery package imported.' : result.error.code;
 		if (result.ok) importFile = null;
 	}
 
 	async function handleCloudBackup() {
 		if (!open) return;
-		const password = prompt('Enter your account password:');
-		if (!password) return;
+		const recoveryPassphrase = prompt(
+			'Choose a recovery passphrase for this cloud backup (not your account password):'
+		);
+		if (!recoveryPassphrase) return;
 		busy = true;
 		try {
-			const result = await open.recovery.backup(password);
+			const result = await open.recovery.backup(recoveryPassphrase);
 			message = result.ok ? `Cloud backup created: ${result.value.id}` : result.error.code;
 		} finally {
 			busy = false;
@@ -135,9 +139,9 @@
 									class="text-primary"
 									onclick={async () => {
 										if (!open) return;
-										const password = prompt('Password used when exporting this backup:');
-										if (!password) return;
-										const result = await open.recovery.restoreCloud(b.id, password);
+										const recoveryPassphrase = prompt('Recovery passphrase for this backup:');
+										if (!recoveryPassphrase) return;
+										const result = await open.recovery.restoreCloud(b.id, recoveryPassphrase);
 										message = result.ok ? 'Cloud backup restored.' : result.error.code;
 									}}
 								>

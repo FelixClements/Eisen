@@ -1,0 +1,1 @@
+ALTER TABLE vault_records ADD COLUMN device_id TEXT NOT NULL DEFAULT '';

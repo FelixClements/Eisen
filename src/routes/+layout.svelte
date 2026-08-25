@@ -7,9 +7,7 @@
 	import { authClient } from '$lib/auth-client';
 	import { initTheme, resolvedTheme } from '$lib/theme';
 	import { drawerOpen } from '$lib/drawer';
-	import { openWorkspace } from '$lib/workspace';
-	import { unwrapVaultKey, clearWrappedKey } from '$lib/workspace/vault-key';
-	import { httpCloud } from '$lib/workspace/http-cloud';
+	import { vaultSession } from '$lib/workspace/authenticate';
 	import { browserReminders } from '$lib/workspace/browser-reminders';
 	import { bindWorkspace, currentOpen } from '$lib/workspace/current.svelte';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
@@ -49,7 +47,7 @@
 		if (isPublic) return;
 		let cancelled = false;
 		(async () => {
-			const key = await unwrapVaultKey({ accountId: user.id });
+			const key = await vaultSession.resume(user.id);
 			if (cancelled) return;
 			if (!key) {
 				bootFailed = true;
@@ -57,16 +55,11 @@
 				return;
 			}
 			bootFailed = false;
-			const ws = openWorkspace({
-				account: { id: user.id },
-				vaultKey: key,
-				adapters: {
-					cloud: httpCloud(),
-					reminders: browserReminders(),
-					onSignOut: async () => {
-						await clearWrappedKey({ accountId: user.id });
-						await authClient.signOut();
-					}
+			const ws = vaultSession.openWorkspace(user.id, key, {
+				reminders: browserReminders(),
+				onSignOut: async () => {
+					await vaultSession.lock(user.id);
+					await authClient.signOut();
 				}
 			});
 			bindWorkspace(ws);

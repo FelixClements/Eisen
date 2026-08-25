@@ -7,13 +7,13 @@ import {
 	verifyCheckBlob,
 	VAULT_KDF_ITERATIONS
 } from '$lib/crypto';
-import type { CloudPort } from './ports';
+import type { VaultParamsPort } from './ports';
 import { EisenErrorException } from './types';
-import { EISEN_DB_NAME, EisenWebDB } from './db';
+import { createWrappedKeyStore } from './wrapped-key-store';
 
 export async function vaultKeyFromPassword(opts: {
 	password: string;
-	cloud: CloudPort;
+	cloud: VaultParamsPort;
 	iterations?: number;
 }): Promise<CryptoKey> {
 	const iterations = opts.iterations ?? VAULT_KDF_ITERATIONS;
@@ -31,6 +31,8 @@ export async function vaultKeyFromPassword(opts: {
 	return key;
 }
 
+const defaultStore = createWrappedKeyStore();
+
 export async function wrapVaultKey(opts: {
 	accountId: string;
 	key: CryptoKey;
@@ -38,9 +40,10 @@ export async function wrapVaultKey(opts: {
 	indexedDB?: IDBFactory;
 	IDBKeyRange?: typeof globalThis.IDBKeyRange;
 }): Promise<void> {
-	const db = new EisenWebDB(opts.dbName ?? EISEN_DB_NAME, opts.indexedDB, opts.IDBKeyRange);
-	await db.wrappedKeys.put({ accountId: opts.accountId, key: opts.key });
-	db.close();
+	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
+		? createWrappedKeyStore(opts)
+		: defaultStore;
+	await store.put(opts.accountId, opts.key);
 }
 
 export async function unwrapVaultKey(opts: {
@@ -49,10 +52,10 @@ export async function unwrapVaultKey(opts: {
 	indexedDB?: IDBFactory;
 	IDBKeyRange?: typeof globalThis.IDBKeyRange;
 }): Promise<CryptoKey | null> {
-	const db = new EisenWebDB(opts.dbName ?? EISEN_DB_NAME, opts.indexedDB, opts.IDBKeyRange);
-	const row = await db.wrappedKeys.get(opts.accountId);
-	db.close();
-	return row?.key ?? null;
+	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
+		? createWrappedKeyStore(opts)
+		: defaultStore;
+	return store.get(opts.accountId);
 }
 
 export async function clearWrappedKey(opts: {
@@ -61,7 +64,8 @@ export async function clearWrappedKey(opts: {
 	indexedDB?: IDBFactory;
 	IDBKeyRange?: typeof globalThis.IDBKeyRange;
 }): Promise<void> {
-	const db = new EisenWebDB(opts.dbName ?? EISEN_DB_NAME, opts.indexedDB, opts.IDBKeyRange);
-	await db.wrappedKeys.delete(opts.accountId);
-	db.close();
+	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
+		? createWrappedKeyStore(opts)
+		: defaultStore;
+	await store.delete(opts.accountId);
 }
