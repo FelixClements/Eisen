@@ -3,6 +3,7 @@
 	import { Page, Navbar, NavbarBackLink, Block, Button, Segmented, SegmentedButton } from 'konsta/svelte';
 	import { appearanceMode, setAppearanceMode } from '$lib/theme';
 	import { currentOpen } from '$lib/workspace/current.svelte';
+	import type { ReminderEnableResult } from '$lib/workspace/ports';
 
 	const open = $derived(currentOpen());
 
@@ -10,6 +11,28 @@
 	let importFile = $state<File | null>(null);
 	let cloudBackups = $state<{ id: string; createdAt: number }[]>([]);
 	let busy = $state(false);
+	let notificationPermission = $state<'unsupported' | 'default' | 'granted' | 'denied'>('default');
+
+	$effect(() => {
+		notificationPermission = open?.reminders.permission() ?? 'default';
+	});
+
+	function reminderMessage(result: ReminderEnableResult): string {
+		switch (result) {
+			case 'granted':
+				return 'Push reminders enabled.';
+			case 'denied':
+				return 'Notification permission denied.';
+			case 'unsupported':
+				return 'Push notifications are not supported in this browser.';
+			case 'vapid-missing':
+				return 'Push is not configured (VAPID public key missing).';
+			case 'subscribe-failed':
+				return 'Could not subscribe to push notifications.';
+			case 'server-error':
+				return 'Could not save push subscription on the server.';
+		}
+	}
 
 	async function handleExport() {
 		if (!open) return;
@@ -156,12 +179,17 @@
 
 		<section>
 			<h3 class="mb-2 font-semibold">Notifications</h3>
+			<p class="mb-2 text-sm opacity-70">
+				Permission: {notificationPermission}. Reminder titles are cached locally on this device so
+				notifications can show task names even when the app is closed.
+			</p>
 			<Button
 				outline
 				onclick={async () => {
 					if (!open) return;
-					await open.reminders.enable();
-					message = 'Push reminders requested.';
+					const result = await open.reminders.enable();
+					notificationPermission = open.reminders.permission();
+					message = reminderMessage(result);
 				}}>Enable push reminders</Button
 			>
 			<p class="mt-2 text-sm opacity-70">

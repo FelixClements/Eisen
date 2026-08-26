@@ -1,0 +1,1 @@
+ALTER TABLE wake_schedules ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0;

@@ -32,8 +32,21 @@ export interface BackupPort {
 
 export interface WakePort {
 	scheduleWake(w: { deviceId: string; wakeAt: number; nonce: string }): Promise<void>;
-	registerPush(sub: { endpoint: string; p256dh: string; auth: string }): Promise<void>;
+	registerPush(sub: {
+		deviceId: string;
+		endpoint: string;
+		p256dh: string;
+		auth: string;
+	}): Promise<void>;
 }
+
+export type ReminderEnableResult =
+	| 'granted'
+	| 'denied'
+	| 'unsupported'
+	| 'vapid-missing'
+	| 'subscribe-failed'
+	| 'server-error';
 
 export type CloudPort = VaultParamsPort & SyncPort & BackupPort & WakePort;
 

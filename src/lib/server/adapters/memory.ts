@@ -8,6 +8,7 @@ import type {
 	VaultRecordRow,
 	WakeScheduleRow
 } from '../encrypted-mirror';
+import { PushSubscriptionConflictError } from '../encrypted-mirror';
 import type { VaultParams } from '$lib/workspace/ports';
 
 export function memoryMirrorDatabase(): MirrorDatabasePort {
@@ -16,7 +17,7 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 	const backups = new Map<string, BackupMetaRow[]>();
 	const pushes = new Map<string, PushSubscriptionRow[]>();
 	const wakes: Array<
-		WakeScheduleRow & { id: string; userId: string; sent: boolean }
+		WakeScheduleRow & { id: string; userId: string; sent: boolean; attempts: number }
 	> = [];
 
 	function accountRecords(accountId: string): Map<string, VaultRecordRow> {
@@ -75,33 +76,57 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 			return (backups.get(accountId) ?? []).find((b) => b.packageId === packageId) ?? null;
 		},
 		async upsertPushSubscription(accountId, sub) {
+			for (const [ownerId, list] of pushes) {
+				if (ownerId === accountId) continue;
+				if (list.some((s) => s.endpoint === sub.endpoint)) {
+					throw new PushSubscriptionConflictError();
+				}
+			}
 			const list = (pushes.get(accountId) ?? []).filter((s) => s.endpoint !== sub.endpoint);
 			list.push(sub);
 			pushes.set(accountId, list);
 		},
+		async deletePushSubscription(endpoint) {
+			for (const [accountId, list] of pushes) {
+				const next = list.filter((s) => s.endpoint !== endpoint);
+				if (next.length !== list.length) pushes.set(accountId, next);
+			}
+		},
 		async insertWake(accountId, id, schedule) {
-			wakes.push({ ...schedule, id, userId: accountId, sent: false });
+			for (let i = wakes.length - 1; i >= 0; i--) {
+				const w = wakes[i];
+				if (w.userId === accountId && w.deviceId === schedule.deviceId && !w.sent) {
+					wakes.splice(i, 1);
+				}
+			}
+			wakes.push({ ...schedule, id, userId: accountId, sent: false, attempts: 0 });
 		},
 		async dueWakes(now) {
 			const due: DueWake[] = [];
 			for (const w of wakes) {
 				if (w.sent || w.wakeAt > now) continue;
-				const subs = pushes.get(w.userId) ?? [];
-				for (const sub of subs) {
-					due.push({
-						id: w.id,
-						userId: w.userId,
-						endpoint: sub.endpoint,
-						p256dh: sub.p256dh,
-						auth: sub.auth
-					});
-				}
+				const sub = (pushes.get(w.userId) ?? []).find((s) => s.deviceId === w.deviceId);
+				if (!sub) continue;
+				due.push({
+					id: w.id,
+					userId: w.userId,
+					deviceId: w.deviceId,
+					endpoint: sub.endpoint,
+					p256dh: sub.p256dh,
+					auth: sub.auth
+				});
 			}
 			return due;
 		},
 		async markWakeSent(id) {
 			const w = wakes.find((x) => x.id === id);
 			if (w) w.sent = true;
+		},
+		async incrementWakeAttempts(id) {
+			const w = wakes.find((x) => x.id === id);
+			if (!w) return 0;
+			w.attempts += 1;
+			return w.attempts;
 		}
 	};
 }

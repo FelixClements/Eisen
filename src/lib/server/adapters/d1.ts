@@ -5,6 +5,7 @@ import type {
 	PushSubscriptionRow,
 	VaultRecordRow
 } from '../encrypted-mirror';
+import { PushSubscriptionConflictError } from '../encrypted-mirror';
 import type { VaultParams } from '$lib/workspace/ports';
 
 export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
@@ -127,19 +128,45 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 			);
 		},
 		async upsertPushSubscription(accountId, sub: PushSubscriptionRow) {
+			const existing = await d1
+				.prepare('SELECT user_id AS userId FROM push_subscriptions WHERE endpoint = ?')
+				.bind(sub.endpoint)
+				.first<{ userId: string }>();
+			if (existing && existing.userId !== accountId) {
+				throw new PushSubscriptionConflictError();
+			}
 			await d1
 				.prepare(
-					`INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth, created_at)
-					 VALUES (?, ?, ?, ?, ?, ?)
+					`INSERT INTO push_subscriptions (id, user_id, device_id, endpoint, p256dh, auth, created_at)
+					 VALUES (?, ?, ?, ?, ?, ?, ?)
 					 ON CONFLICT(endpoint) DO UPDATE SET
 					   user_id = excluded.user_id,
+					   device_id = excluded.device_id,
 					   p256dh = excluded.p256dh,
 					   auth = excluded.auth`
 				)
-				.bind(crypto.randomUUID(), accountId, sub.endpoint, sub.p256dh, sub.auth, Date.now())
+				.bind(
+					crypto.randomUUID(),
+					accountId,
+					sub.deviceId,
+					sub.endpoint,
+					sub.p256dh,
+					sub.auth,
+					Date.now()
+				)
 				.run();
 		},
+		async deletePushSubscription(endpoint) {
+			await d1.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
+		},
 		async insertWake(accountId, id, schedule) {
+			await d1
+				.prepare(
+					`DELETE FROM wake_schedules
+					 WHERE user_id = ? AND device_id = ? AND sent = 0`
+				)
+				.bind(accountId, schedule.deviceId)
+				.run();
 			await d1
 				.prepare(
 					`INSERT INTO wake_schedules (id, user_id, device_id, wake_at, nonce, sent)
@@ -151,9 +178,11 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 		async dueWakes(now) {
 			const { results } = await d1
 				.prepare(
-					`SELECT ws.id, ws.user_id AS userId, ps.endpoint, ps.p256dh, ps.auth
+					`SELECT ws.id, ws.user_id AS userId, ws.device_id AS deviceId,
+					        ps.endpoint, ps.p256dh, ps.auth
 					 FROM wake_schedules ws
-					 JOIN push_subscriptions ps ON ps.user_id = ws.user_id
+					 JOIN push_subscriptions ps
+					   ON ps.user_id = ws.user_id AND ps.device_id = ws.device_id
 					 WHERE ws.sent = 0 AND ws.wake_at <= ?`
 				)
 				.bind(now)
@@ -162,6 +191,17 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 		},
 		async markWakeSent(id) {
 			await d1.prepare('UPDATE wake_schedules SET sent = 1 WHERE id = ?').bind(id).run();
+		},
+		async incrementWakeAttempts(id) {
+			await d1
+				.prepare('UPDATE wake_schedules SET attempts = attempts + 1 WHERE id = ?')
+				.bind(id)
+				.run();
+			const row = await d1
+				.prepare('SELECT attempts FROM wake_schedules WHERE id = ?')
+				.bind(id)
+				.first<{ attempts: number }>();
+			return row?.attempts ?? 0;
 		}
 	};
 }

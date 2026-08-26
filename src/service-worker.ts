@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { clientsClaim } from 'workbox-core';
 import { precacheAndRoute } from 'workbox-precaching';
+import { getDueRemindersFromCache } from '$lib/reminder-cache';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -12,7 +13,7 @@ self.addEventListener('push', (event) => {
 });
 
 async function handlePush(event: PushEvent) {
-	let data: { type?: string; userId?: string } = {};
+	let data: { type?: string } = {};
 	try {
 		data = event.data?.json() ?? {};
 	} catch {
@@ -24,7 +25,12 @@ async function handlePush(event: PushEvent) {
 		return;
 	}
 
-	const due = await getDueReminders();
+	const now = Date.now();
+	let due = await getDueRemindersFromCache(now);
+	if (due.length === 0) {
+		due = await getDueRemindersFromClient();
+	}
+
 	for (const reminder of due) {
 		await self.registration.showNotification('Eisen reminder', {
 			body: reminder.title,
@@ -49,8 +55,7 @@ interface ReminderRow {
 	title: string;
 }
 
-async function getDueReminders(): Promise<ReminderRow[]> {
-	// Service worker reads reminder metadata from IndexedDB via a client message when available.
+async function getDueRemindersFromClient(): Promise<ReminderRow[]> {
 	const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
 	if (clients.length === 0) return [];
 

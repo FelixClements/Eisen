@@ -1,6 +1,6 @@
 import { EisenErrorException, type TaskEdit, type TaskId, type TaskView } from './types';
 import { buildMatrix, sortTasks } from './matrix';
-import type { Clock, CloudPort, RemindersPort, WakePort } from './ports';
+import type { Clock, CloudPort, ReminderEnableResult, RemindersPort, WakePort } from './ports';
 import { nullReminders, systemClock } from './ports';
 import { createTaskCodec, type CatalogTask } from './task-codec';
 import { createTaskRepository } from './task-repository';
@@ -9,6 +9,7 @@ import { createSyncEngine } from './sync-engine';
 import { createRecoveryService } from './recovery-service';
 import type { BackupRef, Outcome } from './types';
 import type { Matrix } from './types';
+import { syncReminderCache } from '$lib/reminder-cache';
 
 export type OpenState = {
 	status: 'open';
@@ -30,7 +31,8 @@ export type OpenState = {
 		import(file: File, recoveryPassphrase: string): Promise<Outcome<void>>;
 	};
 	reminders: {
-		enable(): Promise<void>;
+		permission(): 'unsupported' | 'default' | 'granted' | 'denied';
+		enable(): Promise<ReminderEnableResult>;
 	};
 	dueReminders(): { id: string; title: string }[];
 	signOut(): Promise<void>;
@@ -80,6 +82,7 @@ export function openWorkspace(opts: {
 	let filter = '';
 	let deviceId = '';
 	let lastVersion = 0;
+	let remindersPushEnabled = false;
 	let status: WorkspaceState['status'] = 'booting';
 
 	function notify() {
@@ -93,6 +96,21 @@ export function openWorkspace(opts: {
 
 	let syncEngine!: ReturnType<typeof createSyncEngine>;
 
+	function upcomingReminders(now = clock.now()) {
+		return [...catalog.all()]
+			.filter((t) => !t.deleted && !t.completed && !t.archived && t.remindAt)
+			.map((t) => ({ id: t.id, title: t.title, remindAt: t.remindAt as number }));
+	}
+
+	async function refreshReminderCache() {
+		if (!remindersPushEnabled) return;
+		try {
+			await syncReminderCache(upcomingReminders());
+		} catch (err) {
+			console.error('reminder cache sync failed:', err);
+		}
+	}
+
 	const catalog = createTaskCatalog({
 		codec,
 		clock,
@@ -101,6 +119,7 @@ export function openWorkspace(opts: {
 		persist,
 		onChanged: () => {
 			notify();
+			void refreshReminderCache();
 			void scheduleWake();
 			void syncEngine.run();
 		}
@@ -118,8 +137,8 @@ export function openWorkspace(opts: {
 				wakeAt: upcoming[0].remindAt as number,
 				nonce: clock.uuid()
 			});
-		} catch {
-			// wake is best-effort
+		} catch (err) {
+			console.error('scheduleWake failed:', err);
 		}
 	}
 
@@ -199,6 +218,7 @@ export function openWorkspace(opts: {
 				import: (file, recoveryPassphrase) => recovery.importRecoveryPackage(file, recoveryPassphrase)
 			},
 			reminders: {
+				permission: () => reminders.permission(),
 				enable: enableReminders
 			},
 			dueReminders() {
@@ -235,12 +255,24 @@ export function openWorkspace(opts: {
 		}
 	}
 
-	async function enableReminders(): Promise<void> {
+	async function enableReminders(): Promise<ReminderEnableResult> {
+		const initial = reminders.permission();
+		if (initial === 'unsupported') return 'unsupported';
 		const perm = await reminders.request();
-		if (perm !== 'granted') return;
+		if (perm === 'unsupported') return 'unsupported';
+		if (perm === 'denied') return 'denied';
 		const sub = await reminders.subscribe();
-		if (sub) await wake.registerPush(sub);
+		if (!sub) return 'vapid-missing';
+		try {
+			await wake.registerPush({ deviceId, ...sub });
+		} catch (err) {
+			console.error('registerPush failed:', err);
+			return 'server-error';
+		}
+		remindersPushEnabled = true;
+		await refreshReminderCache();
 		await scheduleWake();
+		return 'granted';
 	}
 
 	async function signOut(): Promise<void> {
@@ -254,6 +286,10 @@ export function openWorkspace(opts: {
 		await loadLocal();
 		status = 'open';
 		notify();
+		if (reminders.permission() === 'granted') {
+			remindersPushEnabled = true;
+			await refreshReminderCache();
+		}
 		await syncEngine.run();
 	})();
 

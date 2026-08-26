@@ -5,6 +5,7 @@ import type { SyncPullBatch, SyncPushBatch, VaultParams } from '$lib/workspace/p
 import { applyRecordLww } from '$lib/sync/record-lww';
 
 export type PushSubscriptionRow = {
+	deviceId: string;
 	endpoint: string;
 	p256dh: string;
 	auth: string;
@@ -34,6 +35,7 @@ export type BackupMetaRow = {
 export type DueWake = {
 	id: string;
 	userId: string;
+	deviceId: string;
 	endpoint: string;
 	p256dh: string;
 	auth: string;
@@ -51,9 +53,11 @@ export interface MirrorDatabasePort {
 	listBackupMeta(accountId: string): Promise<BackupMetaRow[]>;
 	getBackupMeta(accountId: string, packageId: string): Promise<BackupMetaRow | null>;
 	upsertPushSubscription(accountId: string, sub: PushSubscriptionRow): Promise<void>;
+	deletePushSubscription(endpoint: string): Promise<void>;
 	insertWake(accountId: string, id: string, schedule: WakeScheduleRow): Promise<void>;
 	dueWakes(now: number): Promise<DueWake[]>;
 	markWakeSent(id: string): Promise<void>;
+	incrementWakeAttempts(id: string): Promise<number>;
 }
 
 export interface RecoveryObjectPort {
@@ -80,11 +84,17 @@ export type EncryptedMirror = {
 	getRecoveryPackage(accountId: string, packageId: string): Promise<string>;
 	registerPushSubscription(accountId: string, sub: PushSubscriptionRow): Promise<void>;
 	scheduleWake(accountId: string, schedule: WakeScheduleRow): Promise<{ scheduleId: string }>;
-	dispatchDueWakes(now: number): Promise<{ sent: number }>;
+	dispatchDueWakes(now: number): Promise<{ sent: number; failed: number }>;
 };
 export class MirrorNotFoundError extends Error {
 	constructor(message: string) {
 		super(message);
+	}
+}
+
+export class PushSubscriptionConflictError extends Error {
+	constructor() {
+		super('Push subscription already registered to another account.');
 	}
 }
 
@@ -166,19 +176,43 @@ export function createEncryptedMirror(ports: EncryptedMirrorPorts): EncryptedMir
 		async dispatchDueWakes(now) {
 			const due = await ports.database.dueWakes(now);
 			let sent = 0;
+			let failed = 0;
 			for (const row of due) {
 				try {
 					await ports.pushDispatch.send(
-						{ endpoint: row.endpoint, p256dh: row.p256dh, auth: row.auth },
-						JSON.stringify({ type: 'wake', userId: row.userId })
+						{
+							deviceId: row.deviceId,
+							endpoint: row.endpoint,
+							p256dh: row.p256dh,
+							auth: row.auth
+						},
+						JSON.stringify({ type: 'wake' })
 					);
 					await ports.database.markWakeSent(row.id);
 					sent++;
-				} catch {
-					// leave unsent for retry
+				} catch (err) {
+					failed++;
+					const status = err && typeof err === 'object' && 'status' in err ? Number(err.status) : 0;
+					const host = (() => {
+						try {
+							return new URL(row.endpoint).host;
+						} catch {
+							return 'unknown';
+						}
+					})();
+					console.error(`push dispatch failed host=${host} status=${status || 'unknown'}`);
+					if (status === 404 || status === 410) {
+						await ports.database.deletePushSubscription(row.endpoint);
+						await ports.database.markWakeSent(row.id);
+						continue;
+					}
+					const attempts = await ports.database.incrementWakeAttempts(row.id);
+					if (attempts >= 5) {
+						await ports.database.markWakeSent(row.id);
+					}
 				}
 			}
-			return { sent };
+			return { sent, failed };
 		}
 	};
 }
