@@ -32,6 +32,8 @@ Configure:
 | `VAPID_SUBJECT` | Cloudflare Pages env (`mailto:you@example.com`) |
 | `CRON_SECRET` | Cloudflare Pages secret (random string; protects `/api/push/cron`) |
 
+Add a Pages cron trigger in the Cloudflare dashboard (**Functions → Cron triggers**, schedule `* * * * *`) so due wakes are dispatched.
+
 After deploy, enable push in **Settings → Enable push reminders**, then create a task with a reminder time.
 
 A second device: sign in with the same email and password. No vault setup and no restore.
