@@ -1,10 +1,21 @@
 <script lang="ts">
-	import { Pin, PinOff, Archive } from '@lucide/svelte';
-	import { Page, Navbar, Block } from 'konsta/svelte';
+	import { Pin, PinOff, Archive, Search } from '@lucide/svelte';
+	import { tick } from 'svelte';
+	import { Page, Navbar, Block, Link } from 'konsta/svelte';
 	import { currentOpen } from '$lib/workspace/current.svelte';
 	import { QUADRANT_META } from '$lib/workspace';
 
 	const open = $derived(currentOpen());
+	let searchOpen = $state(false);
+	let searchInput = $state<HTMLInputElement | null>(null);
+
+	async function toggleSearch() {
+		searchOpen = !searchOpen;
+		if (searchOpen) {
+			await tick();
+			searchInput?.focus();
+		}
+	}
 
 	function taskMeta(task: { dueAt: number | null; tag: string; notes: string }): string {
 		const parts: string[] = [];
@@ -16,20 +27,35 @@
 </script>
 
 <Page>
-	<Navbar title="Eisen" />
+	<Navbar title="Eisen">
+		{#snippet right()}
+			<Link
+				iconOnly
+				class={open?.filter ? 'text-primary' : undefined}
+				aria-label={searchOpen ? 'Close search' : 'Search tasks'}
+				aria-pressed={searchOpen}
+				onclick={toggleSearch}
+			>
+				<Search size={22} strokeWidth={2} aria-hidden="true" />
+			</Link>
+		{/snippet}
+	</Navbar>
 
 	{#if open}
-		<Block strong inset>
-			<input
-				type="search"
-				class="home-search"
-				placeholder="Search tasks…"
-				value={open.filter}
-				oninput={(e) => {
-					open.filter = (e.currentTarget as HTMLInputElement).value;
-				}}
-			/>
-		</Block>
+		{#if searchOpen}
+			<Block strong inset>
+				<input
+					bind:this={searchInput}
+					type="search"
+					class="home-search"
+					placeholder="Search tasks…"
+					value={open.filter}
+					oninput={(e) => {
+						open.filter = (e.currentTarget as HTMLInputElement).value;
+					}}
+				/>
+			</Block>
+		{/if}
 
 		<div class="home-content">
 			{#each open.matrix.order as q (q)}
