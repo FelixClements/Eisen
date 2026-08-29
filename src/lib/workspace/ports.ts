@@ -38,6 +38,7 @@ export interface WakePort {
 		p256dh: string;
 		auth: string;
 	}): Promise<void>;
+	sendTestPush(deviceId: string): Promise<void>;
 }
 
 export type ReminderEnableResult =
@@ -46,6 +47,13 @@ export type ReminderEnableResult =
 	| 'unsupported'
 	| 'vapid-missing'
 	| 'subscribe-failed'
+	| 'server-error';
+
+export type ReminderTestResult =
+	| 'sent'
+	| 'no-subscription'
+	| 'permission-denied'
+	| 'push-failed'
 	| 'server-error';
 
 export type CloudPort = VaultParamsPort & SyncPort & BackupPort & WakePort;

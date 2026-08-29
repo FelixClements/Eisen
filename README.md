@@ -30,9 +30,18 @@ Configure:
 | `VITE_VAPID_PUBLIC_KEY` | `.env` locally; GitHub Actions secret `VAPID_PUBLIC_KEY` for CI builds |
 | `VAPID_PRIVATE_KEY` | Cloudflare Pages secret (JWK JSON string from command above) |
 | `VAPID_SUBJECT` | Cloudflare Pages env (`mailto:you@example.com`) |
-| `CRON_SECRET` | Cloudflare Pages secret (random string; protects `/api/push/cron`) |
+| `CRON_SECRET` | Cloudflare Pages secret **and** `eisen-push-cron` Worker secret (same value; protects `/api/push/cron`) |
 
-Add a Pages cron trigger in the Cloudflare dashboard (**Functions → Cron triggers**, schedule `* * * * *`) so due wakes are dispatched.
+Pages does not support cron triggers. Deploy the standalone cron Worker (runs every minute, calls `/api/push/cron`):
+
+```bash
+# Set CRON_SECRET on the cron Worker (must match Pages)
+cd workers/push-cron
+npx wrangler secret put CRON_SECRET
+# Edit TARGET_ORIGIN in workers/push-cron/wrangler.toml if not using eisen-web.pages.dev
+cd ../..
+npm run deploy:push-cron
+```
 
 After deploy, enable push in **Settings → Enable push reminders**, then create a task with a reminder time.
 

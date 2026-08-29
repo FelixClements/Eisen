@@ -1,9 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Page, Navbar, NavbarBackLink, Block, Button, Segmented, SegmentedButton } from 'konsta/svelte';
+	import {
+		Page,
+		Navbar,
+		Block,
+		Button,
+		List,
+		ListItem,
+		Segmented,
+		SegmentedButton
+	} from 'konsta/svelte';
 	import { appearanceMode, setAppearanceMode } from '$lib/theme';
 	import { currentOpen } from '$lib/workspace/current.svelte';
-	import type { ReminderEnableResult } from '$lib/workspace/ports';
+	import type { ReminderEnableResult, ReminderTestResult } from '$lib/workspace/ports';
 
 	const open = $derived(currentOpen());
 
@@ -31,6 +40,21 @@
 				return 'Could not subscribe to push notifications.';
 			case 'server-error':
 				return 'Could not save push subscription on the server.';
+		}
+	}
+
+	function testMessage(result: ReminderTestResult): string {
+		switch (result) {
+			case 'sent':
+				return 'Test push sent — check for a notification (may take a few seconds).';
+			case 'no-subscription':
+				return 'No subscription on this device. Tap Enable push reminders first.';
+			case 'permission-denied':
+				return 'Notification permission denied.';
+			case 'push-failed':
+				return 'Server could not reach the push provider (VAPID mismatch or expired subscription).';
+			case 'server-error':
+				return 'Test push failed on the server.';
 		}
 	}
 
@@ -85,13 +109,9 @@
 </script>
 
 <Page>
-	<Navbar title="Settings">
-		{#snippet left()}
-			<NavbarBackLink onclick={() => goto('/')} />
-		{/snippet}
-	</Navbar>
+	<Navbar title="Settings" />
 
-	<Block strong inset class="space-y-6">
+	<Block strong inset class="tab-page-content space-y-6">
 		<section>
 			<h3 class="mb-2 font-semibold">Appearance</h3>
 			<Segmented strong rounded>
@@ -192,9 +212,31 @@
 					message = reminderMessage(result);
 				}}>Enable push reminders</Button
 			>
+			<Button
+				class="mt-2"
+				outline
+				disabled={notificationPermission !== 'granted'}
+				onclick={async () => {
+					if (!open) return;
+					busy = true;
+					try {
+						message = testMessage(await open.reminders.testPush());
+					} finally {
+						busy = false;
+					}
+				}}>Send test notification</Button
+			>
 			<p class="mt-2 text-sm opacity-70">
 				Reminders use a wake-clock: the server only stores when to nudge your device, never task content.
+				Scheduled reminders need the <code>eisen-push-cron</code> Worker deployed (cron every minute).
 			</p>
+		</section>
+
+		<section>
+			<h3 class="mb-2 font-semibold">Help</h3>
+			<List strong inset>
+				<ListItem link title="Keyboard shortcuts" href="/keyboard-shortcuts" />
+			</List>
 		</section>
 
 		<section>

@@ -1,6 +1,6 @@
 import { EisenErrorException, type TaskEdit, type TaskId, type TaskView } from './types';
 import { buildMatrix, sortTasks } from './matrix';
-import type { Clock, CloudPort, ReminderEnableResult, RemindersPort, WakePort } from './ports';
+import type { Clock, CloudPort, ReminderEnableResult, ReminderTestResult, RemindersPort, WakePort } from './ports';
 import { nullReminders, systemClock } from './ports';
 import { createTaskCodec, type CatalogTask } from './task-codec';
 import { createTaskRepository } from './task-repository';
@@ -33,6 +33,7 @@ export type OpenState = {
 	reminders: {
 		permission(): 'unsupported' | 'default' | 'granted' | 'denied';
 		enable(): Promise<ReminderEnableResult>;
+		testPush(): Promise<ReminderTestResult>;
 	};
 	dueReminders(): { id: string; title: string }[];
 	signOut(): Promise<void>;
@@ -219,7 +220,8 @@ export function openWorkspace(opts: {
 			},
 			reminders: {
 				permission: () => reminders.permission(),
-				enable: enableReminders
+				enable: enableReminders,
+				testPush: testRemindersPush
 			},
 			dueReminders() {
 				const now = clock.now();
@@ -252,6 +254,31 @@ export function openWorkspace(opts: {
 			});
 			task.blob = row.blob;
 			catalog.set(task);
+		}
+	}
+
+	async function testRemindersPush(): Promise<ReminderTestResult> {
+		if (reminders.permission() !== 'granted') return 'permission-denied';
+		try {
+			await wake.sendTestPush(deviceId);
+			return 'sent';
+		} catch (err) {
+			if (
+				err instanceof EisenErrorException &&
+				err.error.code === 'server' &&
+				err.error.status === 404
+			) {
+				return 'no-subscription';
+			}
+			if (
+				err instanceof EisenErrorException &&
+				err.error.code === 'server' &&
+				err.error.status === 502
+			) {
+				return 'push-failed';
+			}
+			console.error('sendTestPush failed:', err);
+			return 'server-error';
 		}
 	}
 

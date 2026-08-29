@@ -20,4 +20,4 @@ RECORD_SCHEMA_VERSION = "1"
 
 # Set in production: VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_URL
 # Set VITE_VAPID_PUBLIC_KEY at build time (GitHub Actions secret)
-# Pages cron: configure in Cloudflare dashboard (Functions → Cron triggers); worker patch adds scheduled handler
+# Push wake dispatch: deploy workers/push-cron (npm run deploy:push-cron) — Pages does not support cron triggers

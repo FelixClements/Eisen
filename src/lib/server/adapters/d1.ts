@@ -159,6 +159,18 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 		async deletePushSubscription(endpoint) {
 			await d1.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
 		},
+		async getPushSubscription(accountId, deviceId) {
+			return (
+				(await d1
+					.prepare(
+						`SELECT device_id AS deviceId, endpoint, p256dh, auth
+						 FROM push_subscriptions
+						 WHERE user_id = ? AND device_id = ?`
+					)
+					.bind(accountId, deviceId)
+					.first<PushSubscriptionRow>()) ?? null
+			);
+		},
 		async insertWake(accountId, id, schedule) {
 			await d1
 				.prepare(

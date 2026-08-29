@@ -36,6 +36,9 @@ export function cloudPortFor(mirror: EncryptedMirror, accountId: string): CloudP
 		},
 		async registerPush(sub) {
 			await mirror.registerPushSubscription(accountId, sub);
+		},
+		async sendTestPush(deviceId) {
+			await mirror.sendTestPush(accountId, deviceId);
 		}
 	};
 }

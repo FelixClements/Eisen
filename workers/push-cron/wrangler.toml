@@ -1,0 +1,14 @@
+"$schema" = "../../node_modules/wrangler/config-schema.json"
+name = "eisen-push-cron"
+main = "src/index.ts"
+compatibility_date = "2025-07-18"
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+# Same origin as BETTER_AUTH_URL on Pages (no trailing slash)
+TARGET_ORIGIN = "https://eisen-web.pages.dev"
+
+[secrets]
+required = ["CRON_SECRET"]

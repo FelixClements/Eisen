@@ -25,8 +25,26 @@ body {
 	overscroll-behavior: none;
 }
 
+.app-shell {
+	margin-inline: auto;
+	width: 100%;
+	max-width: 32rem;
+	min-height: 100dvh;
+	position: relative;
+}
+
+.app-tabbar {
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tab-page-content,
+.tab-page-list {
+	padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
 .home-content {
-	padding: 0 1rem 5.5rem;
+	padding: 0 1rem calc(5rem + env(safe-area-inset-bottom, 0px));
 }
 
 .home-search {

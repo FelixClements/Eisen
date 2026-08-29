@@ -3,10 +3,9 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { App, Page, Navbar, Panel, List, ListItem, Link } from 'konsta/svelte';
+	import { App, Page, Navbar } from 'konsta/svelte';
 	import { authClient } from '$lib/auth-client';
 	import { initTheme, resolvedTheme } from '$lib/theme';
-	import { drawerOpen } from '$lib/drawer';
 	import { vaultSession } from '$lib/workspace/authenticate';
 	import { browserReminders } from '$lib/workspace/browser-reminders';
 	import { bindWorkspace, currentOpen } from '$lib/workspace/current.svelte';
@@ -86,29 +85,6 @@
 </svelte:head>
 
 <App theme={$resolvedTheme} safeAreas materialTouchRipple={$resolvedTheme === 'material'}>
-	{#if user && !isPublic && open}
-		<Panel side="left" opened={$drawerOpen} onBackdropClick={() => drawerOpen.set(false)}>
-			<Page>
-				<Navbar title="Eisen">
-					{#snippet right()}
-						<Link iconOnly onclick={() => drawerOpen.set(false)}>✕</Link>
-					{/snippet}
-				</Navbar>
-				<List strong inset>
-					<ListItem link title="Home" href="/" onclick={() => drawerOpen.set(false)} />
-					<ListItem link title="History" href="/history" onclick={() => drawerOpen.set(false)} />
-					<ListItem link title="Settings" href="/settings" onclick={() => drawerOpen.set(false)} />
-					<ListItem
-						link
-						title="Keyboard shortcuts"
-						href="/keyboard-shortcuts"
-						onclick={() => drawerOpen.set(false)}
-					/>
-				</List>
-			</Page>
-		</Panel>
-	{/if}
-
 	{#if isPublic}
 		{@render children()}
 	{:else if !user}

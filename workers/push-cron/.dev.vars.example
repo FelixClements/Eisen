@@ -1,0 +1,2 @@
+CRON_SECRET=your-local-secret
+TARGET_ORIGIN=http://localhost:8788

@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { Page, Navbar, NavbarBackLink, Block, List, ListItem, Segmented, SegmentedButton } from 'konsta/svelte';
+	import { Page, Navbar, Block, List, ListItem, Segmented, SegmentedButton } from 'konsta/svelte';
 	import { currentOpen } from '$lib/workspace/current.svelte';
 
 	const open = $derived(currentOpen());
@@ -10,9 +9,6 @@
 
 <Page>
 	<Navbar title="History">
-		{#snippet left()}
-			<NavbarBackLink onclick={() => goto('/')} />
-		{/snippet}
 		{#snippet subnavbar()}
 			<Segmented strong rounded>
 				<SegmentedButton active={tab === 'completed'} onclick={() => (tab = 'completed')}>
@@ -28,7 +24,7 @@
 	{#if !open}
 		<Block strong inset><p>Loading…</p></Block>
 	{:else}
-		<List strong outline>
+		<List strong outline class="tab-page-list">
 			{#each list as task (task.id)}
 				<ListItem link title={task.title} subtitle={task.notes} href="/task/{task.id}">
 					{#snippet after()}

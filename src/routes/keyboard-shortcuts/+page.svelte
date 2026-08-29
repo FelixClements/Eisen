@@ -6,7 +6,7 @@
 <Page>
 	<Navbar title="Keyboard shortcuts">
 		{#snippet left()}
-			<NavbarBackLink onclick={() => goto('/')} />
+			<NavbarBackLink onclick={() => goto('/settings')} />
 		{/snippet}
 	</Navbar>
 	<List strong inset>

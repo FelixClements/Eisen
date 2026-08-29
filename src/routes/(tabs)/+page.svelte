@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { Pin, PinOff, Archive } from '@lucide/svelte';
-	import { goto } from '$app/navigation';
-	import { Page, Navbar, Block, Fab, Link } from 'konsta/svelte';
+	import { Page, Navbar, Block } from 'konsta/svelte';
 	import { currentOpen } from '$lib/workspace/current.svelte';
 	import { QUADRANT_META } from '$lib/workspace';
-	import { drawerOpen } from '$lib/drawer';
 
 	const open = $derived(currentOpen());
 
@@ -18,14 +16,7 @@
 </script>
 
 <Page>
-	<Navbar title="Eisen">
-		{#snippet left()}
-			<Link iconOnly onclick={() => drawerOpen.set(true)}>☰</Link>
-		{/snippet}
-		{#snippet right()}
-			<Link iconOnly onclick={() => goto('/settings')}>⚙</Link>
-		{/snippet}
-	</Navbar>
+	<Navbar title="Eisen" />
 
 	{#if open}
 		<Block strong inset>
@@ -96,11 +87,5 @@
 				{/if}
 			{/each}
 		</div>
-
-		<Fab class="fixed right-safe-4 bottom-safe-4 z-20" onclick={() => goto('/new-task')}>
-			{#snippet icon()}
-				<span class="text-2xl">+</span>
-			{/snippet}
-		</Fab>
 	{/if}
 </Page>

@@ -54,6 +54,7 @@ export interface MirrorDatabasePort {
 	getBackupMeta(accountId: string, packageId: string): Promise<BackupMetaRow | null>;
 	upsertPushSubscription(accountId: string, sub: PushSubscriptionRow): Promise<void>;
 	deletePushSubscription(endpoint: string): Promise<void>;
+	getPushSubscription(accountId: string, deviceId: string): Promise<PushSubscriptionRow | null>;
 	insertWake(accountId: string, id: string, schedule: WakeScheduleRow): Promise<void>;
 	dueWakes(now: number): Promise<DueWake[]>;
 	markWakeSent(id: string): Promise<void>;
@@ -83,6 +84,7 @@ export type EncryptedMirror = {
 	listRecoveryPackages(accountId: string): Promise<BackupRef[]>;
 	getRecoveryPackage(accountId: string, packageId: string): Promise<string>;
 	registerPushSubscription(accountId: string, sub: PushSubscriptionRow): Promise<void>;
+	sendTestPush(accountId: string, deviceId: string): Promise<void>;
 	scheduleWake(accountId: string, schedule: WakeScheduleRow): Promise<{ scheduleId: string }>;
 	dispatchDueWakes(now: number): Promise<{ sent: number; failed: number }>;
 };
@@ -95,6 +97,12 @@ export class MirrorNotFoundError extends Error {
 export class PushSubscriptionConflictError extends Error {
 	constructor() {
 		super('Push subscription already registered to another account.');
+	}
+}
+
+export class PushSubscriptionNotFoundError extends Error {
+	constructor() {
+		super('No push subscription for this device.');
 	}
 }
 
@@ -165,6 +173,12 @@ export function createEncryptedMirror(ports: EncryptedMirrorPorts): EncryptedMir
 
 		async registerPushSubscription(accountId, sub) {
 			await ports.database.upsertPushSubscription(accountId, sub);
+		},
+
+		async sendTestPush(accountId, deviceId) {
+			const sub = await ports.database.getPushSubscription(accountId, deviceId);
+			if (!sub) throw new PushSubscriptionNotFoundError();
+			await ports.pushDispatch.send(sub, JSON.stringify({ type: 'test' }));
 		},
 
 		async scheduleWake(accountId, schedule) {

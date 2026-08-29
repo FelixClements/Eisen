@@ -20,6 +20,14 @@ async function handlePush(event: PushEvent) {
 		data = { type: 'wake' };
 	}
 
+	if (data.type === 'test') {
+		await self.registration.showNotification('Eisen test', {
+			body: 'Push notifications are working.',
+			tag: 'eisen-test'
+		});
+		return;
+	}
+
 	if (data.type !== 'wake') {
 		await self.registration.showNotification('Eisen', { body: 'You have a reminder.' });
 		return;

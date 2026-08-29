@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build && node tools/patch-cloudflare-worker.mjs",
+    "build": "vite build",
     "preview": "wrangler pages dev .svelte-kit/cloudflare",
     "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
+    "deploy:push-cron": "wrangler deploy --config workers/push-cron/wrangler.toml",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "types": "wrangler types",

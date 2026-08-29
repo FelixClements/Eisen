@@ -92,6 +92,9 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 				if (next.length !== list.length) pushes.set(accountId, next);
 			}
 		},
+		async getPushSubscription(accountId, deviceId) {
+			return (pushes.get(accountId) ?? []).find((s) => s.deviceId === deviceId) ?? null;
+		},
 		async insertWake(accountId, id, schedule) {
 			for (let i = wakes.length - 1; i >= 0; i--) {
 				const w = wakes[i];

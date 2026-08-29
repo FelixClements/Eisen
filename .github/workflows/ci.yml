@@ -116,6 +116,8 @@ jobs:
         run: npm ci
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy .svelte-kit/cloudflare --project-name=eisen-web --branch=main
+      - name: Deploy push cron Worker
+        run: npx wrangler deploy --config workers/push-cron/wrangler.toml
 
   dependency-scan:
     runs-on: ubuntu-latest
