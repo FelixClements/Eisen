@@ -8,16 +8,18 @@ pages_build_output_dir = ".svelte-kit/cloudflare"
 binding = "DB"
 database_name = "eisen-web-db"
 database_id = "d040364f-290f-4223-b35f-9a4dd2803523"
-preview_database_id = "d040364f-290f-4223-b35f-9a4dd2803523"
+preview_database_id = "9bea9e26-bc58-47c3-bb57-0026eea1c7ab"
 
 [[r2_buckets]]
 binding = "ATTACHMENTS"
 bucket_name = "eisen-attachments"
+preview_bucket_name = "eisen-attachments-preview"
 
 [vars]
 APP_NAME = "Eisen"
 RECORD_SCHEMA_VERSION = "1"
 
 # Set in production: VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_URL
+# BETTER_AUTH_SECRET and BETTER_AUTH_URL are required whenever D1 is bound (no code fallback)
 # Set VITE_VAPID_PUBLIC_KEY at build time (GitHub Actions secret)
 # Push wake dispatch: deploy workers/push-cron (npm run deploy:push-cron) — Pages does not support cron triggers

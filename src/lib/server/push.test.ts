@@ -116,4 +116,44 @@ describe('push wake dispatch', () => {
 		const second = await mirror.dispatchDueWakes(2_000);
 		expect(second).toEqual({ sent: 0, failed: 0 });
 	});
+
+	it('does not mark a wake sent when VAPID is unset', async () => {
+		const db = memoryMirrorDatabase();
+		const mirror = createEncryptedMirror({
+			database: db,
+			recoveryObjects: memoryRecoveryObjects(),
+			pushDispatch: {
+				async send() {
+					throw new PushSendError('VAPID unset', 503);
+				}
+			}
+		});
+		await mirror.registerPushSubscription(ACCOUNT, {
+			deviceId: DEVICE,
+			endpoint: 'https://push.example/sub',
+			p256dh: 'x'.repeat(87),
+			auth: 'y'.repeat(22)
+		});
+		await mirror.scheduleWake(ACCOUNT, { deviceId: DEVICE, wakeAt: 1_000, nonce: 'n1' });
+		const first = await mirror.dispatchDueWakes(2_000);
+		expect(first).toEqual({ sent: 0, failed: 1 });
+		const second = await mirror.dispatchDueWakes(2_000);
+		expect(second).toEqual({ sent: 0, failed: 1 });
+	});
+
+	it('stops dispatch after unregister for this device', async () => {
+		const push = recordingPushDispatch();
+		const mirror = newMirror(push);
+		await mirror.registerPushSubscription(ACCOUNT, {
+			deviceId: DEVICE,
+			endpoint: 'https://push.example/sub',
+			p256dh: 'x'.repeat(87),
+			auth: 'y'.repeat(22)
+		});
+		await mirror.scheduleWake(ACCOUNT, { deviceId: DEVICE, wakeAt: 1_000, nonce: 'n1' });
+		await mirror.unregisterPushSubscription(ACCOUNT, DEVICE);
+		const result = await mirror.dispatchDueWakes(2_000);
+		expect(result).toEqual({ sent: 0, failed: 0 });
+		expect(push.sent).toEqual([]);
+	});
 });

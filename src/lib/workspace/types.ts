@@ -59,7 +59,8 @@ export type TaskEdit =
 	| { kind: 'archive'; id: TaskId; archived: boolean }
 	| { kind: 'delete'; id: TaskId };
 
-export type BackupRef = { id: string; createdAt: number };
+export type { BackupRef, SyncRecord } from '$lib/sync/types';
+export { VaultParamsExistError } from '$lib/sync/types';
 
 export type EisenError =
 	| { code: 'wrong-passphrase' }
@@ -82,22 +83,7 @@ export class EisenErrorException extends Error {
 	}
 }
 
-export class VaultParamsExistError extends Error {
-	constructor() {
-		super('Vault params already exist for this account.');
-	}
-}
-
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: EisenError };
-
-export type SyncRecord = {
-	recordId: string;
-	encryptedBlob: string;
-	modifiedAt: number;
-	deviceId: string;
-	syncVersion?: number;
-	deleted: number;
-};
 
 export type EncryptedTaskPayload = {
 	title: string;

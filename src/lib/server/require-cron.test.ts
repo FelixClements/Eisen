@@ -37,4 +37,8 @@ describe('requireCronSecret', () => {
 	it('rejects a wrong bearer token', () => {
 		expectUnauthorized(() => requireCronSecret(eventWithAuth('Bearer wrong')));
 	});
+
+	it('rejects a shorter token without throwing on length mismatch', () => {
+		expectUnauthorized(() => requireCronSecret(eventWithAuth('Bearer x')));
+	});
 });

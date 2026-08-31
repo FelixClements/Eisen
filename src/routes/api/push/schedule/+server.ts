@@ -2,12 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/require-user';
 import { mirrorFromEvent } from '$lib/server/mirror-from-event';
-import {
-	assertDeviceId,
-	assertPushEndpoint,
-	assertPushKeys,
-	assertWakeAt
-} from '$lib/server/push-validation';
+import { assertDeviceId, assertWakeAt } from '$lib/server/push-validation';
 
 export const POST: RequestHandler = async (event) => {
 	const user = requireUser(event);

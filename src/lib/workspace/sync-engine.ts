@@ -1,5 +1,5 @@
 import { EisenErrorException, type EisenError } from './types';
-import { remoteWins } from './merge';
+import { applyRecordLww } from '$lib/sync/record-lww';
 import type { SyncPort } from './ports';
 import type { CatalogTask, TaskCodec } from './task-codec';
 import type { TaskRepository } from './task-repository';
@@ -37,6 +37,7 @@ export function createSyncEngine(opts: {
 			phase = 'syncing';
 			lastError = null;
 			opts.onNotify();
+			let pushed: { recordId: string; modifiedAt: number }[] = [];
 			try {
 				const changes = await Promise.all(
 					[...opts.getTasks()]
@@ -52,32 +53,42 @@ export function createSyncEngine(opts: {
 							};
 						})
 				);
+				pushed = changes.map((c) => ({ recordId: c.recordId, modifiedAt: c.modifiedAt }));
 				const result = await opts.cloud.sync({ lastVersion: opts.getLastVersion(), changes });
+				const appliedKeys = new Set<string>();
 				for (const record of result.changes) {
 					const syncVersion = record.syncVersion ?? 0;
 					if (syncVersion === 0) continue;
+					const existing = opts.findTask(record.recordId);
+					const envelope = { modifiedAt: record.modifiedAt, deviceId: record.deviceId };
+					if (existing) {
+						const sameEnvelope =
+							existing.updatedAt === record.modifiedAt && existing.deviceId === record.deviceId;
+						if (!sameEnvelope) {
+							const decision = applyRecordLww(
+								{ modifiedAt: existing.updatedAt, deviceId: existing.deviceId },
+								envelope
+							);
+							if (decision === 'reject') continue;
+						}
+					}
 					const payload = await opts.codec.decryptPayload(record.encryptedBlob);
 					if (!payload) continue;
-					const existing = opts.findTask(record.recordId);
-					const incoming = { modifiedAt: record.modifiedAt, deviceId: payload.deviceId };
 					if (
-						existing &&
-						!remoteWins(
-							{ modifiedAt: existing.updatedAt, deviceId: existing.deviceId },
-							incoming
-						) &&
-						existing.dirty
+						!existing ||
+						existing.updatedAt !== record.modifiedAt ||
+						existing.deviceId !== record.deviceId
 					) {
-						continue;
+						const next = opts.codec.fromSyncRecord(record, payload);
+						await opts.applyRemote(next, syncVersion);
 					}
-					const next = opts.codec.fromSyncRecord(record, payload);
-					await opts.applyRemote(next, syncVersion);
+					appliedKeys.add(`${record.recordId}:${record.modifiedAt}:${record.deviceId}`);
 				}
 				for (const t of opts.getTasks()) {
-					if (t.dirty && changes.some((c) => c.recordId === t.id && c.modifiedAt === t.updatedAt)) {
+					if (t.dirty && appliedKeys.has(`${t.id}:${t.updatedAt}:${t.deviceId}`)) {
 						t.dirty = false;
 						t.syncState = 'synced';
-						await opts.repo.updateDirty(t.id, 0);
+						await opts.repo.updateDirty(opts.accountId, t.id, 0);
 					}
 				}
 				opts.setLastVersion(result.lastVersion);
@@ -100,7 +111,14 @@ export function createSyncEngine(opts: {
 				syncing = null;
 				opts.onNotify();
 			}
-			if (phase === 'idle' && [...opts.getTasks()].some((t) => t.dirty)) {
+			if (
+				phase === 'idle' &&
+				[...opts.getTasks()].some(
+					(t) =>
+						t.dirty &&
+						!pushed.some((c) => c.recordId === t.id && c.modifiedAt === t.updatedAt)
+				)
+			) {
 				await runSync();
 			}
 		})();

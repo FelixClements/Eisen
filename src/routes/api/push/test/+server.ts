@@ -19,6 +19,9 @@ export const POST: RequestHandler = async (event) => {
 			throw error(404, 'No push subscription for this device. Enable push reminders first.');
 		}
 		if (err instanceof PushSendError) {
+			if (err.status === 503) {
+				throw error(503, 'Push is not configured (VAPID private key missing).');
+			}
 			throw error(502, `Push provider rejected the test: HTTP ${err.status}`);
 		}
 		throw err;

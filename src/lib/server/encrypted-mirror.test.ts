@@ -109,4 +109,89 @@ describe('EncryptedMirror exchangeSync LWW', () => {
 		expect(stored?.deviceId).toBe('bbb');
 		expect(stored?.encryptedBlob).toBe('blob-high');
 	});
+
+	it('keeps the same recordId isolated per Account', async () => {
+		const db = memoryMirrorDatabase();
+		const objects = memoryRecoveryObjects();
+		const mirror = createEncryptedMirror({
+			database: db,
+			recoveryObjects: objects,
+			pushDispatch: recordingPushDispatch()
+		});
+		await mirror.exchangeSync('acct-a', {
+			lastVersion: 0,
+			changes: [
+				{
+					recordId: 'shared',
+					encryptedBlob: 'blob-a',
+					modifiedAt: 100,
+					deviceId: 'device-a',
+					deleted: 0
+				}
+			]
+		});
+		await mirror.exchangeSync('acct-b', {
+			lastVersion: 0,
+			changes: [
+				{
+					recordId: 'shared',
+					encryptedBlob: 'blob-b',
+					modifiedAt: 100,
+					deviceId: 'device-b',
+					deleted: 0
+				}
+			]
+		});
+		const pullA = await mirror.exchangeSync('acct-a', { lastVersion: 0, changes: [] });
+		const pullB = await mirror.exchangeSync('acct-b', { lastVersion: 0, changes: [] });
+		expect(pullA.changes.find((c) => c.recordId === 'shared')?.encryptedBlob).toBe('blob-a');
+		expect(pullB.changes.find((c) => c.recordId === 'shared')?.encryptedBlob).toBe('blob-b');
+	});
+
+	it('assigns distinct sync versions to sequential accepts', async () => {
+		const mirror = newMirror();
+		const first = await mirror.exchangeSync(ACCOUNT, {
+			lastVersion: 0,
+			changes: [
+				{
+					recordId: 'r1',
+					encryptedBlob: 'blob-1',
+					modifiedAt: 100,
+					deviceId: 'device-a',
+					deleted: 0
+				}
+			]
+		});
+		const second = await mirror.exchangeSync(ACCOUNT, {
+			lastVersion: first.lastVersion,
+			changes: [
+				{
+					recordId: 'r2',
+					encryptedBlob: 'blob-2',
+					modifiedAt: 200,
+					deviceId: 'device-a',
+					deleted: 0
+				}
+			]
+		});
+		const v1 = first.changes.find((c) => c.recordId === 'r1')?.syncVersion;
+		const v2 = second.changes.find((c) => c.recordId === 'r2')?.syncVersion;
+		expect(v1).toBe(1);
+		expect(v2).toBe(2);
+		expect(second.lastVersion).toBe(2);
+	});
+
+	it('keeps the same recovery packageId isolated per Account', async () => {
+		const db = memoryMirrorDatabase();
+		const objects = memoryRecoveryObjects();
+		const mirror = createEncryptedMirror({
+			database: db,
+			recoveryObjects: objects,
+			pushDispatch: recordingPushDispatch()
+		});
+		await mirror.storeRecoveryPackage('acct-a', 'pkg-shared', 'cipher-a');
+		await mirror.storeRecoveryPackage('acct-b', 'pkg-shared', 'cipher-b');
+		expect(await mirror.getRecoveryPackage('acct-a', 'pkg-shared')).toBe('cipher-a');
+		expect(await mirror.getRecoveryPackage('acct-b', 'pkg-shared')).toBe('cipher-b');
+	});
 });

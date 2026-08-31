@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { deriveAuthVerifier, deriveVaultKey } from '$lib/crypto';
 import { createEncryptedMirror, VaultParamsExistError } from '$lib/server/encrypted-mirror';
 import {
@@ -270,6 +270,47 @@ describe('Workspace', () => {
 		await requireOpen(ws.state).signOut();
 		expect(signedOut).toBe(true);
 		expect(ws.state.status).toBe('booting');
+		ws.close();
+	});
+
+	it('clears reminder cache and unregisters push on signOut', async () => {
+		const { syncReminderCache, getDueRemindersFromCache } = await import('$lib/reminder-cache');
+		const mirror = newMirror();
+		const cloud = cloudPortFor(mirror, ACCOUNT.id);
+		const key = await vaultKeyFromPassword({ password: PASSWORD, cloud, iterations: ITER });
+		const unregisterPush = vi.fn(cloud.unregisterPush.bind(cloud));
+		const unsubscribe = vi.fn(async () => {});
+		const ws = openWorkspace({
+			account: ACCOUNT,
+			vaultKey: key,
+			adapters: {
+				cloud: { ...cloud, unregisterPush },
+				clock: clock(),
+				dbName: 'ws-signout-cache',
+				kdfIterations: ITER,
+				reminders: {
+					permission: () => 'granted',
+					request: async () => 'granted',
+					subscribe: async () => ({
+						endpoint: 'https://fcm.googleapis.com/fcm/send/test',
+						p256dh: 'x'.repeat(87),
+						auth: 'y'.repeat(22)
+					}),
+					unsubscribe,
+					vapidReady: () => true
+				}
+			}
+		});
+		await ws.ready;
+		await requireOpen(ws.state).reminders.enable();
+		await syncReminderCache([{ id: 'task-1', title: 'Secret title', remindAt: 1 }]);
+		expect(await getDueRemindersFromCache(2)).toEqual([
+			{ id: 'task-1', title: 'Secret title', remindAt: 1 }
+		]);
+		await requireOpen(ws.state).signOut();
+		expect(await getDueRemindersFromCache(2)).toEqual([]);
+		expect(unsubscribe).toHaveBeenCalled();
+		expect(unregisterPush).toHaveBeenCalled();
 		ws.close();
 	});
 });

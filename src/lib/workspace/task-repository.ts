@@ -3,7 +3,7 @@ import { EISEN_DB_NAME, EisenWebDB, type StoredMeta, type StoredTask } from './d
 export type TaskRepository = {
 	loadRows(accountId: string): Promise<StoredTask[]>;
 	put(row: StoredTask): Promise<void>;
-	updateDirty(id: string, dirty: 0 | 1): Promise<void>;
+	updateDirty(accountId: string, id: string, dirty: 0 | 1): Promise<void>;
 	getMeta(accountId: string): Promise<StoredMeta | undefined>;
 	putMeta(meta: StoredMeta): Promise<void>;
 	ensureMeta(accountId: string, newDeviceId: () => string): Promise<StoredMeta>;
@@ -26,8 +26,8 @@ export function createTaskRepository(opts: {
 			await db.tasks.put(row);
 		},
 
-		async updateDirty(id, dirty) {
-			await db.tasks.update(id, { dirty });
+		async updateDirty(accountId, id, dirty) {
+			await db.tasks.update([accountId, id], { dirty });
 		},
 
 		async getMeta(accountId) {

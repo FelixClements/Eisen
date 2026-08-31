@@ -106,7 +106,7 @@ describe('TaskRepository', () => {
 		});
 		const rows = await repo.loadRows('acct-1');
 		expect(rows[0]?.dirty).toBe(1);
-		await repo.updateDirty('t1', 0);
+		await repo.updateDirty('acct-1', 't1', 0);
 		const rowsAfter = await repo.loadRows('acct-1');
 		expect(rowsAfter[0]?.dirty).toBe(0);
 		repo.close();

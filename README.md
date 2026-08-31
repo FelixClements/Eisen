@@ -11,9 +11,17 @@ npm run test
 npm run dev
 ```
 
-Copy `.env.example` to `.env` and set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and optionally `VITE_VAPID_PUBLIC_KEY`.
+Production schema (after deploy CI also runs this):
+
+```bash
+npx wrangler d1 migrations apply eisen-web-db --remote
+```
+
+Copy `.env.example` to `.env` and set `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and optionally `VITE_VAPID_PUBLIC_KEY`. When D1 is bound (`npm run preview` / Pages), both auth env vars are required — there is no in-code fallback secret.
 
 Use `npm run preview` (Wrangler Pages dev) to test push APIs with D1 bindings. Plain `npm run dev` does not provide Cloudflare env bindings for wake dispatch.
+
+Preview deployments use a separate D1 database (`eisen-web-db-preview`) and R2 bucket (`eisen-attachments-preview`). Do not point `preview_database_id` at production.
 
 ## Push notifications
 

@@ -24,7 +24,7 @@ export type WrappedKey = {
 };
 
 export class EisenWebDB extends Dexie {
-	tasks!: Table<StoredTask, string>;
+	tasks!: Table<StoredTask, [string, string]>;
 	meta!: Table<StoredMeta, string>;
 	wrappedKeys!: Table<WrappedKey, string>;
 
@@ -35,5 +35,16 @@ export class EisenWebDB extends Dexie {
 			meta: 'accountId',
 			wrappedKeys: 'accountId'
 		});
+		this.version(3)
+			.stores({
+				tasks: '[accountId+id], accountId, updatedAt, deleted, dirty, syncVersion',
+				meta: 'accountId',
+				wrappedKeys: 'accountId'
+			})
+			.upgrade(async (tx) => {
+				const rows = await tx.table('tasks').toArray();
+				await tx.table('tasks').clear();
+				await tx.table('tasks').bulkAdd(rows);
+			});
 	}
 }

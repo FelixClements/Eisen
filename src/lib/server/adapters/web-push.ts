@@ -45,8 +45,10 @@ export function webPushDispatch(opts: {
 	};
 }
 
-export const noopPushDispatch: PushDispatchPort = {
-	async send() {
-		/* VAPID unset */
-	}
-};
+export function unconfiguredPushDispatch(): PushDispatchPort {
+	return {
+		async send() {
+			throw new PushSendError('VAPID unset', 503);
+		}
+	};
+}

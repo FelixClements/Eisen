@@ -36,6 +36,15 @@ export function browserReminders(): RemindersPort {
 			const json = subscription.toJSON();
 			if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return null;
 			return { endpoint: json.endpoint, p256dh: json.keys.p256dh, auth: json.keys.auth };
+		},
+		async unsubscribe() {
+			if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+			const registration = await navigator.serviceWorker.ready;
+			const subscription = await registration.pushManager.getSubscription();
+			await subscription?.unsubscribe();
+		},
+		vapidReady() {
+			return Boolean(VAPID_PUBLIC_KEY);
 		}
 	};
 }

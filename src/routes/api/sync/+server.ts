@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requireUser } from '$lib/server/require-user';
 import { mirrorFromEvent } from '$lib/server/mirror-from-event';
-import type { SyncRecord } from '$lib/workspace/types';
+import type { SyncRecord } from '$lib/sync/types';
 
 export const POST: RequestHandler = async (event) => {
 	const user = requireUser(event);

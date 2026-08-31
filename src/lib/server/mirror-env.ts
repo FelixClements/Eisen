@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { createEncryptedMirror } from './encrypted-mirror';
 import { d1MirrorDatabase } from './adapters/d1';
 import { r2RecoveryObjects } from './adapters/r2';
-import { noopPushDispatch, webPushDispatch } from './adapters/web-push';
+import { unconfiguredPushDispatch, webPushDispatch } from './adapters/web-push';
 
 export type MirrorEnv = App.Platform['env'];
 
@@ -18,6 +18,6 @@ export function createMirrorFromEnv(env: MirrorEnv) {
 		pushDispatch:
 			privateKey
 				? webPushDispatch({ privateKeyJwk: privateKey, subject })
-				: noopPushDispatch
+				: unconfiguredPushDispatch()
 	});
 }

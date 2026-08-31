@@ -1,19 +1,5 @@
-import type { BackupRef, SyncRecord } from './types';
-
-export type SyncPushBatch = {
-	lastVersion: number;
-	changes: SyncRecord[];
-};
-
-export type SyncPullBatch = {
-	changes: SyncRecord[];
-	lastVersion: number;
-};
-
-export type VaultParams = {
-	salt: string;
-	checkBlob: string;
-};
+import type { BackupRef, SyncPullBatch, SyncPushBatch, VaultParams } from '$lib/sync/types';
+export type { SyncPullBatch, SyncPushBatch, VaultParams };
 
 export interface VaultParamsPort {
 	getVaultParams(): Promise<VaultParams | null>;
@@ -38,6 +24,7 @@ export interface WakePort {
 		p256dh: string;
 		auth: string;
 	}): Promise<void>;
+	unregisterPush(sub: { deviceId: string }): Promise<void>;
 	sendTestPush(deviceId: string): Promise<void>;
 }
 
@@ -62,6 +49,8 @@ export interface RemindersPort {
 	permission(): 'unsupported' | 'default' | 'granted' | 'denied';
 	request(): Promise<'granted' | 'denied' | 'unsupported'>;
 	subscribe(): Promise<{ endpoint: string; p256dh: string; auth: string } | null>;
+	unsubscribe(): Promise<void>;
+	vapidReady(): boolean;
 }
 
 export type Clock = {
@@ -77,5 +66,7 @@ export const systemClock: Clock = {
 export const nullReminders: RemindersPort = {
 	permission: () => 'unsupported',
 	request: async () => 'unsupported',
-	subscribe: async () => null
+	subscribe: async () => null,
+	unsubscribe: async () => {},
+	vapidReady: () => false
 };

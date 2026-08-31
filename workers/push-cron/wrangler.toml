@@ -7,7 +7,7 @@ compatibility_date = "2025-07-18"
 crons = ["* * * * *"]
 
 [vars]
-# Same origin as BETTER_AUTH_URL on Pages (no trailing slash)
+# Must match production BETTER_AUTH_URL (custom domain or Pages URL, no trailing slash)
 TARGET_ORIGIN = "https://eisen-web.pages.dev"
 
 [secrets]

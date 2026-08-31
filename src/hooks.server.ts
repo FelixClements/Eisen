@@ -1,6 +1,8 @@
 import { createAuth } from '$lib/server/auth';
+import { requireAuthSecret, requireAuthUrl } from '$lib/server/auth-secret';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
+import { error } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -9,8 +11,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	const secret = env.BETTER_AUTH_SECRET ?? 'dev-secret-change-in-production-min-32-chars!!';
-	const baseURL = env.BETTER_AUTH_URL ?? event.url.origin;
+	let secret: string;
+	let baseURL: string;
+	try {
+		secret = requireAuthSecret(env.BETTER_AUTH_SECRET);
+		baseURL = requireAuthUrl(env.BETTER_AUTH_URL);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : 'Auth is not configured';
+		throw error(503, message);
+	}
 	const auth = createAuth(env.DB, secret, baseURL);
 
 	try {

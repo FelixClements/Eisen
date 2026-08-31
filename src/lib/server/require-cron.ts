@@ -1,11 +1,16 @@
 import { error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
 
+const COMPARE_BYTES = 256;
+
 function timingSafeEqual(a: string, b: string): boolean {
-	if (a.length !== b.length) return false;
-	let result = 0;
-	for (let i = 0; i < a.length; i++) {
-		result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+	const enc = new TextEncoder();
+	const left = enc.encode(a);
+	const right = enc.encode(b);
+	if (left.length > COMPARE_BYTES || right.length > COMPARE_BYTES) return false;
+	let result = left.length === right.length ? 0 : 1;
+	for (let i = 0; i < COMPARE_BYTES; i++) {
+		result |= (left[i] ?? 0) ^ (right[i] ?? 0);
 	}
 	return result === 0;
 }

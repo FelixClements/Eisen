@@ -1,6 +1,6 @@
 export { openWorkspace, requireOpen, type Workspace, type WorkspaceState, type OpenState } from './workspace';
-export { vaultKeyFromPassword, wrapVaultKey, unwrapVaultKey, clearWrappedKey } from './vault-key';
-export { vaultSession, createVaultSession, authenticateWithVault } from './authenticate';
+export { vaultKeyFromPassword } from './vault-key';
+export { vaultSession, createVaultSession } from './authenticate';
 export type { VaultSession, VaultSessionDeps } from './vault-session';
 export { cloudPortFor } from './memory-cloud';
 export { flagsFromQuadrant, QUADRANT_META, QUADRANT_ORDER, quadrantOf } from './matrix';

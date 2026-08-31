@@ -54,21 +54,22 @@ export function createVaultSession(deps: VaultSessionDeps): VaultSession {
 			}
 			const verifier = await deriveAuthVerifier(opts.password, opts.email);
 			const existing = await authClient.getSession();
-			if (opts.mode === 'sign-in' && existing.data?.user) {
-				// already have a session; still need the password to derive the Vault key
-			} else if (opts.mode === 'sign-up') {
-				const { error } = await authClient.signUp.email({
-					email: opts.email,
-					password: verifier,
-					name: opts.name || opts.email.split('@')[0]
-				});
-				if (error) throw new Error(error.message ?? 'Sign up failed');
-			} else {
-				const { error } = await authClient.signIn.email({
-					email: opts.email,
-					password: verifier
-				});
-				if (error) throw new Error(error.message ?? 'Sign in failed');
+			const alreadySignedIn = opts.mode === 'sign-in' && Boolean(existing.data?.user);
+			if (!alreadySignedIn) {
+				if (opts.mode === 'sign-up') {
+					const { error } = await authClient.signUp.email({
+						email: opts.email,
+						password: verifier,
+						name: opts.name || opts.email.split('@')[0]
+					});
+					if (error) throw new Error(error.message ?? 'Sign up failed');
+				} else {
+					const { error } = await authClient.signIn.email({
+						email: opts.email,
+						password: verifier
+					});
+					if (error) throw new Error(error.message ?? 'Sign in failed');
+				}
 			}
 			const session = await authClient.getSession();
 			const user = session.data?.user;

@@ -6,7 +6,20 @@ import type {
 	VaultRecordRow
 } from '../encrypted-mirror';
 import { PushSubscriptionConflictError } from '../encrypted-mirror';
-import type { VaultParams } from '$lib/workspace/ports';
+import type { VaultParams } from '$lib/sync/types';
+
+export const UPSERT_VAULT_RECORD_SQL = `INSERT INTO vault_records (record_id, user_id, encrypted_blob, modified_at, device_id, sync_version, deleted)
+					 VALUES (?, ?, ?, ?, ?, ?, ?)
+					 ON CONFLICT(user_id, record_id) DO UPDATE SET
+					   encrypted_blob = excluded.encrypted_blob,
+					   modified_at = excluded.modified_at,
+					   device_id = excluded.device_id,
+					   sync_version = excluded.sync_version,
+					   deleted = excluded.deleted`;
+
+export const UPSERT_BACKUP_SQL = `INSERT INTO backups (package_id, user_id, r2_key, created_at)
+					 VALUES (?, ?, ?, ?)
+					 ON CONFLICT(user_id, package_id) DO UPDATE SET r2_key = excluded.r2_key, created_at = excluded.created_at`;
 
 export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 	return {
@@ -56,17 +69,7 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 		},
 		async upsertRecord(accountId, record: VaultRecordRow) {
 			await d1
-				.prepare(
-					`INSERT INTO vault_records (record_id, user_id, encrypted_blob, modified_at, device_id, sync_version, deleted)
-					 VALUES (?, ?, ?, ?, ?, ?, ?)
-					 ON CONFLICT(record_id) DO UPDATE SET
-					   user_id = excluded.user_id,
-					   encrypted_blob = excluded.encrypted_blob,
-					   modified_at = excluded.modified_at,
-					   device_id = excluded.device_id,
-					   sync_version = excluded.sync_version,
-					   deleted = excluded.deleted`
-				)
+				.prepare(UPSERT_VAULT_RECORD_SQL)
 				.bind(
 					record.recordId,
 					accountId,
@@ -96,13 +99,43 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 				.first<{ v: number }>();
 			return row?.v ?? 0;
 		},
+		async applyLwwUpsert(accountId, incoming) {
+			const results = await d1.batch([
+				d1
+					.prepare(
+						`INSERT INTO vault_sync_clock (user_id, next_version) VALUES (?, 1)
+						 ON CONFLICT(user_id) DO UPDATE SET next_version = next_version + 1`
+					)
+					.bind(accountId),
+				d1
+					.prepare(
+						`INSERT INTO vault_records (record_id, user_id, encrypted_blob, modified_at, device_id, sync_version, deleted)
+						 VALUES (?, ?, ?, ?, ?, (SELECT next_version FROM vault_sync_clock WHERE user_id = ?), ?)
+						 ON CONFLICT(user_id, record_id) DO UPDATE SET
+						   encrypted_blob = excluded.encrypted_blob,
+						   modified_at = excluded.modified_at,
+						   device_id = excluded.device_id,
+						   sync_version = excluded.sync_version,
+						   deleted = excluded.deleted
+						 WHERE excluded.modified_at > vault_records.modified_at
+						    OR (excluded.modified_at = vault_records.modified_at AND excluded.device_id > vault_records.device_id)`
+					)
+					.bind(
+						incoming.recordId,
+						accountId,
+						incoming.encryptedBlob,
+						incoming.modifiedAt,
+						incoming.deviceId,
+						accountId,
+						incoming.deleted
+					)
+			]);
+			const changes = results[1]?.meta?.changes ?? 0;
+			return changes > 0 ? 'accept' : 'reject';
+		},
 		async insertBackupMeta(accountId, row: BackupMetaRow) {
 			await d1
-				.prepare(
-					`INSERT INTO backups (package_id, user_id, r2_key, created_at)
-					 VALUES (?, ?, ?, ?)
-					 ON CONFLICT(package_id) DO UPDATE SET r2_key = excluded.r2_key, created_at = excluded.created_at`
-				)
+				.prepare(UPSERT_BACKUP_SQL)
 				.bind(row.packageId, accountId, row.r2Key, row.createdAt)
 				.run();
 		},
@@ -158,6 +191,12 @@ export function d1MirrorDatabase(d1: D1Database): MirrorDatabasePort {
 		},
 		async deletePushSubscription(endpoint) {
 			await d1.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').bind(endpoint).run();
+		},
+		async deletePushSubscriptionForDevice(accountId, deviceId) {
+			await d1
+				.prepare('DELETE FROM push_subscriptions WHERE user_id = ? AND device_id = ?')
+				.bind(accountId, deviceId)
+				.run();
 		},
 		async getPushSubscription(accountId, deviceId) {
 			return (

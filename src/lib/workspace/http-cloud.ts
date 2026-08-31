@@ -77,6 +77,14 @@ export function httpCloud(fetchFn: typeof fetch = fetch): CloudPort {
 			});
 			if (!response.ok) mapStatus(response.status);
 		},
+		async unregisterPush(sub) {
+			const response = await fetchFn('/api/push/unsubscribe', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(sub)
+			});
+			if (!response.ok) mapStatus(response.status);
+		},
 		async sendTestPush(deviceId) {
 			const response = await fetchFn('/api/push/test', {
 				method: 'POST',
@@ -84,7 +92,9 @@ export function httpCloud(fetchFn: typeof fetch = fetch): CloudPort {
 				body: JSON.stringify({ deviceId })
 			});
 			if (response.status === 404) throw new EisenErrorException({ code: 'server', status: 404 });
-			if (response.status === 502) throw new EisenErrorException({ code: 'server', status: 502 });
+			if (response.status === 502 || response.status === 503) {
+				throw new EisenErrorException({ code: 'server', status: response.status });
+			}
 			if (!response.ok) mapStatus(response.status);
 		}
 	};

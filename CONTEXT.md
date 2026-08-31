@@ -29,7 +29,7 @@ An opaque ciphertext of a known string, stored next to the KDF salt, used to pro
 _Avoid_: validation value (implementation nickname)
 
 **Task**:
-An Eisenhower item the user creates, completes, archives, or deletes. Plaintext exists only in memory while the Workspace is open.
+An Eisenhower item the user creates, completes, archives, or deletes. Plaintext exists only in memory while the Workspace is open. Reminder titles may sit in `eisen-reminder-cache` only while push is enabled, and must be cleared on sign-out / lock.
 _Avoid_: issue, ticket, mutation, envelope
 
 **Quadrant**:

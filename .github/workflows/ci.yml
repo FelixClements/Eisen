@@ -116,6 +116,8 @@ jobs:
         run: npm ci
       - name: Deploy to Cloudflare Pages
         run: npx wrangler pages deploy .svelte-kit/cloudflare --project-name=eisen-web --branch=main
+      - name: Apply D1 migrations
+        run: npx wrangler d1 migrations apply eisen-web-db --remote --config wrangler.toml
       - name: Deploy push cron Worker
         run: npx wrangler deploy --config workers/push-cron/wrangler.toml
 

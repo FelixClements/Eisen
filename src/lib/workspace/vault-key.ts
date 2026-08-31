@@ -9,7 +9,6 @@ import {
 } from '$lib/crypto';
 import type { VaultParamsPort } from './ports';
 import { EisenErrorException } from './types';
-import { createWrappedKeyStore } from './wrapped-key-store';
 
 export async function vaultKeyFromPassword(opts: {
 	password: string;
@@ -22,8 +21,18 @@ export async function vaultKeyFromPassword(opts: {
 		const salt = await newKdfSalt();
 		const key = await deriveVaultKey(opts.password, salt, iterations);
 		const checkBlob = await makeCheckBlob(key);
-		await opts.cloud.createVaultParams({ salt: toBase64(salt), checkBlob });
-		return key;
+		try {
+			await opts.cloud.createVaultParams({ salt: toBase64(salt), checkBlob });
+			return key;
+		} catch (err) {
+			if (!(err instanceof EisenErrorException) || err.error.code !== 'vault-exists') throw err;
+			const winner = await opts.cloud.getVaultParams();
+			if (!winner) throw err;
+			const retryKey = await deriveVaultKey(opts.password, fromBase64(winner.salt), iterations);
+			const ok = await verifyCheckBlob(winner.checkBlob, retryKey);
+			if (!ok) throw new EisenErrorException({ code: 'wrong-passphrase' });
+			return retryKey;
+		}
 	}
 	const key = await deriveVaultKey(opts.password, fromBase64(existing.salt), iterations);
 	const ok = await verifyCheckBlob(existing.checkBlob, key);
@@ -31,41 +40,3 @@ export async function vaultKeyFromPassword(opts: {
 	return key;
 }
 
-const defaultStore = createWrappedKeyStore();
-
-export async function wrapVaultKey(opts: {
-	accountId: string;
-	key: CryptoKey;
-	dbName?: string;
-	indexedDB?: IDBFactory;
-	IDBKeyRange?: typeof globalThis.IDBKeyRange;
-}): Promise<void> {
-	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
-		? createWrappedKeyStore(opts)
-		: defaultStore;
-	await store.put(opts.accountId, opts.key);
-}
-
-export async function unwrapVaultKey(opts: {
-	accountId: string;
-	dbName?: string;
-	indexedDB?: IDBFactory;
-	IDBKeyRange?: typeof globalThis.IDBKeyRange;
-}): Promise<CryptoKey | null> {
-	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
-		? createWrappedKeyStore(opts)
-		: defaultStore;
-	return store.get(opts.accountId);
-}
-
-export async function clearWrappedKey(opts: {
-	accountId: string;
-	dbName?: string;
-	indexedDB?: IDBFactory;
-	IDBKeyRange?: typeof globalThis.IDBKeyRange;
-}): Promise<void> {
-	const store = opts.dbName || opts.indexedDB || opts.IDBKeyRange
-		? createWrappedKeyStore(opts)
-		: defaultStore;
-	await store.delete(opts.accountId);
-}

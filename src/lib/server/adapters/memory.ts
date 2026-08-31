@@ -9,12 +9,14 @@ import type {
 	WakeScheduleRow
 } from '../encrypted-mirror';
 import { PushSubscriptionConflictError } from '../encrypted-mirror';
-import type { VaultParams } from '$lib/workspace/ports';
+import { applyRecordLww } from '$lib/sync/record-lww';
+import type { VaultParams } from '$lib/sync/types';
 
 export function memoryMirrorDatabase(): MirrorDatabasePort {
 	const params = new Map<string, VaultParams>();
 	const records = new Map<string, Map<string, VaultRecordRow>>();
 	const backups = new Map<string, BackupMetaRow[]>();
+	const clocks = new Map<string, number>();
 	const pushes = new Map<string, PushSubscriptionRow[]>();
 	const wakes: Array<
 		WakeScheduleRow & { id: string; userId: string; sent: boolean; attempts: number }
@@ -47,6 +49,21 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 		},
 		async upsertRecord(accountId, record) {
 			accountRecords(accountId).set(record.recordId, record);
+		},
+		async applyLwwUpsert(accountId, incoming) {
+			const existing = await this.getRecord(accountId, incoming.recordId);
+			const decision = applyRecordLww(
+				existing ? { modifiedAt: existing.modifiedAt, deviceId: existing.deviceId } : null,
+				{ modifiedAt: incoming.modifiedAt, deviceId: incoming.deviceId }
+			);
+			if (decision === 'reject') return 'reject';
+			const nextVersion = (clocks.get(accountId) ?? 0) + 1;
+			clocks.set(accountId, nextVersion);
+			accountRecords(accountId).set(incoming.recordId, {
+				...incoming,
+				syncVersion: nextVersion
+			});
+			return 'accept';
 		},
 		async getRecord(accountId, recordId) {
 			return accountRecords(accountId).get(recordId) ?? null;
@@ -91,6 +108,13 @@ export function memoryMirrorDatabase(): MirrorDatabasePort {
 				const next = list.filter((s) => s.endpoint !== endpoint);
 				if (next.length !== list.length) pushes.set(accountId, next);
 			}
+		},
+		async deletePushSubscriptionForDevice(accountId, deviceId) {
+			const list = pushes.get(accountId) ?? [];
+			pushes.set(
+				accountId,
+				list.filter((s) => s.deviceId !== deviceId)
+			);
 		},
 		async getPushSubscription(accountId, deviceId) {
 			return (pushes.get(accountId) ?? []).find((s) => s.deviceId === deviceId) ?? null;
