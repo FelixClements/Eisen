@@ -1,5 +1,6 @@
 import { deriveAuthVerifier } from '$lib/crypto';
 import { authClient } from '$lib/auth-client';
+import { signInTypedOrVerifier } from './account-sign-in';
 import { openWorkspace, type Workspace, type WorkspaceAdapters } from './workspace';
 import { vaultKeyFromPassword } from './vault-key';
 import { EisenErrorException } from './types';
@@ -64,11 +65,14 @@ export function createVaultSession(deps: VaultSessionDeps): VaultSession {
 					});
 					if (error) throw new Error(error.message ?? 'Sign up failed');
 				} else {
-					const { error } = await authClient.signIn.email({
-						email: opts.email,
-						password: verifier
+					await signInTypedOrVerifier({
+						typedPassword: opts.password,
+						verifier,
+						signIn: async (password) => authClient.signIn.email({ email: opts.email, password }),
+						upgrade: async (currentPassword, newPassword) => {
+							await authClient.changePassword({ currentPassword, newPassword });
+						}
 					});
-					if (error) throw new Error(error.message ?? 'Sign in failed');
 				}
 			}
 			const session = await authClient.getSession();

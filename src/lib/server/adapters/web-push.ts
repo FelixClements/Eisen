@@ -32,7 +32,9 @@ export function webPushDispatch(opts: {
 				},
 				message: {
 					payload: JSON.parse(payload) as { type: string },
-					adminContact: opts.subject
+					adminContact: opts.subject,
+					// FCM 403s JWTs whose exp is exactly 24h once clocks differ by a second.
+					options: { ttl: 12 * 60 * 60 }
 				}
 			});
 
@@ -40,6 +42,8 @@ export function webPushDispatch(opts: {
 			if (response.ok) return;
 
 			const host = new URL(sub.endpoint).host;
+			const detail = (await response.text()).slice(0, 180).replace(/\s+/g, ' ');
+			console.error(`push send failed host=${host} status=${response.status} body=${detail}`);
 			throw new PushSendError(`Push send failed for ${host}: ${response.status}`, response.status);
 		}
 	};

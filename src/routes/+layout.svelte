@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { App, Page, Navbar } from 'konsta/svelte';
 	import { authClient } from '$lib/auth-client';
 	import { initTheme, resolvedTheme } from '$lib/theme';
@@ -40,7 +41,7 @@
 	$effect(() => {
 		if (!browser) return;
 		if (!user?.id) {
-			bindWorkspace(null);
+			untrack(() => bindWorkspace(null));
 			return;
 		}
 		if (isPublic) return;
@@ -55,13 +56,13 @@
 			}
 			bootFailed = false;
 			const ws = vaultSession.openWorkspace(user.id, key, {
-				reminders: browserReminders(),
+				reminders: browserReminders(data.vapidPublicKey),
 				onSignOut: async () => {
 					await vaultSession.lock(user.id);
 					await authClient.signOut();
 				}
 			});
-			bindWorkspace(ws);
+			untrack(() => bindWorkspace(ws));
 			await ws.ready;
 		})();
 		return () => {

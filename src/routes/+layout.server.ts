@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
+import { vapidApplicationServerKey } from '$lib/server/vapid-public';
 
 const publicPaths = new Set(['/sign-in', '/sign-up']);
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+export const load: LayoutServerLoad = async ({ locals, url, platform }) => {
 	const user = locals.user;
 	const path = url.pathname;
 
@@ -11,5 +12,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		redirect(303, '/sign-in');
 	}
 
-	return { user };
+	return {
+		user,
+		vapidPublicKey: vapidApplicationServerKey(platform?.env)
+	};
 };

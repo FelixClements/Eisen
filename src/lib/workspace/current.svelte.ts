@@ -5,6 +5,7 @@ let tick = $state(0);
 let unsub: (() => void) | null = null;
 
 export function bindWorkspace(ws: Workspace | null) {
+	if (bound === ws) return;
 	unsub?.();
 	unsub = null;
 	if (bound && bound !== ws) bound.close();
@@ -15,6 +16,10 @@ export function bindWorkspace(ws: Workspace | null) {
 			tick += 1;
 		});
 	}
+}
+
+export function workspaceEpoch(): number {
+	return tick;
 }
 
 export function currentWorkspace(): Workspace | null {

@@ -1,7 +1,5 @@
 import type { RemindersPort } from './ports';
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '';
-
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
 	const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
 	const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -11,7 +9,8 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 	return output;
 }
 
-export function browserReminders(): RemindersPort {
+export function browserReminders(vapidPublicKey = ''): RemindersPort {
+	const key = vapidPublicKey || import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
 	return {
 		permission() {
 			if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'unsupported';
@@ -25,13 +24,13 @@ export function browserReminders(): RemindersPort {
 			return 'unsupported';
 		},
 		async subscribe() {
-			if (!VAPID_PUBLIC_KEY || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+			if (!key || !('serviceWorker' in navigator) || !('PushManager' in window)) {
 				return null;
 			}
 			const registration = await navigator.serviceWorker.ready;
 			const subscription = await registration.pushManager.subscribe({
 				userVisibleOnly: true,
-				applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
+				applicationServerKey: urlBase64ToUint8Array(key) as BufferSource
 			});
 			const json = subscription.toJSON();
 			if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return null;
@@ -44,7 +43,7 @@ export function browserReminders(): RemindersPort {
 			await subscription?.unsubscribe();
 		},
 		vapidReady() {
-			return Boolean(VAPID_PUBLIC_KEY);
+			return Boolean(key);
 		}
 	};
 }

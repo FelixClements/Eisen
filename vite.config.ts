@@ -39,7 +39,7 @@ export default defineConfig({
 			},
 			injectManifest: {
 				globPatterns: ['client/**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
-				injectionPoint: false as unknown as string
+				injectionPoint: 'self.__WB_MANIFEST'
 			},
 			devOptions: {
 				enabled: true,
