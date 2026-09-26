@@ -22,6 +22,10 @@ declare global {
 				VAPID_PRIVATE_KEY?: string;
 				VAPID_SUBJECT?: string;
 				CRON_SECRET?: string;
+				SYNC_FANOUT?: {
+					fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+				};
+				FANOUT_SECRET?: string;
 			};
 		}
 	}
