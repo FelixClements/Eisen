@@ -200,7 +200,7 @@ describe('sync-watch', () => {
 	it('does not run a second sync when the first reaches the ping', async () => {
 		let version = 1;
 		let calls = 0;
-		let current: ((data: string) => void) | null = null;
+		const box: { current: ((data: string) => void) | null } = { current: null };
 		const watch = createSyncWatch({
 			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
 			online: { get online() { return true; }, subscribe: () => () => {} },
@@ -208,7 +208,7 @@ describe('sync-watch', () => {
 				ok: true,
 				socket: {
 					onMessage(handler) {
-						current = handler;
+						box.current = handler;
 					},
 					onClose() {},
 					close() {}
@@ -227,7 +227,7 @@ describe('sync-watch', () => {
 		watch.start();
 		await Promise.resolve();
 		await Promise.resolve();
-		current?.(JSON.stringify({ type: 'changed', version: 4 }));
+		box.current?.(JSON.stringify({ type: 'changed', version: 4 }));
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(calls).toBe(1);
@@ -240,7 +240,7 @@ describe('sync-watch', () => {
 		const gate = new Promise<void>((resolve) => {
 			release = resolve;
 		});
-		let current: ((data: string) => void) | null = null;
+		const box: { current: ((data: string) => void) | null } = { current: null };
 		const watch = createSyncWatch({
 			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
 			online: { get online() { return true; }, subscribe: () => () => {} },
@@ -248,7 +248,7 @@ describe('sync-watch', () => {
 				ok: true,
 				socket: {
 					onMessage(handler) {
-						current = handler;
+						box.current = handler;
 					},
 					onClose() {},
 					close() {}
@@ -271,7 +271,7 @@ describe('sync-watch', () => {
 		watch.start();
 		await Promise.resolve();
 		await Promise.resolve();
-		current?.(JSON.stringify({ type: 'changed', version: 5 }));
+		box.current?.(JSON.stringify({ type: 'changed', version: 5 }));
 		await Promise.resolve();
 		expect(calls).toBe(1);
 		release();
@@ -462,7 +462,7 @@ describe('sync-watch', () => {
 		let session = false;
 		let expired = 0;
 		const timers: number[] = [];
-		let current: ((data: string) => void) | null = null;
+		const box: { current: ((data: string) => void) | null } = { current: null };
 		const watch = createSyncWatch({
 			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
 			online: { get online() { return true; }, subscribe: () => () => {} },
@@ -470,7 +470,7 @@ describe('sync-watch', () => {
 				ok: true,
 				socket: {
 					onMessage(handler) {
-						current = handler;
+						box.current = handler;
 					},
 					onClose() {},
 					close() {}
@@ -493,7 +493,7 @@ describe('sync-watch', () => {
 		watch.start();
 		await Promise.resolve();
 		await Promise.resolve();
-		current?.(JSON.stringify({ type: 'changed', version: 9 }));
+		box.current?.(JSON.stringify({ type: 'changed', version: 9 }));
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(expired).toBe(1);
@@ -509,7 +509,7 @@ describe('sync-watch', () => {
 		});
 		let visibility: 'visible' | 'hidden' = 'visible';
 		const visListeners = new Set<() => void>();
-		let current: ((data: string) => void) | null = null;
+		const box: { current: ((data: string) => void) | null } = { current: null };
 		const watch = createSyncWatch({
 			visibility: {
 				get state() {
@@ -525,7 +525,7 @@ describe('sync-watch', () => {
 				ok: true,
 				socket: {
 					onMessage(handler) {
-						current = handler;
+						box.current = handler;
 					},
 					onClose() {},
 					close() {}
@@ -546,7 +546,7 @@ describe('sync-watch', () => {
 		watch.start();
 		await Promise.resolve();
 		await Promise.resolve();
-		current?.(JSON.stringify({ type: 'changed', version: 5 }));
+		box.current?.(JSON.stringify({ type: 'changed', version: 5 }));
 		await Promise.resolve();
 		expect(calls).toBe(1);
 		visibility = 'hidden';

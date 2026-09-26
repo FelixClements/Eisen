@@ -96,7 +96,9 @@ describe('account fanout', () => {
 	});
 
 	it('routes notify to the Account stub', async () => {
-		const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+		const fetch = vi.fn<(request: Request) => Promise<Response>>(
+			async () => new Response(null, { status: 204 })
+		);
 		const response = await routeFanoutRequest(
 			new Request('https://fanout/notify', {
 				method: 'POST',
@@ -107,7 +109,7 @@ describe('account fanout', () => {
 		);
 		expect(response.status).toBe(204);
 		expect(fetch).toHaveBeenCalledOnce();
-		const forwarded = fetch.mock.calls[0]?.[0] as Request;
+		const forwarded = fetch.mock.calls[0]![0];
 		expect(new URL(forwarded.url).pathname).toBe('/notify');
 		expect(await forwarded.json()).toEqual({ version: 7 });
 	});
