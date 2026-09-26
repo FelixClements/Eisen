@@ -8,6 +8,7 @@ import { createTaskCatalog } from './task-catalog';
 import { createSyncEngine } from './sync-engine';
 import { createRecoveryService } from './recovery-service';
 import { createRemindersService, type RemindersService } from './reminders-service';
+import { browserSyncWatch, type SyncWatch, type SyncWatchHooks } from './sync-watch';
 import type { BackupRef, Outcome } from './types';
 import type { Matrix } from './types';
 
@@ -59,6 +60,7 @@ export type WorkspaceAdapters = {
 	IDBKeyRange?: typeof globalThis.IDBKeyRange;
 	onSignOut?: () => Promise<void>;
 	kdfIterations?: number;
+	syncWatch?: (hooks: SyncWatchHooks) => SyncWatch;
 };
 
 export function openWorkspace(opts: {
@@ -81,6 +83,8 @@ export function openWorkspace(opts: {
 	const listeners = new Set<() => void>();
 
 	let closed = false;
+	let left = false;
+	let sessionExpired = false;
 	let filter = '';
 	let deviceId = '';
 	let lastVersion = 0;
@@ -142,6 +146,16 @@ export function openWorkspace(opts: {
 		scheduleWake: () => reminderService.scheduleWake()
 	});
 
+	const watch = (opts.adapters.syncWatch ?? browserSyncWatch)({
+		runSync: () => syncEngine.run(),
+		getLastVersion: () => lastVersion,
+		sessionExpired: () => syncEngine.lastError?.code === 'session-expired',
+		onSessionExpired: () => {
+			sessionExpired = true;
+			notify();
+		}
+	});
+
 	const recovery = createRecoveryService({
 		accountId,
 		codec,
@@ -183,6 +197,7 @@ export function openWorkspace(opts: {
 					return syncEngine.phase;
 				},
 				get lastError() {
+					if (sessionExpired) return { code: 'session-expired' as const };
 					return syncEngine.lastError;
 				},
 				now: () => syncEngine.run()
@@ -233,6 +248,8 @@ export function openWorkspace(opts: {
 	}
 
 	async function signOut(): Promise<void> {
+		left = true;
+		watch.stop();
 		await reminderService.onSignOut();
 		catalog.clear();
 		status = 'booting';
@@ -246,6 +263,7 @@ export function openWorkspace(opts: {
 		notify();
 		await reminderService.reattachIfGranted();
 		await syncEngine.run();
+		if (!closed && !left) watch.start();
 	})();
 
 	return {
@@ -260,6 +278,7 @@ export function openWorkspace(opts: {
 		close() {
 			if (closed) return;
 			closed = true;
+			watch.stop();
 			listeners.clear();
 			repo.close();
 		}

@@ -19,7 +19,11 @@ preview_bucket_name = "eisen-attachments-preview"
 APP_NAME = "Eisen"
 RECORD_SCHEMA_VERSION = "1"
 
-# Set in production: VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_URL
+# Set in production: VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET, FANOUT_SECRET, BETTER_AUTH_SECRET, BETTER_AUTH_URL
 # BETTER_AUTH_SECRET and BETTER_AUTH_URL are required whenever D1 is bound (no code fallback)
 # Set VITE_VAPID_PUBLIC_KEY at build time (GitHub Actions secret)
 # Push wake dispatch: deploy workers/push-cron (npm run deploy:push-cron) — Pages does not support cron triggers
+
+[[services]]
+binding = "SYNC_FANOUT"
+service = "eisen-sync-fanout"

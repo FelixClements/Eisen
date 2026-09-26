@@ -9,7 +9,9 @@
     "preview": "wrangler pages dev .svelte-kit/cloudflare",
     "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
     "deploy:push-cron": "wrangler deploy --config workers/push-cron/wrangler.toml",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "deploy:sync-fanout": "wrangler deploy --config workers/sync-fanout/wrangler.toml",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:sync-fanout",
+    "check:sync-fanout": "tsc --noEmit -p workers/sync-fanout/tsconfig.json",
     "test": "vitest run",
     "types": "wrangler types",
     "db:migrate": "wrangler d1 migrations apply eisen-web-db --local"

@@ -1,0 +1,17 @@
+"$schema" = "../../node_modules/wrangler/config-schema.json"
+name = "eisen-sync-fanout"
+main = "src/index.ts"
+compatibility_date = "2025-07-18"
+workers_dev = false
+
+[[durable_objects.bindings]]
+name = "ACCOUNT_FANOUT"
+class_name = "AccountFanout"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AccountFanout"]
+
+[secrets]
+required = ["FANOUT_SECRET"]
+# FANOUT_SECRET must be set on both eisen-sync-fanout and the Pages project before this binding is deployed.
