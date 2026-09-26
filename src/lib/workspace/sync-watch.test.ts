@@ -563,7 +563,18 @@ describe('sync-watch', () => {
 		let expired = 0;
 		const timerMs: number[] = [];
 		const onlineListeners = new Set<() => void>();
-		let onCloseHandler: (() => void) | undefined;
+		let watchOnClose: (() => void) | undefined;
+		let closeCalls = 0;
+		const firstSocket: WatchSocket = {
+			onMessage() {},
+			onClose(handler) {
+				watchOnClose = handler;
+			},
+			close() {
+				closeCalls += 1;
+				watchOnClose?.();
+			}
+		};
 		const watch = createSyncWatch({
 			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
 			online: {
@@ -576,18 +587,7 @@ describe('sync-watch', () => {
 			connect: async () => {
 				if (!failConnect) {
 					failConnect = true;
-					return {
-						ok: true,
-						socket: {
-							onMessage() {},
-							onClose(handler) {
-								onCloseHandler = handler;
-							},
-							close() {
-								onCloseHandler?.();
-							}
-						}
-					};
+					return { ok: true, socket: firstSocket };
 				}
 				return { ok: false, status: 401 };
 			},
@@ -610,6 +610,8 @@ describe('sync-watch', () => {
 		await Promise.resolve();
 		await Promise.resolve();
 		expect(expired).toBe(1);
+		expect(closeCalls).toBe(1);
+		watchOnClose?.();
 		expect(timerMs).toEqual([]);
 	});
 
@@ -617,7 +619,18 @@ describe('sync-watch', () => {
 		let failConnect = false;
 		const timerMs: number[] = [];
 		const onlineListeners = new Set<() => void>();
-		let onCloseHandler: (() => void) | undefined;
+		let watchOnClose: (() => void) | undefined;
+		let closeCalls = 0;
+		const firstSocket: WatchSocket = {
+			onMessage() {},
+			onClose(handler) {
+				watchOnClose = handler;
+			},
+			close() {
+				closeCalls += 1;
+				watchOnClose?.();
+			}
+		};
 		const watch = createSyncWatch({
 			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
 			online: {
@@ -630,18 +643,7 @@ describe('sync-watch', () => {
 			connect: async () => {
 				if (!failConnect) {
 					failConnect = true;
-					return {
-						ok: true,
-						socket: {
-							onMessage() {},
-							onClose(handler) {
-								onCloseHandler = handler;
-							},
-							close() {
-								onCloseHandler?.();
-							}
-						}
-					};
+					return { ok: true, socket: firstSocket };
 				}
 				return { ok: false, status: 404 };
 			},
@@ -661,6 +663,8 @@ describe('sync-watch', () => {
 		for (const listener of onlineListeners) listener();
 		await Promise.resolve();
 		await Promise.resolve();
+		expect(closeCalls).toBe(1);
+		watchOnClose?.();
 		expect(timerMs).toEqual([]);
 	});
 });
