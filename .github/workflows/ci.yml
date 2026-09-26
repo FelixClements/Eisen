@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Keep GITHUB_TOKEN at contents:read even if the repository default changes.
+# Same-run artifact upload and download use the Actions runtime token.
+permissions:
+  contents: read
+
 jobs:
   structure:
     runs-on: ubuntu-latest
