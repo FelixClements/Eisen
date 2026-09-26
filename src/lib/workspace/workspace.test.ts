@@ -7,7 +7,9 @@ import {
 	memoryRecoveryObjects,
 	recordingPushDispatch
 } from '$lib/server/adapters/memory';
+import { createAccountFanout } from '$lib/server/account-fanout';
 import { cloudPortFor } from './memory-cloud';
+import { createSyncWatch, type SyncWatchHooks } from './sync-watch';
 import { openWorkspace, requireOpen } from './workspace';
 import { vaultKeyFromPassword } from './vault-key';
 import type { SyncPushBatch } from './ports';
@@ -312,6 +314,85 @@ describe('Workspace', () => {
 		expect(unsubscribe).toHaveBeenCalled();
 		expect(unregisterPush).toHaveBeenCalled();
 		ws.close();
+	});
+
+	it('pulls a task on the other device when the fanout pings', async () => {
+		const database = memoryMirrorDatabase();
+		const mirror = createEncryptedMirror({
+			database,
+			recoveryObjects: memoryRecoveryObjects(),
+			pushDispatch: recordingPushDispatch()
+		});
+		const inner = cloudPortFor(mirror, ACCOUNT.id);
+		const hub = createAccountFanout();
+		const cloud = {
+			...inner,
+			async sync(batch: SyncPushBatch) {
+				const before = await database.maxSyncVersion(ACCOUNT.id);
+				const result = await inner.sync(batch);
+				const after = await database.maxSyncVersion(ACCOUNT.id);
+				if (after > before) hub.notify(after);
+				return result;
+			}
+		};
+		function syncWatch(hooks: SyncWatchHooks) {
+			return createSyncWatch({
+				...hooks,
+				visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
+				online: { get online() { return true; }, subscribe: () => () => {} },
+				connect: async () => {
+					let onMessage: (data: string) => void = () => {};
+					let onClose: () => void = () => {};
+					const fanoutSocket = {
+						send(data: string) {
+							onMessage(data);
+						}
+					};
+					hub.attach(fanoutSocket);
+					return {
+						ok: true as const,
+						socket: {
+							onMessage(handler: (data: string) => void) {
+								onMessage = handler;
+							},
+							onClose(handler: () => void) {
+								onClose = handler;
+							},
+							close() {
+								hub.detach(fanoutSocket);
+								onClose();
+							}
+						}
+					};
+				},
+				setTimer: () => 1,
+				clearTimer: () => {}
+			});
+		}
+		const key = await vaultKeyFromPassword({ password: PASSWORD, cloud, iterations: ITER });
+		const a = openWorkspace({
+			account: ACCOUNT,
+			vaultKey: key,
+			adapters: { cloud, clock: clock(), dbName: 'ws-fanout-a', kdfIterations: ITER, syncWatch }
+		});
+		const b = openWorkspace({
+			account: ACCOUNT,
+			vaultKey: key,
+			adapters: { cloud, clock: clock(5_000), dbName: 'ws-fanout-b', kdfIterations: ITER, syncWatch }
+		});
+		await a.ready;
+		await b.ready;
+		await requireOpen(a.state).apply({
+			kind: 'create',
+			title: 'From A',
+			important: true,
+			urgent: true
+		});
+		await vi.waitFor(() => {
+			expect(requireOpen(b.state).matrix.cells['do-now'].tasks.map((t) => t.title)).toEqual(['From A']);
+		});
+		a.close();
+		b.close();
 	});
 });
 

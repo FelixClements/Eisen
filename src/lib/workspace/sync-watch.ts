@@ -213,3 +213,87 @@ export function createSyncWatch(deps: SyncWatchDeps): SyncWatch {
 		}
 	};
 }
+
+export function browserSyncWatch(hooks: SyncWatchHooks): SyncWatch {
+	if (typeof document === 'undefined' || typeof WebSocket === 'undefined') {
+		return { start() {}, stop() {} };
+	}
+	return createSyncWatch({
+		...hooks,
+		visibility: {
+			get state() {
+				return document.visibilityState === 'visible' ? 'visible' : 'hidden';
+			},
+			subscribe(listener) {
+				document.addEventListener('visibilitychange', listener);
+				return () => document.removeEventListener('visibilitychange', listener);
+			}
+		},
+		online: {
+			get online() {
+				return navigator.onLine;
+			},
+			subscribe(listener) {
+				window.addEventListener('online', listener);
+				window.addEventListener('offline', listener);
+				return () => {
+					window.removeEventListener('online', listener);
+					window.removeEventListener('offline', listener);
+				};
+			}
+		},
+		connect: connectBrowserWatch,
+		setTimer(callback, ms) {
+			return window.setTimeout(callback, ms);
+		},
+		clearTimer(id) {
+			window.clearTimeout(id);
+		}
+	});
+}
+
+async function connectBrowserWatch(): Promise<WatchConnectResult> {
+	let probe: Response;
+	try {
+		probe = await fetch('/api/sync/watch');
+	} catch {
+		return { ok: false, status: 0 };
+	}
+	if (probe.status === 401) return { ok: false, status: 401 };
+	if (probe.status === 404) return { ok: false, status: 404 };
+	if (probe.status !== 204) return { ok: false, status: 0 };
+	const url = new URL('/api/sync/watch', location.href);
+	url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+	return await new Promise((resolve) => {
+		const ws = new WebSocket(url);
+		let opened = false;
+		ws.addEventListener('open', () => {
+			opened = true;
+			let onMessage: (data: string) => void = () => {};
+			let onClose: () => void = () => {};
+			ws.addEventListener('message', (event) => {
+				onMessage(typeof event.data === 'string' ? event.data : '');
+			});
+			ws.addEventListener('close', () => onClose());
+			resolve({
+				ok: true,
+				socket: {
+					onMessage(handler) {
+						onMessage = handler;
+					},
+					onClose(handler) {
+						onClose = handler;
+					},
+					close() {
+						ws.close();
+					}
+				}
+			});
+		});
+		const fail = () => {
+			if (!opened) resolve({ ok: false, status: 0 });
+		};
+		ws.addEventListener('error', fail);
+		ws.addEventListener('close', fail);
+	});
+}
