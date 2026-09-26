@@ -54,7 +54,23 @@ describe('account fanout', () => {
 		expect(authorizeFanout(null, 's3cret')).toBe(false);
 		expect(authorizeFanout('nope', 's3cret')).toBe(false);
 		expect(authorizeFanout('s3cret', '')).toBe(false);
+		expect(authorizeFanout('s3cret', undefined)).toBe(false);
 		expect(authorizeFanout('s3cret', 's3cret')).toBe(true);
+	});
+
+	it('continues notifying other sockets when one send throws', () => {
+		const hub = createAccountFanout();
+		const ok: string[] = [];
+		const bad = {
+			send: () => {
+				throw new Error('socket dead');
+			}
+		};
+		const good = { send: (data: string) => ok.push(data) };
+		hub.attach(bad);
+		hub.attach(good);
+		hub.notify(9);
+		expect(ok).toEqual([changedMessage(9)]);
 	});
 
 	it('rejects a request without the shared secret before touching a stub', async () => {
@@ -63,6 +79,18 @@ describe('account fanout', () => {
 			secret: 's3cret',
 			stubFor
 		});
+		expect(response.status).toBe(401);
+		expect(stubFor).not.toHaveBeenCalled();
+	});
+
+	it('returns 401 when the configured secret is missing', async () => {
+		const stubFor = vi.fn();
+		const response = await routeFanoutRequest(
+			new Request('https://fanout/notify', {
+				headers: { [FANOUT_SECRET_HEADER]: 's3cret' }
+			}),
+			{ secret: undefined, stubFor }
+		);
 		expect(response.status).toBe(401);
 		expect(stubFor).not.toHaveBeenCalled();
 	});

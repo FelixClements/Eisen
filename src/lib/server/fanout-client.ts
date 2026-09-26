@@ -5,10 +5,23 @@ type FanoutFetcher = {
 	fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 };
 
-export function fanoutFromEnv(env: App.Platform['env'] | undefined): FanoutNotify | null {
+export type FanoutWatchBindings = {
+	SYNC_FANOUT: FanoutFetcher;
+	FANOUT_SECRET: string;
+};
+
+export function fanoutWatchBindings(
+	env: App.Platform['env'] | undefined
+): FanoutWatchBindings | null {
 	if (!env?.SYNC_FANOUT || !env.FANOUT_SECRET) return null;
-	const binding = env.SYNC_FANOUT;
-	const secret = env.FANOUT_SECRET;
+	return { SYNC_FANOUT: env.SYNC_FANOUT, FANOUT_SECRET: env.FANOUT_SECRET };
+}
+
+export function fanoutFromEnv(env: App.Platform['env'] | undefined): FanoutNotify | null {
+	const bindings = fanoutWatchBindings(env);
+	if (!bindings) return null;
+	const binding = bindings.SYNC_FANOUT;
+	const secret = bindings.FANOUT_SECRET;
 	return {
 		async notify(accountId, version) {
 			const response = await binding.fetch('https://fanout/notify', {
@@ -30,6 +43,8 @@ export async function proxyAccountWatch(
 	accountId: string
 ): Promise<Response> {
 	const headers = new Headers(request.headers);
+	headers.delete('Cookie');
+	headers.delete('Authorization');
 	headers.set(FANOUT_SECRET_HEADER, env.FANOUT_SECRET);
 	headers.set(FANOUT_ACCOUNT_HEADER, accountId);
 	return env.SYNC_FANOUT.fetch(new Request(request, { headers }));

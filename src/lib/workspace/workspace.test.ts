@@ -250,6 +250,23 @@ describe('Workspace', () => {
 		again.close();
 	});
 
+	it('stops syncWatch on signOut', async () => {
+		const mirror = newMirror();
+		const cloud = cloudPortFor(mirror, ACCOUNT.id);
+		const key = await vaultKeyFromPassword({ password: PASSWORD, cloud, iterations: ITER });
+		const stop = vi.fn();
+		const syncWatch = vi.fn(() => ({ start: vi.fn(), stop }));
+		const ws = openWorkspace({
+			account: ACCOUNT,
+			vaultKey: key,
+			adapters: { cloud, clock: clock(), dbName: 'ws-watch-stop', kdfIterations: ITER, syncWatch }
+		});
+		await ws.ready;
+		await requireOpen(ws.state).signOut();
+		expect(stop).toHaveBeenCalled();
+		ws.close();
+	});
+
 	it('signOut does not call navigation', async () => {
 		const mirror = newMirror();
 		const cloud = cloudPortFor(mirror, ACCOUNT.id);

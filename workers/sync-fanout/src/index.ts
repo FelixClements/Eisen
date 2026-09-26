@@ -17,7 +17,13 @@ export class AccountFanout implements DurableObject {
 			const body = (await request.json()) as { version?: number };
 			if (typeof body.version !== 'number') return new Response('bad notify', { status: 400 });
 			const message = changedMessage(body.version);
-			for (const socket of this.state.getWebSockets()) socket.send(message);
+			for (const socket of this.state.getWebSockets()) {
+				try {
+					socket.send(message);
+				} catch {
+					// skip dead sockets
+				}
+			}
 			return new Response(null, { status: 204 });
 		}
 		if (request.headers.get('Upgrade') !== 'websocket') {

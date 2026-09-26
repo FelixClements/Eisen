@@ -5,8 +5,8 @@ export function changedMessage(version: number): string {
 	return JSON.stringify({ type: 'changed', version });
 }
 
-export function authorizeFanout(header: string | null, secret: string): boolean {
-	return secret.length > 0 && header === secret;
+export function authorizeFanout(header: string | null, secret: string | undefined): boolean {
+	return !!secret && secret.length > 0 && header === secret;
 }
 
 export type FanoutSocket = {
@@ -24,7 +24,13 @@ export function createAccountFanout() {
 		},
 		notify(version: number) {
 			const message = changedMessage(version);
-			for (const socket of sockets) socket.send(message);
+			for (const socket of sockets) {
+				try {
+					socket.send(message);
+				} catch {
+					// skip dead sockets
+				}
+			}
 		}
 	};
 }
@@ -35,7 +41,7 @@ export type FanoutStub = {
 
 export async function routeFanoutRequest(
 	request: Request,
-	opts: { secret: string; stubFor(accountId: string): FanoutStub }
+	opts: { secret: string | undefined; stubFor(accountId: string): FanoutStub }
 ): Promise<Response> {
 	if (!authorizeFanout(request.headers.get(FANOUT_SECRET_HEADER), opts.secret)) {
 		return new Response('unauthorized', { status: 401 });

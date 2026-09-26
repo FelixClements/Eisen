@@ -17,12 +17,15 @@ try {
 
 import { describe, expect, it, vi } from 'vitest';
 import { FANOUT_ACCOUNT_HEADER, FANOUT_SECRET_HEADER } from './account-fanout';
-import { fanoutFromEnv, proxyAccountWatch } from './fanout-client';
+import { fanoutFromEnv, fanoutWatchBindings, proxyAccountWatch } from './fanout-client';
 
 describe('fanout client', () => {
 	it('returns null when the binding or secret is missing', () => {
 		expect(fanoutFromEnv(undefined)).toBeNull();
 		expect(fanoutFromEnv({ FANOUT_SECRET: 's3cret' } as App.Platform['env'])).toBeNull();
+		expect(fanoutWatchBindings(undefined)).toBeNull();
+		expect(fanoutWatchBindings({ FANOUT_SECRET: 's3cret' } as App.Platform['env'])).toBeNull();
+		expect(fanoutWatchBindings({ SYNC_FANOUT: { fetch: vi.fn() } } as unknown as App.Platform['env'])).toBeNull();
 	});
 
 	it('posts notify with the shared secret', async () => {
@@ -62,5 +65,28 @@ describe('fanout client', () => {
 		expect(proxied.headers.get(FANOUT_SECRET_HEADER)).toBe('s3cret');
 		expect(proxied.headers.get(FANOUT_ACCOUNT_HEADER)).toBe('acct-1');
 		expect(proxied.headers.get('Upgrade')).toBe('websocket');
+	});
+
+	it('does not forward spoofed fanout headers or browser credentials', async () => {
+		const fetch = vi.fn(async () => new Response(null, { status: 101 }));
+		const request = new Request('https://eisen.example/api/sync/watch', {
+			headers: {
+				Upgrade: 'websocket',
+				[FANOUT_SECRET_HEADER]: 'spoofed',
+				[FANOUT_ACCOUNT_HEADER]: 'spoofed',
+				Cookie: 'session=evil',
+				Authorization: 'Bearer evil'
+			}
+		});
+		await proxyAccountWatch(
+			{ SYNC_FANOUT: { fetch }, FANOUT_SECRET: 's3cret' },
+			request,
+			'acct-real'
+		);
+		const proxied = fetch.mock.calls[0]?.[0] as Request;
+		expect(proxied.headers.get(FANOUT_SECRET_HEADER)).toBe('s3cret');
+		expect(proxied.headers.get(FANOUT_ACCOUNT_HEADER)).toBe('acct-real');
+		expect(proxied.headers.get('Cookie')).toBeNull();
+		expect(proxied.headers.get('Authorization')).toBeNull();
 	});
 });
