@@ -1,3 +1,20 @@
+const NativeResponse = globalThis.Response;
+try {
+	new NativeResponse(null, { status: 101 });
+} catch {
+	const ResponseWithSwitchingProtocols = class extends NativeResponse {
+		constructor(body?: BodyInit | null, init?: ResponseInit) {
+			if (init?.status === 101) {
+				super(body, { ...init, status: 200 });
+				Object.defineProperty(this, 'status', { value: 101 });
+			} else {
+				super(body, init);
+			}
+		}
+	};
+	globalThis.Response = ResponseWithSwitchingProtocols as typeof Response;
+}
+
 import { describe, expect, it, vi } from 'vitest';
 import {
 	FANOUT_ACCOUNT_HEADER,

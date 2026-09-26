@@ -1,20 +1,3 @@
-const NativeResponse = globalThis.Response;
-try {
-	new NativeResponse(null, { status: 101 });
-} catch {
-	const ResponseWithSwitchingProtocols = class extends NativeResponse {
-		constructor(body?: BodyInit | null, init?: ResponseInit) {
-			if (init?.status === 101) {
-				super(body, { ...init, status: 200 });
-				Object.defineProperty(this, 'status', { value: 101 });
-			} else {
-				super(body, init);
-			}
-		}
-	};
-	globalThis.Response = ResponseWithSwitchingProtocols as typeof Response;
-}
-
 export const FANOUT_SECRET_HEADER = 'X-Fanout-Secret';
 export const FANOUT_ACCOUNT_HEADER = 'X-Account-Id';
 
