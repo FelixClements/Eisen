@@ -3,6 +3,9 @@ import type { MirrorDatabasePort } from './types';
 
 export function createRecordSyncApi(database: MirrorDatabasePort) {
 	return {
+		async maxSyncVersion(accountId: string): Promise<number> {
+			return database.maxSyncVersion(accountId);
+		},
 		async exchangeSync(accountId: string, batch: SyncPushBatch): Promise<SyncPullBatch> {
 			for (const change of batch.changes) {
 				await database.applyLwwUpsert(accountId, {

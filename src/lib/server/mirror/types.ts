@@ -83,6 +83,7 @@ export type EncryptedMirror = {
 	getVaultParams(accountId: string): Promise<VaultParams | null>;
 	createVaultParams(accountId: string, params: VaultParams): Promise<void>;
 	exchangeSync(accountId: string, batch: SyncPushBatch): Promise<SyncPullBatch>;
+	maxSyncVersion(accountId: string): Promise<number>;
 	storeRecoveryPackage(accountId: string, packageId: string, ciphertext: string): Promise<void>;
 	listRecoveryPackages(accountId: string): Promise<BackupRef[]>;
 	getRecoveryPackage(accountId: string, packageId: string): Promise<string>;
