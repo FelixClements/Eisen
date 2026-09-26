@@ -499,4 +499,168 @@ describe('sync-watch', () => {
 		expect(expired).toBe(1);
 		expect(timers).toEqual([]);
 	});
+
+	it('does not run follow-up sync after hiding during in-flight pump sync', async () => {
+		let version = 1;
+		let calls = 0;
+		let release: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let visibility: 'visible' | 'hidden' = 'visible';
+		const visListeners = new Set<() => void>();
+		let current: ((data: string) => void) | null = null;
+		const watch = createSyncWatch({
+			visibility: {
+				get state() {
+					return visibility;
+				},
+				subscribe(listener) {
+					visListeners.add(listener);
+					return () => visListeners.delete(listener);
+				}
+			},
+			online: { get online() { return true; }, subscribe: () => () => {} },
+			connect: async () => ({
+				ok: true,
+				socket: {
+					onMessage(handler) {
+						current = handler;
+					},
+					onClose() {},
+					close() {}
+				}
+			}),
+			runSync: async () => {
+				calls += 1;
+				if (calls === 1) {
+					await gate;
+				}
+			},
+			getLastVersion: () => version,
+			sessionExpired: () => false,
+			onSessionExpired: () => {},
+			setTimer: () => 1,
+			clearTimer: () => {}
+		});
+		watch.start();
+		await Promise.resolve();
+		await Promise.resolve();
+		current?.(JSON.stringify({ type: 'changed', version: 5 }));
+		await Promise.resolve();
+		expect(calls).toBe(1);
+		visibility = 'hidden';
+		for (const listener of visListeners) listener();
+		release();
+		await gate;
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(calls).toBe(1);
+	});
+
+	it('closes the previous socket on 401 so reconnect is not armed', async () => {
+		let failConnect = false;
+		let expired = 0;
+		const timerMs: number[] = [];
+		const onlineListeners = new Set<() => void>();
+		let onCloseHandler: (() => void) | undefined;
+		const watch = createSyncWatch({
+			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
+			online: {
+				get online() { return true; },
+				subscribe(listener) {
+					onlineListeners.add(listener);
+					return () => onlineListeners.delete(listener);
+				}
+			},
+			connect: async () => {
+				if (!failConnect) {
+					failConnect = true;
+					return {
+						ok: true,
+						socket: {
+							onMessage() {},
+							onClose(handler) {
+								onCloseHandler = handler;
+							},
+							close() {
+								onCloseHandler?.();
+							}
+						}
+					};
+				}
+				return { ok: false, status: 401 };
+			},
+			runSync: async () => {},
+			getLastVersion: () => 1,
+			sessionExpired: () => false,
+			onSessionExpired: () => {
+				expired += 1;
+			},
+			setTimer: (_fn, ms) => {
+				timerMs.push(ms);
+				return 1;
+			},
+			clearTimer: () => {}
+		});
+		watch.start();
+		await Promise.resolve();
+		await Promise.resolve();
+		for (const listener of onlineListeners) listener();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(expired).toBe(1);
+		expect(timerMs).toEqual([]);
+	});
+
+	it('closes the previous socket on 404 so reconnect is not armed', async () => {
+		let failConnect = false;
+		const timerMs: number[] = [];
+		const onlineListeners = new Set<() => void>();
+		let onCloseHandler: (() => void) | undefined;
+		const watch = createSyncWatch({
+			visibility: { get state() { return 'visible' as const; }, subscribe: () => () => {} },
+			online: {
+				get online() { return true; },
+				subscribe(listener) {
+					onlineListeners.add(listener);
+					return () => onlineListeners.delete(listener);
+				}
+			},
+			connect: async () => {
+				if (!failConnect) {
+					failConnect = true;
+					return {
+						ok: true,
+						socket: {
+							onMessage() {},
+							onClose(handler) {
+								onCloseHandler = handler;
+							},
+							close() {
+								onCloseHandler?.();
+							}
+						}
+					};
+				}
+				return { ok: false, status: 404 };
+			},
+			runSync: async () => {},
+			getLastVersion: () => 1,
+			sessionExpired: () => false,
+			onSessionExpired: () => {},
+			setTimer: (_fn, ms) => {
+				timerMs.push(ms);
+				return 1;
+			},
+			clearTimer: () => {}
+		});
+		watch.start();
+		await Promise.resolve();
+		await Promise.resolve();
+		for (const listener of onlineListeners) listener();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(timerMs).toEqual([]);
+	});
 });

@@ -97,10 +97,12 @@ export function createSyncWatch(deps: SyncWatchDeps): SyncWatch {
 				while (!stopped && newestPing > deps.getLastVersion()) {
 					const before = deps.getLastVersion();
 					await deps.runSync();
-					if (stopped || haltForSession()) return;
+					if (stopped || deps.visibility.state !== 'visible') return;
+					if (haltForSession()) return;
 					if (deps.getLastVersion() === before) {
 						await deps.runSync();
-						if (stopped || haltForSession()) return;
+						if (stopped || deps.visibility.state !== 'visible') return;
+						if (haltForSession()) return;
 						if (deps.getLastVersion() === before) return;
 					}
 				}
@@ -127,6 +129,7 @@ export function createSyncWatch(deps: SyncWatchDeps): SyncWatch {
 		if (opts.syncFirst) {
 			await deps.runSync();
 			if (stopped || my !== generation) return;
+			if (deps.visibility.state !== 'visible') return;
 			if (haltForSession()) return;
 		}
 		if (deps.visibility.state !== 'visible') return;
@@ -139,10 +142,12 @@ export function createSyncWatch(deps: SyncWatchDeps): SyncWatch {
 			if (result.status === 401) {
 				deps.onSessionExpired();
 				clearReconnect();
+				closeSocket();
 				return;
 			}
 			if (result.status === 404) {
 				clearReconnect();
+				closeSocket();
 				return;
 			}
 			scheduleReconnect();
@@ -163,6 +168,7 @@ export function createSyncWatch(deps: SyncWatchDeps): SyncWatch {
 		});
 		if (opts.syncOnConnect) {
 			await deps.runSync();
+			if (stopped || deps.visibility.state !== 'visible') return;
 			if (haltForSession()) return;
 		}
 	}
