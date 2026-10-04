@@ -28,14 +28,32 @@ body {
 .app-shell {
 	margin-inline: auto;
 	width: 100%;
-	max-width: 32rem;
 	min-height: 100dvh;
 	position: relative;
 }
 
 .app-tabbar {
+	left: 0;
+	right: 0;
+	width: 100%;
+	max-width: none;
+	transform: none;
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 	border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Desktop gets a readable column. Phones, including wide ones like the Titan 2 Elite, stay full bleed. */
+@media (pointer: fine) and (min-width: 64rem) {
+	.app-shell {
+		max-width: 32rem;
+	}
+
+	.app-tabbar {
+		left: 50%;
+		right: auto;
+		max-width: 32rem;
+		transform: translateX(-50%);
+	}
 }
 
 .tab-page-content,

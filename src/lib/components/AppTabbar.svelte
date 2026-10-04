@@ -16,7 +16,7 @@
 <Tabbar
 	labels
 	icons
-	class="app-tabbar fixed bottom-0 left-1/2 z-30 w-full max-w-lg -translate-x-1/2"
+	class="app-tabbar fixed bottom-0 z-30 w-full"
 >
 	<ToolbarPane>
 		{#each tabs as tab (tab.href)}
