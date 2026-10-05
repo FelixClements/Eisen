@@ -1,0 +1,298 @@
+@font-face {
+	font-family: Newsreader;
+	src: url('fonts/newsreader-500.woff2') format('woff2');
+	font-weight: 500;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: Newsreader;
+	src: url('fonts/newsreader-700.woff2') format('woff2');
+	font-weight: 700;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root {
+	--paper: #f7f4ee;
+	--ink: #1c1917;
+	--muted: #44403c;
+	--teal: #0f766e;
+	--do: #f5d5d8;
+	--do-ink: #8b2942;
+	--schedule: #f5edd0;
+	--schedule-ink: #7a5c14;
+	--delegate: #e4dff0;
+	--delegate-ink: #2c3e6b;
+	--eliminate: #dde3e8;
+	--eliminate-ink: #4a5568;
+	--card: #ececec;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	margin: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font-family: ui-sans-serif, system-ui, sans-serif;
+	line-height: 1.5;
+}
+
+a:focus-visible {
+	outline: 2px solid var(--teal);
+	outline-offset: 3px;
+}
+
+.hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 4rem;
+	width: min(100%, 68rem);
+	min-height: 100dvh;
+	margin: 0 auto;
+	padding: 4.5rem 4rem;
+}
+
+.pitch,
+.phone-wrap {
+	min-width: 0;
+}
+
+.brand {
+	margin: 0 0 1.75rem;
+	color: var(--teal);
+	font-family: Newsreader, Georgia, serif;
+	font-size: 1.75rem;
+	font-weight: 500;
+	line-height: 1;
+}
+
+h1 {
+	margin: 0;
+	max-width: 11ch;
+	font-family: Newsreader, Georgia, serif;
+	font-size: clamp(2.6rem, 8vw, 5.15rem);
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	line-height: 0.95;
+}
+
+.lede {
+	max-width: 36rem;
+	margin: 1.5rem 0 0;
+	color: var(--ink);
+	font-size: 1.125rem;
+	line-height: 1.45;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1.5rem;
+	margin-top: 1.75rem;
+}
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 2.75rem;
+	padding: 0.7rem 1.15rem;
+	border-radius: 0.55rem;
+	background: var(--teal);
+	color: #fff;
+	font-weight: 650;
+	text-decoration: none;
+}
+
+.button:hover {
+	background: #0d655e;
+}
+
+.text-link {
+	color: var(--ink);
+	font-weight: 600;
+}
+
+.address {
+	margin: 0.85rem 0 0;
+	font-size: 0.95rem;
+}
+
+.address a {
+	color: var(--teal);
+}
+
+.phone-wrap {
+	margin: 0;
+}
+
+.phone-wrap figcaption {
+	margin: 0.85rem 0 0;
+	color: var(--muted);
+	font-size: 0.9rem;
+	text-align: center;
+}
+
+.phone {
+	width: 20.5rem;
+	padding: 0.7rem;
+	border-radius: 2.4rem;
+	background: #161616;
+}
+
+.screen {
+	overflow: hidden;
+	border-radius: 1.85rem;
+	background: #fff;
+	color: #111827;
+}
+
+.status {
+	padding: 0.7rem 1.15rem 0.15rem;
+	font-size: 0.8rem;
+	font-weight: 650;
+}
+
+.app-title {
+	margin: 0.15rem 0 0.35rem;
+	font-size: 1.05rem;
+	font-weight: 650;
+	text-align: center;
+}
+
+.sheet {
+	padding: 0.35rem 0.85rem 1.25rem;
+}
+
+.section {
+	display: flex;
+	align-items: center;
+	margin: 0.7rem 0 0.45rem;
+	padding: 0.7rem 0.85rem;
+	border-radius: 0.9rem;
+	font-size: 0.98rem;
+	font-weight: 700;
+}
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.55rem;
+	height: 1.55rem;
+	margin-left: auto;
+	border-radius: 999px;
+	background: #fff;
+	color: #1f2937;
+	font-size: 0.8rem;
+	font-weight: 650;
+}
+
+.do {
+	background: var(--do);
+	color: var(--do-ink);
+}
+
+.schedule {
+	background: var(--schedule);
+	color: var(--schedule-ink);
+}
+
+.delegate {
+	background: var(--delegate);
+	color: var(--delegate-ink);
+}
+
+.eliminate {
+	background: var(--eliminate);
+	color: var(--eliminate-ink);
+}
+
+.task {
+	display: flex;
+	align-items: center;
+	gap: 0.65rem;
+	margin-bottom: 0.45rem;
+	padding: 0.7rem 0.8rem;
+	border-radius: 0.85rem;
+	background: var(--card);
+	font-size: 0.92rem;
+	font-weight: 600;
+}
+
+.box {
+	width: 1.05rem;
+	height: 1.05rem;
+	flex-shrink: 0;
+	border: 1.5px solid #9ca3af;
+	border-radius: 0.2rem;
+}
+
+.empty {
+	margin: 0.15rem 0 0.4rem;
+	color: #9ca3af;
+	font-size: 0.9rem;
+	text-align: center;
+}
+
+.privacy {
+	max-width: 40rem;
+	margin: 0 auto;
+	padding: 1rem 4rem 5rem;
+}
+
+.privacy h2 {
+	margin: 0 0 1rem;
+	font-family: Newsreader, Georgia, serif;
+	font-size: clamp(2rem, 4vw, 2.75rem);
+	font-weight: 700;
+	letter-spacing: -0.03em;
+	line-height: 1.05;
+}
+
+.privacy p {
+	margin: 0 0 1rem;
+	font-size: 1.05rem;
+}
+
+@media (max-width: 860px) {
+	.hero {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2.5rem;
+		min-height: auto;
+		padding: 2.5rem 1.25rem 2rem;
+	}
+
+	.lede {
+		max-width: 100%;
+	}
+
+	.phone-wrap {
+		justify-self: center;
+	}
+
+	.phone {
+		width: min(20.5rem, 100%);
+	}
+
+	.privacy {
+		padding: 1rem 1.25rem 4rem;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	html {
+		scroll-behavior: auto;
+	}
+}

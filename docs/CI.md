@@ -13,7 +13,7 @@ The pipeline lives in `.github/workflows/ci.yml` and runs on every push and pull
 | `web-check` | `npm ci && npm run check` | yes |
 | `web-test` | `npm run test` | yes |
 | `web-build` | `npm run build` | yes |
-| `web-deploy` | Deploy to Cloudflare Pages `eisen-web` on `main` push | yes when secrets exist |
+| `web-deploy` | Deploy the app to Cloudflare Pages `eisen-web` and the welcome site to `eisen-welcome` on `main` push | yes when secrets exist |
 | `dependency-scan` | OSV scanner on lockfiles | yes when lockfiles exist |
 | `sbom` | SPDX SBOM artifact | yes |
 
@@ -34,4 +34,4 @@ npm run test
 npm run build
 ```
 
-Deploy requires `CLOUDFLARE_API_TOKEN` and a Pages project named `eisen-web` (see `wrangler.toml`).
+Deploy requires `CLOUDFLARE_API_TOKEN`, a Pages project named `eisen-web` (see `wrangler.toml`), and a Pages project named `eisen-welcome` for the static site in `site/`.

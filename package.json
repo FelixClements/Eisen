@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "wrangler pages dev .svelte-kit/cloudflare",
     "deploy": "wrangler pages deploy .svelte-kit/cloudflare",
+    "deploy:site": "wrangler pages deploy site --project-name=eisen-welcome --branch=main",
     "deploy:push-cron": "wrangler deploy --config workers/push-cron/wrangler.toml",
     "deploy:sync-fanout": "wrangler deploy --config workers/sync-fanout/wrangler.toml",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && npm run check:sync-fanout",
