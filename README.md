@@ -1,4 +1,13 @@
-# Eisen Web
+# Eisen
+
+A local-first Eisenhower list. One password unlocks your tasks on this device. The server never reads them.
+
+- Welcome site: https://eisen-welcome.pages.dev
+- App: https://eisen-web.pages.dev
+
+![Eisen welcome page, with the headline beside a phone showing the list](site/images/welcome-desktop.png)
+
+![Eisen welcome page on a phone, including how privacy works](site/images/welcome-mobile.png)
 
 SvelteKit + Konsta UI + Better Auth. One account password signs you in and encrypts tasks in the browser. The server stores opaque blobs only.
 
